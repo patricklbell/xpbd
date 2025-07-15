@@ -9,8 +9,6 @@ union OS_Handle {
 OS_Handle   os_zero_handle();
 b8          os_is_handle_zero(OS_Handle handle);
 
-f64 os_now_seconds();
-
 // memory management
 void* os_allocate(u64 size);
 void  os_deallocate(void* ptr);
@@ -26,10 +24,16 @@ NTString8   os_read_line_ml(Arena* arena, OS_Handle file, u64 max_line_length);
 #define os_read_line(arena, file) os_read_line_ml(arena, file, DEFAULT_MAX_LINE_LENGTH)
 
 // graphics and windowing api
-void os_init_gfx();
-void os_restore_gfx();
+void        os_gfx_init();
+void        os_gfx_cleanup();
+OS_Handle   os_gfx_handle();
 
 OS_Handle   os_open_window();
 void        os_close_window(OS_Handle window);
-b8          os_window_has_close_event(OS_Handle window);
 vec2_f32    os_window_size(OS_Handle window);
+
+// events
+b32 os_window_has_close_event(OS_Handle window);
+
+// time
+f64 os_now_seconds();

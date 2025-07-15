@@ -5,7 +5,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdint.h>
-#include <assert.h>
+#include <time.h>
 
 typedef uint8_t  u8;
 typedef uint16_t u16;
@@ -32,18 +32,36 @@ typedef double   f64;
 #define AlignDownPow2(x,b) ((x)&(~((b) - 1)))
 #define AlignPadPow2(x,b)  ((0-(x)) & ((b) - 1))
 
-// @todo msvs and clang
-# define AlignOf(T) __alignof__(T)
+#if COMPILER_MSVC
+    #define AlignOf(T) __alignof(T)
+#elif COMPILER_CLANG
+    #define AlignOf(T) __alignof(T)
+#elif COMPILER_GCC
+    #define AlignOf(T) __alignof__(T)
+#else
+    #error AlignOf not defined for this compiler.
+#endif
 
-// @todo 32 bit architectures
-# define IntFromPtr(ptr) ((u64)(ptr))
+#if ARCH_64BIT
+    #define IntFromPtr(ptr) ((u64)(ptr))
+#elif ARCH_32BIT
+    #define IntFromPtr(ptr) ((u32)(ptr))
+#else
+    #error Missing pointer-to-integer cast for this architecture.
+#endif
 
 #define Member(T,m)                 (((T*)0)->m)
 #define OffsetOf(T,m)               IntFromPtr(&Member(T,m))
 #define MemberFromOffset(T,ptr,off) (T)((((u8 *)ptr)+(off)))
 #define CastFromMember(T,m,ptr)     (T*)(((u8*)ptr) - OffsetOf(T,m))
 
-// units
+#if LANG_CPP
+    #define zero_struct {}
+#else
+    #define zero_struct {0}
+#endif
+
+// unitsM, r_ogl
 #define KB(n)  (((u64)(n)) << 10)
 #define MB(n)  (((u64)(n)) << 20)
 #define GB(n)  (((u64)(n)) << 30)
@@ -58,11 +76,45 @@ typedef double   f64;
 #define Max(A,B)     (((A)>(B))?(A):(B))
 #define Clamp(X,A,B) (((X)<(A))?(A):((X)>(B))?(B):(X))
 
-// @todo MSVC
-# define thread_static __thread
+#if COMPILER_MSVC
+    #define thread_static __declspec(thread)
+#elif COMPILER_CLANG
+    #define thread_static __thread
+#elif COMPILER_GCC
+    #define thread_static __thread
+#else
+    #error Thread static not defined for this compiler.
+#endif
+
+#if COMPILER_MSVC
+# define force_inline __forceinline
+#elif COMPILER_CLANG
+    #define force_inline __attribute__((always_inline))
+#elif COMPILER_GCC
+    #define force_inline __attribute__((always_inline))
+#else
+    #define force_inline
+#endif
 
 // asserts
-// @todo msvc
+#if COMPILER_MSVC
+    #define Trap() __debugbreak()
+#elif COMPILER_CLANG
+    #define Trap() __builtin_trap()
+#elif COMPILER_GCC
+    #define Trap() __builtin_trap()
+#else
+    #error Unknown trap intrinsic for this compiler.
+#endif
+
+#define AssertAlways(x) do{if(!(x)) {Trap();}}while(0)
+#if BUILD_DEBUG
+    #define Assert(x) AssertAlways(x)
+#else
+    #define Assert(x) (void)(x)
+#endif
+#define InvalidPath        Assert(!"Invalid Path!")
+#define NotImplemented     Assert(!"Not Implemented!")
 #define StaticAssert(C, ID) static u8 Glue(ID, __LINE__)[(C)?1:-1]
 
 // linked list macro helpers

@@ -11,10 +11,10 @@ void d_begin_frame() {
     d_thread_ctx->arena = arena;
 }
 
-void d_end_frame(OS_Handle window) {
-    r_window_begin_frame(window);
+void d_end_frame(OS_Handle window, R_Handle rwindow) {
+    r_window_begin_frame(window, rwindow);
     r_submit(window, &d_thread_ctx->passes);
-    r_window_end_frame(window);
+    r_window_end_frame(window, rwindow);
 }
 
 R_PassParams_3D* d_begin_3d_pass(rect_f32 viewport, mat4x4_f32 view, mat4x4_f32 projection) {

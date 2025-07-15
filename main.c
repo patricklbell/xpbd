@@ -1,6 +1,3 @@
-#define GLFW_INCLUDE_NONE // @note disables glfw loading opengl itself
-#include <GLFW/glfw3.h>
-
 // headers
 #include "common/common_inc.h"
 #include "os/os_inc.h"
@@ -21,34 +18,19 @@ int main() {
     ThreadCtx main_ctx;
     thread_equip(&main_ctx);
 
-    os_init_gfx();
-    OS_Handle window = os_open_window();
-    if (os_is_handle_zero(window)) {
-        os_restore_gfx();
-        return 1;
-    }
-    r_equip_window(window);
-
-    // @todo glfwGetProcAddress requires a bound context before initialising
-    r_init();
-
     Arena* asset_arena = arena_alloc();
     MS_MeshResult sphere = ms_load_obj(asset_arena, str_8("sphere.obj"));
     if (sphere.error.length != 0) {
         fprintf(stderr, "%s\n", sphere.error.data);
-        os_restore_gfx();
         return 1;
     }
-
-    R_Handle sphere_vertices = r_buffer_alloc(R_ResourceKind_Static, sphere.v.num_vertices*sizeof(*sphere.v.vertices), sphere.v.vertices);
-    R_Handle sphere_indices  = r_buffer_alloc(R_ResourceKind_Static, sphere.v.num_indices*sizeof(*sphere.v.indices), sphere.v.indices);
 
     PhysicsState physics_state = {
         .ball = {
             .radius = 3.f,
-            .position = {0},
-            .prev_position = {0},
-            .velocity = {0},
+            .position       = zero_struct,
+            .prev_position  = zero_struct,
+            .velocity       = zero_struct,
         },
         .little_g = -9.8
     };
@@ -56,6 +38,25 @@ int main() {
     vec3_f32 eye    = (vec3_f32) { .x = 0.f, .y = 0.f, .z =-15.f };
     vec3_f32 target = (vec3_f32) { .x = 0.f, .y = -6.f, .z = 0.f };
     vec3_f32 up     = (vec3_f32) { .x = 0.f, .y = 1.f, .z = 0.f };
+
+    // initialise the windowing api
+    os_gfx_init();
+
+    // open a window
+    OS_Handle window = os_open_window();
+    if (os_is_handle_zero(window)) {
+        os_gfx_cleanup();
+        return 1;
+    }
+    
+    // initialize rendering api
+    r_init();
+
+    // equip window for rendering
+    R_Handle rwindow = r_os_equip_window(window);
+
+    R_Handle sphere_vertices = r_buffer_alloc(R_ResourceKind_Static, sphere.v.num_vertices*sizeof(*sphere.v.vertices), sphere.v.vertices);
+    R_Handle sphere_indices  = r_buffer_alloc(R_ResourceKind_Static, sphere.v.num_indices*sizeof(*sphere.v.indices), sphere.v.indices);
 
     f64 time;
     while (!os_window_has_close_event(window))
@@ -81,8 +82,10 @@ int main() {
             d_mesh(sphere_vertices, sphere_indices, make_translate_4x4f32(*x));
         }
 
-        d_end_frame(window);
+        d_end_frame(window, rwindow);
     }
+
+    r_cleanup();
     os_close_window(window);
-    os_restore_gfx();
+    os_gfx_cleanup();
 }

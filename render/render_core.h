@@ -118,6 +118,7 @@ typedef enum R_ResourceKind
 } R_ResourceKind;
 
 void r_init();
+void r_cleanup();
 
 R_BatchList r_batch_list_make(u64 instance_size);
 void* r_batch_list_push_inst(Arena *arena, R_BatchList *list, u64 batch_inst_cap);
@@ -127,10 +128,11 @@ R_Pass* r_add_pass_of_kind(Arena *arena, R_PassList *list, R_PassKind kind);
 R_Handle r_buffer_alloc(R_ResourceKind kind, u32 size, void *data);
 void r_buffer_release(R_Handle buffer);
 
-void r_equip_window(OS_Handle window);
-void r_unequip_window();
+R_Handle    r_os_equip_window(OS_Handle window);
+void        r_os_unequip_window(OS_Handle window, R_Handle rwindow);
+void        r_os_select_window(OS_Handle window, R_Handle rwindow);
 
-void r_window_begin_frame(OS_Handle window);
-void r_window_end_frame(OS_Handle window);
+void r_window_begin_frame(OS_Handle window, R_Handle rwindow);
+void r_window_end_frame(OS_Handle window, R_Handle rwindow);
 
 void r_submit(R_PassList *passes);

@@ -1,9 +1,10 @@
 #pragma once
 
-#define R_BACKEND_STUB   0
-#define R_BACKEND_OPENGL 1
+#define R_BACKEND_OPENGL 0
 
-#define R_BACKEND R_BACKEND_OPENGL
+#if !defined(R_BACKEND)
+    #define R_BACKEND R_BACKEND_OPENGL
+#endif
 
 #include "render_core.h"
 

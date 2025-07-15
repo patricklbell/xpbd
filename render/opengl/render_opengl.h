@@ -3,15 +3,26 @@
 #define GLAD_GL_IMPLEMENTATION
 #include "glad/gl.h"
 
-typedef struct R_OGL_Attribute R_OGL_Attribute;
-struct R_OGL_Attribute {
-    GLuint location;
-    GLenum type;
-    GLint size;
-    GLboolean normalized;
-    void* offset;
-    NTString8 name;
-};
+// platform specific backend
+#if OS_WINDOWING_SYSTEM == OS_WINDOWING_SYSTEM_WAYLAND
+    #define GLAD_EGL_IMPLEMENTATION
+    #include "glad/egl.h"
+    #include "egl/render_opengl_egl.h"
+#else
+    // @todo WINAPI -> wgl
+    // @todo XWINDOWS -> glx
+    // @todo LINUX -> detect
+    #error Unsupported windowing system.
+#endif
+
+void    r_ogl_os_init();
+void    r_ogl_os_cleanup();
+void    r_ogl_os_window_swap(OS_Handle window, R_Handle rwindow);
+void*   r_ogl_os_load_procedure_address(char* name);
+
+static GLuint  r_ogl_handle_to_buffer(R_Handle handle);
+static u32     r_ogl_handle_to_size(R_Handle handle);
+static GLuint  r_ogl_temp_buffer(u64 size);
 
 typedef struct R_OGL_BufferChain R_OGL_BufferChain;
 struct R_OGL_BufferChain {
@@ -32,7 +43,7 @@ struct R_OGL_State
     R_OGL_BufferChain* buffer_free_list;
 };
 
-thread_static R_OGL_State r_ogl_state;
+thread_static R_OGL_State r_ogl_state = zero_struct;
 
 // mappings @todo codegen / macros
 typedef struct OGL_ResourceKindMetadata OGL_ResourceKindMetadata;
@@ -48,10 +59,16 @@ static const OGL_ResourceKindMetadata r_ogl_resource_kind[] = {
     (OGL_ResourceKindMetadata) { .usage = GL_STREAM_DRAW },
 };
 
-void r_ogl_init();
-GLuint r_ogl_temp_buffer(u64 size);
+typedef struct R_OGL_Attribute R_OGL_Attribute;
+struct R_OGL_Attribute {
+    GLuint location;
+    GLenum type;
+    GLint size;
+    GLboolean normalized;
+    void* offset;
+    NTString8 name;
+};
 
-void r_os_window_swap(OS_Handle window);
 
 static const NTString8 r_ogl_vertex_shader_src = str_8(
     "#version 330 core\n"

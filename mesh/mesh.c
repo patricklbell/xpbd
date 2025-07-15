@@ -69,7 +69,7 @@ MS_MeshResult ms_load_obj(Arena* arena, NTString8 path) {
             }
             temp_end(temp);
         }
-        assert(num_positions < ((u32)-1) && num_normals < ((u32)-1) && num_uvs < ((u32)-1));
+        Assert(num_positions < ((u32)-1) && num_normals < ((u32)-1) && num_uvs < ((u32)-1));
         
         mesh.num_indices = num_indices;
         mesh.indices = push_array(arena, u32, mesh.num_indices);

@@ -40,5 +40,5 @@ Arena* thread_get_scratch(Arena** conflicts, u64 count) {
         }
     }
 
-    return NULL; // @todo
+    return NULL; // @todo logging
 }

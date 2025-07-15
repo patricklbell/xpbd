@@ -1,20 +1,23 @@
-// @todo platforms
-#include "glfw/render_opengl_glfw.c"
+// platform specific backend
+#if OS_WINDOWING_SYSTEM == OS_WINDOWING_SYSTEM_WAYLAND
+    #include "egl/render_opengl_egl.c"
+#else
+    // @todo WINAPI -> wgl
+    // @todo XWINDOWS -> glx
+    // @todo LINUX -> detect
+    #error Unsupported windowing system.
+#endif
 
-// GL specific section
-static GLuint r_gl_handle_to_buffer(R_Handle handle) {
+// helpers
+static GLuint r_ogl_handle_to_buffer(R_Handle handle) {
     return handle.v32[0];
 }
 
-static u32 r_gl_handle_to_size(R_Handle handle) {
+static u32 r_ogl_handle_to_size(R_Handle handle) {
     return handle.v32[1];
 }
 
-void r_ogl_init() {
-    gladLoadGL(glfwGetProcAddress);
-}
-
-GLuint r_ogl_temp_buffer(u64 size) {
+static GLuint r_ogl_temp_buffer(u64 size) {
     GLuint buffer = r_ogl_state.shared_buffer;
     if (size > r_ogl_state.shared_buffer_size) {    
         glGenBuffers(1, &buffer);
@@ -31,12 +34,9 @@ GLuint r_ogl_temp_buffer(u64 size) {
 
 // render implementation section
 void r_init() {
-    r_ogl_init();
+    r_ogl_os_init();
 
     r_ogl_state.per_frame_arena = arena_alloc();
-
-    glGenVertexArrays(1, &r_ogl_state.shared_vao);
-    glEnable(GL_SCISSOR_TEST);
 
     // build and compile our shader program
     {
@@ -51,7 +51,7 @@ void r_init() {
         glCompileShader(vertex_id);
         glGetShaderiv(vertex_id, GL_COMPILE_STATUS, &success);
         glGetShaderInfoLog(vertex_id, ArrayLength(log), NULL, log); // @todo debug
-        assert(success);
+        AssertAlways(success);
     
         // fragment shader
         const char* fragment_src[] = { r_ogl_fragment_shader_src.data };
@@ -60,7 +60,8 @@ void r_init() {
         glShaderSource(fragment_id, 1, fragment_src, fragment_src_lens);
         glCompileShader(fragment_id);
         glGetShaderiv(fragment_id, GL_COMPILE_STATUS, &success);
-        glGetShaderInfoLog(fragment_id, ArrayLength(log), NULL, log); // @todo debug        assert(success);
+        glGetShaderInfoLog(fragment_id, ArrayLength(log), NULL, log); // @todo debug
+        AssertAlways(success);
 
         // enable attributes
         for EachElement(i, r_ogl_shader_vertex_attributes) {
@@ -79,7 +80,7 @@ void r_init() {
         glLinkProgram(program);
         glGetProgramiv(program, GL_LINK_STATUS, &success);
         glGetProgramInfoLog(program, ArrayLength(log), NULL, log); // @todo debug
-        assert(success);
+        AssertAlways(success);
         glDeleteShader(vertex_id);
         glDeleteShader(fragment_id);
 
@@ -89,13 +90,24 @@ void r_init() {
     // use our program
     glUseProgram(r_ogl_state.program);
 
+    glGenVertexArrays(1, &r_ogl_state.shared_vao);
+    glBindVertexArray(r_ogl_state.shared_vao);
+    
     r_ogl_state.shared_buffer_size = KB(64);
     glGenBuffers(1, &r_ogl_state.shared_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, r_ogl_state.shared_buffer);
     glBufferData(GL_ARRAY_BUFFER, r_ogl_state.shared_buffer_size, 0, GL_DYNAMIC_DRAW);
+    
+    // match colorspace of windows
+    glEnable(GL_FRAMEBUFFER_SRGB);
 }
 
-void r_window_begin_frame(OS_Handle window) {
+void r_cleanup() {
+    r_ogl_os_cleanup();
+}
+
+void r_window_begin_frame(OS_Handle window, R_Handle rwindow) {
+    r_os_select_window(window, rwindow);
     vec2_f32 window_size = os_window_size(window);
 
     glClearColor(0, 0, 0, 0);
@@ -105,18 +117,18 @@ void r_window_begin_frame(OS_Handle window) {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-void r_window_end_frame(OS_Handle window) {
+void r_window_end_frame(OS_Handle window, R_Handle rwindow) {
     for EachList(n, R_OGL_BufferChain, r_ogl_state.buffer_free_list) {
         glDeleteBuffers(1, &n->buffer);
     }
     r_ogl_state.buffer_free_list = NULL;
     arena_clear(r_ogl_state.per_frame_arena);
 
-    r_os_window_swap(window);
+    r_ogl_os_window_swap(window, rwindow);
 }
 
 R_Handle r_buffer_alloc(R_ResourceKind kind, u32 size, void *data) {
-    assert(kind >= 0 && kind < ArrayLength(r_ogl_resource_kind));
+    Assert(kind >= 0 && kind < ArrayLength(r_ogl_resource_kind));
 
     R_Handle buffer;
     glGenBuffers(1, &buffer.v32[0]);
@@ -129,7 +141,7 @@ R_Handle r_buffer_alloc(R_ResourceKind kind, u32 size, void *data) {
 }
 
 void r_buffer_release(R_Handle handle) {
-    GLuint buffer = r_gl_handle_to_buffer(handle);
+    GLuint buffer = r_ogl_handle_to_buffer(handle);
     glDeleteBuffers(1, &buffer);
 }
 
@@ -144,6 +156,7 @@ void r_submit(OS_Handle window, R_PassList *passes) {
 
                 glViewport(params->viewport.tl.x, params->viewport.tl.y, params->viewport.br.x, params->viewport.br.y);
                 glScissor(params->clip.tl.x, params->clip.tl.y, params->clip.br.x, params->clip.br.y);
+                glEnable(GL_SCISSOR_TEST);
                 glUniformMatrix4fv(glGetUniformLocation(r_ogl_state.program, "u_projection"), 1, GL_FALSE, &params->projection.v[0][0]);
                 glUniformMatrix4fv(glGetUniformLocation(r_ogl_state.program, "u_view"), 1, GL_FALSE, &params->view.v[0][0]);
 
@@ -156,7 +169,7 @@ void r_submit(OS_Handle window, R_PassList *passes) {
                         // bind group data
                         {
                             GLuint bind_index = 0;
-                            glBindVertexBuffer(bind_index, r_gl_handle_to_buffer(group_params->mesh_vertices), 0, sizeof(R_VertexLayout));
+                            glBindVertexBuffer(bind_index, r_ogl_handle_to_buffer(group_params->mesh_vertices), 0, sizeof(R_VertexLayout));
                             for EachElement(i, r_ogl_shader_vertex_attributes) {
                                 const R_OGL_Attribute* attribute = &r_ogl_shader_vertex_attributes[i];
                                 glEnableVertexAttribArray(attribute->location);
@@ -187,18 +200,19 @@ void r_submit(OS_Handle window, R_PassList *passes) {
                         }
 
                         // bind element buffer
-                        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, r_gl_handle_to_buffer(group_params->mesh_indices));
+                        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, r_ogl_handle_to_buffer(group_params->mesh_indices));
 
                         // draw instances
-                        glDrawElementsInstanced(GL_TRIANGLES, r_gl_handle_to_size(group_params->mesh_indices)/sizeof(u32), GL_UNSIGNED_INT, 0, batches->num_batches);
+                        glDrawElementsInstanced(GL_TRIANGLES, r_ogl_handle_to_size(group_params->mesh_indices)/sizeof(u32), GL_UNSIGNED_INT, 0, batches->num_batches);
                     }
                 }
+
+                glDisable(GL_SCISSOR_TEST);
 
                 break;
             }
             default: {
-                // @todo
-                assert(false);
+                InvalidPath;
                 break;
             }
         }

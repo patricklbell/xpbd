@@ -1,4 +1,7 @@
 #include "os_core.c"
 
-// @todo platforms
-#include "glfw/os_glfw.c"
+#if OS_LINUX
+    #include "linux/os_linux.c"
+#else
+    #error OS not supported.
+#endif

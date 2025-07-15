@@ -69,7 +69,7 @@ void* arena_push(Arena* arena, u64 size, u64 align) {
         current = new_page;
         page_offset_before = AlignPow2(current->page_offset, align);
         page_offset_after = page_offset_before + size;
-        assert(page_offset_after <= current->page_size); // @todo reserve across pages
+        Assert(page_offset_after <= current->page_size); // @todo reserve across pages
     }
 
     // push onto current page
