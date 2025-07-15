@@ -10,6 +10,7 @@ union vec2_f32 {
     f32 v[2];
 };
 
+vec2_f32 make_2f32(f32 x, f32 y);
 vec2_f32 add_2f32(vec2_f32 a, vec2_f32 b);
 vec2_f32 sub_2f32(vec2_f32 a, vec2_f32 b);
 vec2_f32 mul_2f32(vec2_f32 a, f32 b);
@@ -24,6 +25,14 @@ union vec3_f32 {
         f32 y;
         f32 z;
     };
+    union {
+        vec2_f32 xy;
+        f32 _z;
+    };
+    union {
+        f32 _x;
+        vec2_f32 yz;
+    };
     struct {
         f32 r;
         f32 g;
@@ -33,6 +42,8 @@ union vec3_f32 {
     f32 v[3];
 };
 
+vec3_f32 make_3f32(f32 x, f32 y, f32 z);
+vec3_f32 make_up_3f32();
 vec3_f32 add_3f32(vec3_f32 a, vec3_f32 b);
 vec3_f32 sub_3f32(vec3_f32 a, vec3_f32 b);
 vec3_f32 mul_3f32(vec3_f32 a, f32 b);
@@ -50,6 +61,18 @@ union vec4_f32 {
         f32 z;
         f32 w;
     };
+    union {
+        vec2_f32 xy;
+        vec2_f32 zw;
+    };
+    union {
+        vec3_f32 xyz;
+        f32 _w;
+    };
+    union {
+        f32 _x;
+        vec3_f32 yzw;
+    };
     struct {
         f32 r;
         f32 g;
@@ -60,7 +83,11 @@ union vec4_f32 {
     f32 v[4];
 };
 
-vec4_f32 make_quat_4f32(f32 t, vec3_f32 a);
+vec4_f32 make_quat(f64 t, vec3_f32 a);
+vec4_f32 inv_quat(vec4_f32 q);
+vec3_f32 rot_quat(vec3_f32 a, vec4_f32 q);
+
+vec4_f32 make_4f32(f32 x, f32 y, f32 z, f32 w);
 vec4_f32 add_4f32(vec4_f32 a, vec4_f32 b);
 vec4_f32 sub_4f32(vec4_f32 a, vec4_f32 b);
 vec4_f32 mul_4f32(vec4_f32 a, f32 b);
@@ -93,6 +120,8 @@ mat4x4_f32 add_4x4f32(mat4x4_f32 a, mat4x4_f32 b);
 mat4x4_f32 sub_4x4f32(mat4x4_f32 a, mat4x4_f32 b);
 mat4x4_f32 mul_4x4f32(mat4x4_f32 a, mat4x4_f32 b);
 mat4x4_f32 transpose_4x4f32(mat4x4_f32 a);
+
+void decompose_4x4f32(mat4x4_f32 view, vec3_f32* f, vec3_f32* s, vec3_f32* u, vec3_f32* p);
 
 typedef union rect_f32 rect_f32;
 union rect_f32 {

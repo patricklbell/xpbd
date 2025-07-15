@@ -1,18 +1,22 @@
 // headers
-#include "common/common_inc.h"
-#include "os/os_inc.h"
-#include "physics/physics_inc.h"
-#include "render/render_inc.h"
-#include "draw/draw.h"
-#include "mesh/mesh.h"
+#include "../common/common_inc.h"
+#include "../os/os_inc.h"
+#include "../physics/physics_inc.h"
+#include "../render/render_inc.h"
+#include "../draw/draw.h"
+#include "../mesh/mesh.h"
+#include "../input/input.h"
+#include "xpbd_controls.h"
 
 // implementations
-#include "common/common_inc.c"
-#include "os/os_inc.c"
-#include "physics/physics_inc.c"
-#include "render/render_inc.c"
-#include "draw/draw.c"
-#include "mesh/mesh.c"
+#include "../common/common_inc.c"
+#include "../os/os_inc.c"
+#include "../physics/physics_inc.c"
+#include "../render/render_inc.c"
+#include "../draw/draw.c"
+#include "../mesh/mesh.c"
+#include "../input/input.c"
+#include "xpbd_controls.c"
 
 int main() {
     ThreadCtx main_ctx;
@@ -35,10 +39,6 @@ int main() {
         .little_g = -9.8
     };
 
-    vec3_f32 eye    = (vec3_f32) { .x = 0.f, .y = 0.f, .z =15.f };
-    vec3_f32 target = (vec3_f32) { .x = 0.f, .y =-6.f, .z = 0.f };
-    vec3_f32 up     = (vec3_f32) { .x = 0.f, .y = 1.f, .z = 0.f };
-
     // initialise the windowing api
     os_gfx_init();
 
@@ -58,30 +58,32 @@ int main() {
     R_Handle sphere_vertices = r_buffer_alloc(R_ResourceKind_Static, sphere.v.num_vertices*sizeof(*sphere.v.vertices), sphere.v.vertices);
     R_Handle sphere_indices  = r_buffer_alloc(R_ResourceKind_Static, sphere.v.num_indices*sizeof(*sphere.v.indices), sphere.v.indices);
 
+    vec3_f32 eye    = (vec3_f32){.x = 0,.y = 0,.z =15};
+    vec3_f32 target = (vec3_f32){.x = 0,.y =-6,.z = 0};
+
     f64 time = os_now_seconds();
-    while (!os_window_has_close_event(window))
-    {
+    input_init();
+    while (!input_has_quit()) {
+        input_update(window);
         f64 ntime = os_now_seconds();
         f64 dt = ntime - time;
         time = ntime;
 
         phys_step(&physics_state, dt);
 
-        vec3_f32* x = &physics_state.ball.position;
-        printf("%.3f %.3f %.3f\n", x->x, x->y, x->z);
-
+        xpbd_controls_orbit_camera(window, &eye, &target);
+        
         d_begin_pipeline();
-
         {
             vec2_f32 window_size = os_window_size(window);
             rect_f32 viewport = make_rect_f32((vec2_f32){}, window_size);
-            mat4x4_f32 view = make_look_at_4x4f32(eye, target, up);
             mat4x4_f32 projection = make_perspective_4x4f32(DegreesToRad(45), window_size.x / window_size.y, 0.1, 100.f);
+            mat4x4_f32 view = make_look_at_4x4f32(eye, target, make_up_3f32());
             d_begin_3d_pass(viewport, view, projection);
-
+            
+            vec3_f32* x = &physics_state.ball.position;
             d_mesh(sphere_vertices, sphere_indices, make_translate_4x4f32(*x));
         }
-
         d_submit_pipeline(window, rwindow);
     }
 

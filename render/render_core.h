@@ -79,8 +79,8 @@ struct R_PassParams_3D
 
 typedef enum R_PassKind
 {
-        R_PassKind_3D,
-        R_PassKind_COUNT,
+    R_PassKind_3D,
+    R_PassKind_COUNT,
 } R_PassKind;
 
 typedef struct R_Pass R_Pass;

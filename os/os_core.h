@@ -33,7 +33,45 @@ void        os_close_window(OS_Handle window);
 vec2_f32    os_window_size(OS_Handle window);
 
 // events
-b32 os_window_has_close_event(OS_Handle window);
+typedef enum OS_EventType {
+    OS_EventType_Press,
+    OS_EventType_Release,
+    OS_EventType_MouseMove,
+    OS_EventType_Quit,
+    OS_EventType_COUNT,
+} OS_EventType;
+
+typedef enum OS_Key {
+    OS_Key_LeftMouseButton,
+    OS_Key_RightMouseButton,
+    OS_Key_COUNT,
+} OS_Key;
+
+typedef struct OS_Event OS_Event;
+struct OS_Event {
+    OS_EventType type;
+    OS_Key key;
+    struct {
+        f64 seconds;
+    } time;
+    vec2_f32 mouse_position;
+};
+
+typedef struct OS_EventNode OS_EventNode;
+struct OS_EventNode {
+    OS_EventNode* next;
+    OS_EventNode* prev;
+    OS_Event v;
+};
+
+typedef struct OS_EventList OS_EventList;
+struct OS_EventList {
+    OS_EventNode* first;
+    OS_EventNode* last;
+    u64 length;
+};
+
+OS_EventList os_window_poll_events(Arena* arena, OS_Handle window);
 
 // time
 f64 os_now_seconds();

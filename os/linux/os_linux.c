@@ -1,7 +1,7 @@
 f64 os_now_seconds() {
     struct timeval tval;
     gettimeofday(&tval, NULL);
-    return (f64)tval.tv_sec + (f64)tval.tv_usec / Million(1);
+    return (f64)tval.tv_sec + (f64)tval.tv_usec / Million(1.f);
 }
 
 void os_gfx_init() {
@@ -34,7 +34,9 @@ OS_Handle os_open_window() {
 
     XSetWindowAttributes attributes;
     attributes.colormap = colormap;
-    attributes.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask;
+    attributes.event_mask = ExposureMask |
+                            KeyPressMask | KeyReleaseMask | 
+                            ButtonPressMask | ButtonReleaseMask | PointerMotionMask;
     unsigned long valuemask = CWColormap | CWEventMask; // which attributes we attach
 
     int x = 0, y = 0;
@@ -77,16 +79,66 @@ vec2_f32 os_window_size(OS_Handle window) {
     return (vec2_f32){.x = (f32)gwa.width, .y = (f32)gwa.height};
 }
 
-b32 os_window_has_close_event(OS_Handle window) {
+static OS_Event* os_window_add_event(Arena* arena, OS_EventList* list, OS_EventType type) {
+    OS_EventNode* n = push_array(arena, OS_EventNode, 1);
+    n->v.type = type;
+    dllist_push_back(list->first, list->last, n);
+    list->length++;
+    return &n->v;
+}
+
+static b32 os_linux_x11_button_to_key(OS_Key* key, unsigned int button) {
+    switch (button) {
+        case Button1: *key = OS_Key_LeftMouseButton; break;
+        case Button3: *key = OS_Key_RightMouseButton; break;
+        default: return 0;
+    }   
+
+    return 1;
+}
+
+static vec2_f32 os_linux_transform_mouse(OS_Handle window, int x, int y) {
+    return (vec2_f32){
+        .x = (f32)x,
+        .y = os_window_size(window).y - (f32)y
+    };
+}
+
+OS_EventList os_window_poll_events(Arena* arena, OS_Handle window) {
+    OS_EventList events = zero_struct;
+
     XEvent event;
     while (XPending(os_gfx_x11_state.display)) {
         XNextEvent(os_gfx_x11_state.display, &event);
 
-        if (event.type == ClientMessage && event.xclient.data.l[0] == os_gfx_x11_state.atom_wm_close) {
-            return 1;
+        switch (event.type) {
+            case ClientMessage: {
+                if (event.xclient.data.l[0] == os_gfx_x11_state.atom_wm_close) {
+                    os_window_add_event(arena, &events, OS_EventType_Quit);
+                }
+                break;
+            }
+            case ButtonPress:
+            case ButtonRelease: {
+                OS_Key key;
+                if (os_linux_x11_button_to_key(&key, event.xbutton.button)) {
+                    OS_Event* e = os_window_add_event(
+                        arena, &events,
+                        event.type == ButtonPress ? OS_EventType_Press : OS_EventType_Release
+                    );
+                    e->key = key;
+                    e->mouse_position = os_linux_transform_mouse(window, event.xbutton.x, event.xbutton.y);
+                    e->time.seconds = (f64)event.xbutton.time / Thousand(1);
+                }
+                break;
+            }
+            case MotionNotify: {
+                OS_Event* e = os_window_add_event(arena, &events, OS_EventType_MouseMove);
+                e->mouse_position = os_linux_transform_mouse(window, event.xmotion.x, event.xmotion.y);
+                e->time.seconds = (f64)event.xmotion.time / Thousand(1);
+            }
         }
     }
 
-    return 0;
+    return events;
 }
-
