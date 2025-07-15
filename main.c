@@ -58,7 +58,7 @@ int main() {
     R_Handle sphere_vertices = r_buffer_alloc(R_ResourceKind_Static, sphere.v.num_vertices*sizeof(*sphere.v.vertices), sphere.v.vertices);
     R_Handle sphere_indices  = r_buffer_alloc(R_ResourceKind_Static, sphere.v.num_indices*sizeof(*sphere.v.indices), sphere.v.indices);
 
-    f64 time;
+    f64 time = os_now_seconds();
     while (!os_window_has_close_event(window))
     {
         f64 ntime = os_now_seconds();
@@ -70,7 +70,7 @@ int main() {
         vec3_f32* x = &physics_state.ball.position;
         printf("%.3f %.3f %.3f\n", x->x, x->y, x->z);
 
-        d_begin_frame();
+        d_begin_pipeline();
 
         {
             vec2_f32 window_size = os_window_size(window);
@@ -82,7 +82,7 @@ int main() {
             d_mesh(sphere_vertices, sphere_indices, make_translate_4x4f32(*x));
         }
 
-        d_end_frame(window, rwindow);
+        d_submit_pipeline(window, rwindow);
     }
 
     r_cleanup();

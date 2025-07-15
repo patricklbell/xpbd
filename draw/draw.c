@@ -1,4 +1,4 @@
-void d_begin_frame() {
+void d_begin_pipeline() {
     Arena* arena;
     if (d_thread_ctx == NULL) {
         arena = arena_alloc();
@@ -11,7 +11,7 @@ void d_begin_frame() {
     d_thread_ctx->arena = arena;
 }
 
-void d_end_frame(OS_Handle window, R_Handle rwindow) {
+void d_submit_pipeline(OS_Handle window, R_Handle rwindow) {
     r_window_begin_frame(window, rwindow);
     r_submit(window, &d_thread_ctx->passes);
     r_window_end_frame(window, rwindow);
