@@ -35,8 +35,8 @@ int main() {
         .little_g = -9.8
     };
 
-    vec3_f32 eye    = (vec3_f32) { .x = 0.f, .y = 0.f, .z =-15.f };
-    vec3_f32 target = (vec3_f32) { .x = 0.f, .y = -6.f, .z = 0.f };
+    vec3_f32 eye    = (vec3_f32) { .x = 0.f, .y = 0.f, .z =15.f };
+    vec3_f32 target = (vec3_f32) { .x = 0.f, .y =-6.f, .z = 0.f };
     vec3_f32 up     = (vec3_f32) { .x = 0.f, .y = 1.f, .z = 0.f };
 
     // initialise the windowing api

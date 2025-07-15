@@ -30,14 +30,16 @@ static u32 ms_add_to_vertex_map(Arena* arena, MS_VertexMap* map, MS_VertexMapHas
     return vn->index;
 }
 
-static void ms_vertex_map_data(R_VertexLayout* data, MS_VertexMap* map, vec3_f32* positions, vec3_f32* normals, vec2_f32* uvs) {
+static R_VertexLayout* ms_vertex_map_data(Arena* arena, MS_VertexMap* map, vec3_f32* positions, vec3_f32* normals, vec2_f32* uvs) {
+    R_VertexLayout* result = push_array(arena, R_VertexLayout, map->num_vertices);
     for EachIndex(slot, map->num_slots) {
         for EachList(n_vertex, MS_VertexMapNode, map->slots[slot]) {
-            data[n_vertex->index].position  = positions [n_vertex->hash.position];
-            data[n_vertex->index].normal    = normals   [n_vertex->hash.normal];
-            data[n_vertex->index].uv        = uvs       [n_vertex->hash.uv];
+            result[n_vertex->index].position  = positions [n_vertex->hash.position];
+            result[n_vertex->index].normal    = normals   [n_vertex->hash.normal];
+            result[n_vertex->index].uv        = uvs       [n_vertex->hash.uv];
         }
     }
+    return result;
 }
 
 // loaders
@@ -89,7 +91,6 @@ MS_MeshResult ms_load_obj(Arena* arena, NTString8 path) {
                 Temp temp = temp_begin(scratch.arena);
                 NTString8 line = os_read_line(scratch.arena, file);
 
-                // @note needs to end temp to persist allocation
                 if (str_begins_with(line, "f ")) {
                     // @todo other polygons and formats
                     static const int NUM_INDICES = 3;
@@ -101,7 +102,7 @@ MS_MeshResult ms_load_obj(Arena* arena, NTString8 path) {
                         &p[1], &uv[1], &n[1],
                         &p[2], &uv[2], &n[2]
                     );
-                    temp_end(temp);
+                    temp_end(temp); // @note needs to end temp to persist allocation
     
                     // deduplicate indices so that vertex data is shared and store indice
                     for EachIndex(i, NUM_INDICES) {
@@ -140,8 +141,7 @@ MS_MeshResult ms_load_obj(Arena* arena, NTString8 path) {
             }
     
             mesh.num_vertices = vertex_map.num_vertices;
-            mesh.vertices = push_array(arena, R_VertexLayout, mesh.num_vertices);
-            ms_vertex_map_data(mesh.vertices, &vertex_map, positions, normals, uvs);
+            mesh.vertices = ms_vertex_map_data(arena, &vertex_map, positions, normals, uvs);
         }
     
         scratch_end(scratch);

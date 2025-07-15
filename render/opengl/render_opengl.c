@@ -151,12 +151,12 @@ void r_submit(OS_Handle window, R_PassList *passes) {
         switch (pass->kind) {
             case R_PassKind_3D: {
                 R_PassParams_3D* params = pass->params_3d;
-
-                mat4x4_f32 vp = mul_4x4f32(params->projection, params->view);
-
+                
                 glViewport(params->viewport.tl.x, params->viewport.tl.y, params->viewport.br.x, params->viewport.br.y);
                 glScissor(params->clip.tl.x, params->clip.tl.y, params->clip.br.x, params->clip.br.y);
                 glEnable(GL_SCISSOR_TEST);
+                glEnable(GL_DEPTH_TEST);
+
                 glUniformMatrix4fv(glGetUniformLocation(r_ogl_state.program, "u_projection"), 1, GL_FALSE, &params->projection.v[0][0]);
                 glUniformMatrix4fv(glGetUniformLocation(r_ogl_state.program, "u_view"), 1, GL_FALSE, &params->view.v[0][0]);
 
@@ -208,6 +208,7 @@ void r_submit(OS_Handle window, R_PassList *passes) {
                 }
 
                 glDisable(GL_SCISSOR_TEST);
+                glDisable(GL_DEPTH_TEST);
 
                 break;
             }

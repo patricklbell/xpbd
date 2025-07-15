@@ -97,11 +97,14 @@ static const NTString8 r_ogl_fragment_shader_src = str_8(
     "out vec4 out_color;"
     ""
     "void main() {"
+    "   vec3 albedo = vec3(0.5, 0.4, 0.4);"
+    ""
+    "   vec3 n = normalize(vs_normal);"
     "   vec3 i = normalize(vec3(1, -1, 1));"
-    "   float IdotN = max(dot(i, vs_normal), 0);"
-    "   vec3 albedo = vec3(0.5, 0, 0);"
-    "   float ambient = 0.25;"
-    "   out_color = vec4(min(IdotN + ambient, 1)*albedo, 1);"
+    "   float idotn = clamp(dot(i, n), 0, 1);"
+    "   float ambient = 0.1;"
+    "   vec3 Lr = ((1.f-ambient)*idotn + ambient)*albedo;"
+    "   out_color = vec4(Lr, 1.0);"
     "}"
 );
 
