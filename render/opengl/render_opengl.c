@@ -179,11 +179,11 @@ void r_submit(OS_Handle window, R_PassList *passes) {
                         }
 
                         // allocate and bind per-instance data
+                        u64 byte_offset = 0;
                         {
                             GLuint ibo = r_ogl_temp_buffer(batches->num_bytes);
                             
                             // fill buffer with instance data
-                            u64 byte_offset = 0;
                             glBindBuffer(GL_ARRAY_BUFFER, ibo);
                             for EachList(batch, R_BatchNode, batches->first) {
                                 glBufferSubData(GL_ARRAY_BUFFER, byte_offset, batch->v.num_bytes, batch->v.v);
@@ -203,7 +203,7 @@ void r_submit(OS_Handle window, R_PassList *passes) {
                         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, r_ogl_handle_to_buffer(group_params->mesh_indices));
 
                         // draw instances
-                        glDrawElementsInstanced(GL_TRIANGLES, r_ogl_handle_to_size(group_params->mesh_indices)/sizeof(u32), GL_UNSIGNED_INT, 0, batches->num_batches);
+                        glDrawElementsInstanced(GL_TRIANGLES, r_ogl_handle_to_size(group_params->mesh_indices)/sizeof(u32), GL_UNSIGNED_INT, 0, byte_offset/batches->bytes_per_inst);
                     }
                 }
 

@@ -148,7 +148,7 @@ rect_f32 make_rect_f32(vec2_f32 tl, vec2_f32 br);
 #define sin_f32(v)    sinf(v)
 #define cos_f32(v)    cosf(v)
 #define tan_f32(v)    tanf(v)
-
+#define rand_f32()    ((f32)rand()/(f32)RAND_MAX)
 
 #define sqrt_f64(v)   sqrt(v)
 #define cbrt_f64(v)   cbrt(v)
@@ -161,5 +161,6 @@ rect_f32 make_rect_f32(vec2_f32 tl, vec2_f32 br);
 #define sin_f64(v)    sin(v)
 #define cos_f64(v)    cos(v)
 #define tan_f64(v)    tan(v)
+#define rand_f64()    ((f64)rand()/(f64)RAND_MAX)
 
 u64 hash_u64(u8* buffer, u64 size);

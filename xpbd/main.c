@@ -22,22 +22,12 @@ int main() {
     ThreadCtx main_ctx;
     thread_equip(&main_ctx);
 
-    Arena* asset_arena = arena_alloc();
-    MS_MeshResult sphere = ms_load_obj(asset_arena, str_8("sphere.obj"));
+    Arena* main_arena = arena_alloc();
+    MS_MeshResult sphere = ms_load_obj(main_arena, str_8("sphere.obj"));
     if (sphere.error.length != 0) {
         fprintf(stderr, "%s\n", sphere.error.data);
         return 1;
     }
-
-    PhysicsState physics_state = {
-        .ball = {
-            .radius = 3.f,
-            .position       = zero_struct,
-            .prev_position  = zero_struct,
-            .velocity       = zero_struct,
-        },
-        .little_g = -9.8
-    };
 
     // initialise the windowing api
     os_gfx_init();
@@ -58,8 +48,10 @@ int main() {
     R_Handle sphere_vertices = r_buffer_alloc(R_ResourceKind_Static, sphere.v.num_vertices*sizeof(*sphere.v.vertices), sphere.v.vertices);
     R_Handle sphere_indices  = r_buffer_alloc(R_ResourceKind_Static, sphere.v.num_indices*sizeof(*sphere.v.indices), sphere.v.indices);
 
-    vec3_f32 eye    = (vec3_f32){.x = 0,.y = 0,.z =15};
-    vec3_f32 target = (vec3_f32){.x = 0,.y =-6,.z = 0};
+    vec3_f32 eye    = (vec3_f32){.x = 0,.y = 0,.z =30};
+    vec3_f32 target = (vec3_f32){.x = 0,.y = 0,.z = 0};
+
+    PHYS_World* world = phys_world_create(main_arena);
 
     f64 time = os_now_seconds();
     input_init();
@@ -68,8 +60,8 @@ int main() {
         f64 ntime = os_now_seconds();
         f64 dt = ntime - time;
         time = ntime;
-
-        phys_step(&physics_state, dt);
+        
+        phys_world_step(world, dt);
 
         xpbd_controls_orbit_camera(window, &eye, &target);
         
@@ -81,8 +73,14 @@ int main() {
             mat4x4_f32 view = make_look_at_4x4f32(eye, target, make_up_3f32());
             d_begin_3d_pass(viewport, view, projection);
             
-            vec3_f32* x = &physics_state.ball.position;
-            d_mesh(sphere_vertices, sphere_indices, make_translate_4x4f32(*x));
+            for EachIndex(pi, world->num_particles) {
+                PHYS_Particle* p = &world->particles[pi];
+                mat4x4_f32 t = mul_4x4f32(
+                    make_translate_4x4f32(p->position),
+                    make_scale_4x4f32(make_3f32(p->radius, p->radius, p->radius))
+                );
+                d_mesh(sphere_vertices, sphere_indices, t);
+            }
         }
         d_submit_pipeline(window, rwindow);
     }
