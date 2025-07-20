@@ -2,6 +2,7 @@ vec2_f32 make_2f32(f32 x, f32 y)                { return (vec2_f32) {.x=x,.y=y};
 vec2_f32 add_2f32(vec2_f32 a, vec2_f32 b)       { return (vec2_f32) {.x = a.x + b.x,.y = a.y + b.y}; }
 vec2_f32 sub_2f32(vec2_f32 a, vec2_f32 b)       { return (vec2_f32) {.x = a.x - b.x,.y = a.y - b.y}; }
 vec2_f32 mul_2f32(vec2_f32 a, f32 b)            { return (vec2_f32) {.x = a.x*b,.y = a.y*b}; }
+vec2_f32 elmul_2f32(vec2_f32 a, vec2_f32 b)     { return (vec2_f32) {.x = a.x*b.x,.y = a.y*b.y}; }
 f32      dot_2f32(vec2_f32 a, vec2_f32 b)       { return a.x*b.x + a.y*b.y; }
 f32      length_2f32(vec2_f32 a)                { return sqrt_f32(a.x*a.x + a.y*a.y); }
 vec2_f32 normalize_2f32(vec2_f32 a)             { f32 l = length_2f32(a); return (vec2_f32) {.x = a.x/l,.y = a.y/l}; }
@@ -11,6 +12,7 @@ vec3_f32 make_up_3f32()                         { return (vec3_f32) {.x=0,.y=1,.
 vec3_f32 add_3f32(vec3_f32 a, vec3_f32 b)       { return (vec3_f32) {.x = a.x + b.x,.y = a.y + b.y,.z = a.z + b.z}; }
 vec3_f32 sub_3f32(vec3_f32 a, vec3_f32 b)       { return (vec3_f32) {.x = a.x - b.x,.y = a.y - b.y,.z = a.z - b.z}; }
 vec3_f32 mul_3f32(vec3_f32 a, f32 b)            { return (vec3_f32) {.x = a.x*b,.y = a.y*b,.z = a.z*b}; }
+vec3_f32 elmul_2f32(vec3_f32 a, vec3_f32 b)     { return (vec3_f32) {.x = a.x*b.x,.y = a.y*b.y,.z = a.z*b.z}; }
 f32      dot_3f32(vec3_f32 a, vec3_f32 b)       { return a.x*b.x + a.y*b.y + a.z*b.z; }
 f32      length_3f32(vec3_f32 a)                { return sqrt_f32(a.x*a.x + a.y*a.y + a.z*a.z); }
 vec3_f32 normalize_3f32(vec3_f32 a)             { f32 l = length_3f32(a); return (vec3_f32) {.x = a.x/l,.y = a.y/l,.z = a.z/l}; }
@@ -25,6 +27,7 @@ vec4_f32 make_4f32(f32 x, f32 y, f32 z, f32 w)  { return (vec4_f32) {.x=x,.y=y,.
 vec4_f32 add_4f32(vec4_f32 a, vec4_f32 b)       { return (vec4_f32) {.x = a.x + b.x,.y = a.y + b.y,.z = a.z + b.z,.w = a.w + b.w}; }
 vec4_f32 sub_4f32(vec4_f32 a, vec4_f32 b)       { return (vec4_f32) {.x = a.x - b.x,.y = a.y - b.y,.z = a.z - b.z,.w = a.w - b.w}; }
 vec4_f32 mul_4f32(vec4_f32 a, f32 b)            { return (vec4_f32) {.x = a.x*b,.y = a.y*b,.z = a.z*b,.w = a.w*b}; }
+vec4_f32 elmul_2f32(vec4_f32 a, vec4_f32 b)     { return (vec4_f32) {.x = a.x*b.x,.y = a.y*b.y,.z = a.z*b.z,.w = a.w*b.w}; }
 f32      dot_4f32(vec4_f32 a, vec4_f32 b)       { return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w; }
 f32      length_4f32(vec4_f32 a)                { return sqrt_f32(a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w); }
 vec4_f32 normalize_4f32(vec4_f32 a)             { f32 l = length_4f32(a); return (vec4_f32) {.x = a.x/l,.y = a.y/l,.z = a.z/l,.w = a.w/l}; }
