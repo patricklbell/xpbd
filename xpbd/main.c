@@ -51,7 +51,25 @@ int main() {
     vec3_f32 eye    = (vec3_f32){.x = 0,.y = 0,.z =30};
     vec3_f32 target = (vec3_f32){.x = 0,.y = 0,.z = 0};
 
-    PHYS_World* world = phys_world_create(main_arena);
+    PHYS_World* world = phys_world_make();
+
+    static const int NUM_BALLS = 10;
+    PHYS_Ball_Settings ball_settings[NUM_BALLS];
+    PHYS_Ball balls[NUM_BALLS];
+    {
+        phys_world_add_box_boundary(world, (PHYS_BoxBoundary_Settings){.extents=make_3f32(6,6,6)});
+        for EachElement(i, balls) {
+            f32 radius = rand_f32()*1.0f + 0.5f;
+            f32 density = 1.0f;
+            ball_settings[i] = (PHYS_Ball_Settings){
+                .radius=radius,
+                .mass=radius*radius*radius*(3.f/4.f)*PI*density,
+                .center=make_3f32(rand_f32()*6-3, 0, rand_f32()*6-3),
+                .velocity=make_3f32(rand_f32()*12, 0, rand_f32()*12),
+            };
+            balls[i] = phys_world_add_ball(world, ball_settings[i]);
+        }
+    }
 
     f64 time = os_now_seconds();
     input_init();
@@ -73,17 +91,20 @@ int main() {
             mat4x4_f32 view = make_look_at_4x4f32(eye, target, make_up_3f32());
             d_begin_3d_pass(viewport, view, projection);
             
-            for EachIndex(pi, world->num_particles) {
-                PHYS_Particle* p = &world->particles[pi];
+            for EachElement(i, balls) {
+                PHYS_Body* body = phys_world_resolve_body(world, balls[i].center);
+                f32 radius = ball_settings[i].radius;
+
                 mat4x4_f32 t = mul_4x4f32(
-                    make_translate_4x4f32(p->position),
-                    make_scale_4x4f32(make_3f32(p->radius, p->radius, p->radius))
+                    make_translate_4x4f32(body->position),
+                    make_scale_4x4f32(make_3f32(radius, radius, radius))
                 );
                 d_mesh(sphere_vertices, sphere_indices, t);
             }
         }
         d_submit_pipeline(window, rwindow);
     }
+    phys_world_cleanup(world);
 
     r_cleanup();
     os_close_window(window);
