@@ -9,13 +9,16 @@ Arena* arena_alloc_(ArenaParams params) {
   
   // extract arena header & fill
   Arena* arena = (Arena*)base;
-  arena->prev = NULL;
-  arena->current = arena;
-  arena->base_offset = 0;
-  arena->page_offset = ARENA_HEADER_SIZE;
-  arena->page_size = params.page_size;
-  arena->allocation_site_file = params.allocation_site_file;
-  arena->allocation_site_line = params.allocation_site_line;
+  *arena = (Arena){
+      .prev = NULL,
+      .current = arena,
+      .free_stack = NULL,
+      .page_offset = ARENA_HEADER_SIZE,
+      .page_size = params.page_size,
+      .base_offset = 0,
+      .allocation_site_file = params.allocation_site_file,
+      .allocation_site_line = params.allocation_site_line,
+  };
   return arena;
 }
 
