@@ -1,31 +1,36 @@
 // headers
-#include "../common/common_inc.h"
-#include "../os/os_inc.h"
-#include "../physics/physics_inc.h"
-#include "../render/render_inc.h"
-#include "../draw/draw.h"
-#include "../mesh/mesh.h"
-#include "../input/input.h"
-#include "xpbd_controls.h"
+#include "common/common_inc.h"
+#include "os/os_inc.h"
+#include "physics/physics_inc.h"
+#include "render/render_inc.h"
+#include "draw/draw.h"
+#include "mesh/mesh.h"
+#include "input/input.h"
+#include "demo_controls.h"
 
 // implementations
-#include "../common/common_inc.c"
-#include "../os/os_inc.c"
-#include "../physics/physics_inc.c"
-#include "../render/render_inc.c"
-#include "../draw/draw.c"
-#include "../mesh/mesh.c"
-#include "../input/input.c"
-#include "xpbd_controls.c"
+#include "common/common_inc.c"
+#include "os/os_inc.c"
+#include "physics/physics_inc.c"
+#include "render/render_inc.c"
+#include "draw/draw.c"
+#include "mesh/mesh.c"
+#include "input/input.c"
+#include "demo_controls.c"
 
 int main() {
     ThreadCtx main_ctx;
     thread_equip(&main_ctx);
-
     Arena* main_arena = arena_alloc();
+
     MS_MeshResult sphere = ms_load_obj(main_arena, str_8("sphere.obj"));
     if (sphere.error.length != 0) {
         fprintf(stderr, "%s\n", sphere.error.data);
+        return 1;
+    }
+    MS_MeshResult cube = ms_load_obj(main_arena, str_8("cube.obj"));
+    if (cube.error.length != 0) {
+        fprintf(stderr, "%s\n", cube.error.data);
         return 1;
     }
 
@@ -47,13 +52,15 @@ int main() {
 
     R_Handle sphere_vertices = r_buffer_alloc(R_ResourceKind_Static, sphere.v.num_vertices*sizeof(*sphere.v.vertices), sphere.v.vertices);
     R_Handle sphere_indices  = r_buffer_alloc(R_ResourceKind_Static, sphere.v.num_indices*sizeof(*sphere.v.indices), sphere.v.indices);
+    R_Handle cube_vertices = r_buffer_alloc(R_ResourceKind_Static, cube.v.num_vertices*sizeof(*cube.v.vertices), cube.v.vertices);
+    R_Handle cube_indices  = r_buffer_alloc(R_ResourceKind_Static, cube.v.num_indices*sizeof(*cube.v.indices), cube.v.indices);
 
     vec3_f32 eye    = (vec3_f32){.x = 0,.y = 0,.z =30};
     vec3_f32 target = (vec3_f32){.x = 0,.y = 0,.z = 0};
 
     PHYS_World* world = phys_world_make();
 
-    static const int NUM_BALLS = 10;
+    static const int NUM_BALLS = 1;
     PHYS_Ball_Settings ball_settings[NUM_BALLS];
     PHYS_Ball balls[NUM_BALLS];
     {
@@ -79,9 +86,9 @@ int main() {
         f64 dt = ntime - time;
         time = ntime;
         
-        phys_world_step(world, dt);
+        // phys_world_step(world, dt);
 
-        xpbd_controls_orbit_camera(window, &eye, &target);
+        demo_controls_orbit_camera(window, dt, &eye, &target);
         
         d_begin_pipeline();
         {
@@ -99,7 +106,7 @@ int main() {
                     make_translate_4x4f32(body->position),
                     make_scale_4x4f32(make_3f32(radius, radius, radius))
                 );
-                d_mesh(sphere_vertices, sphere_indices, t);
+                d_mesh(cube_vertices, cube_indices, t);
             }
         }
         d_submit_pipeline(window, rwindow);

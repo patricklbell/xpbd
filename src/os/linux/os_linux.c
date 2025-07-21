@@ -79,33 +79,69 @@ vec2_f32 os_window_size(OS_Handle window) {
     return (vec2_f32){.x = (f32)gwa.width, .y = (f32)gwa.height};
 }
 
-static OS_Event* os_window_add_event(Arena* arena, OS_EventList* list, OS_EventType type) {
+static void os_window_add_event(Arena* arena, OS_EventList* list, OS_Event event) {
     OS_EventNode* n = push_array(arena, OS_EventNode, 1);
-    n->v.type = type;
     dllist_push_back(list->first, list->last, n);
     list->length++;
-    return &n->v;
+    n->v = event;
 }
 
-static b32 os_linux_x11_button_to_key(OS_Key* key, unsigned int button) {
-    switch (button) {
-        case Button1: *key = OS_Key_LeftMouseButton; break;
-        case Button3: *key = OS_Key_RightMouseButton; break;
-        default: return 0;
-    }   
-
-    return 1;
-}
-
-static vec2_f32 os_linux_transform_mouse(OS_Handle window, int x, int y) {
+static vec2_f32 os_linux_x11_transform_mouse(OS_Handle window, int x, int y) {
     return (vec2_f32){
         .x = (f32)x,
         .y = os_window_size(window).y - (f32)y
     };
 }
 
+static b32 os_linux_x11_button_to_event(OS_Handle window, OS_Event* event, XButtonEvent* xbutton) {
+    switch (xbutton->button) {
+        case Button1: event->key = OS_Key_LeftMouseButton; break;
+        case Button3: event->key = OS_Key_RightMouseButton; break;
+        case Button4: event->key = OS_Key_WheelY; event->scroll_direction = +1; break;
+        case Button5: event->key = OS_Key_WheelY; event->scroll_direction = -1; break;
+        default: return 0;
+    }
+
+    // x11 generates a press & release event for every frame for scrolling
+    // so we simulate releasing by checking last frame
+    if (event->key == OS_Key_WheelY) {
+        // ignore release, we will generate our own
+        if (xbutton->type != ButtonPress) {
+            return 0;
+        }
+
+        os_gfx_x11_state.scroll_press_this_update = 1;
+
+        // if we are still pressing, need to generate a new press event
+        // unless the direction changes
+        if (
+            os_gfx_x11_state.is_scroll_pressed && 
+            os_gfx_x11_state.scroll_direction == event->scroll_direction
+        ) {
+            return 0;
+        }
+
+        os_gfx_x11_state.is_scroll_pressed = 1;
+        os_gfx_x11_state.scroll_direction = event->scroll_direction;
+    }
+
+    event->mouse_position = os_linux_x11_transform_mouse(window, xbutton->x, xbutton->y);
+    event->time.seconds = (f64)xbutton->time / Thousand(1);
+
+    switch (xbutton->type)
+    {
+        case ButtonPress: event->type = OS_EventType_Press; break;
+        case ButtonRelease: event->type = OS_EventType_Release; break;
+        default: InvalidPath;
+    }
+
+    return 1;
+}
+
 OS_EventList os_window_poll_events(Arena* arena, OS_Handle window) {
     OS_EventList events = zero_struct;
+
+    os_gfx_x11_state.scroll_press_this_update = 0;
 
     XEvent event;
     while (XPending(os_gfx_x11_state.display)) {
@@ -114,30 +150,35 @@ OS_EventList os_window_poll_events(Arena* arena, OS_Handle window) {
         switch (event.type) {
             case ClientMessage: {
                 if (event.xclient.data.l[0] == os_gfx_x11_state.atom_wm_close) {
-                    os_window_add_event(arena, &events, OS_EventType_Quit);
+                    os_window_add_event(arena, &events, (OS_Event){
+                        .type = OS_EventType_Quit
+                    });
                 }
                 break;
             }
             case ButtonPress:
             case ButtonRelease: {
-                OS_Key key;
-                if (os_linux_x11_button_to_key(&key, event.xbutton.button)) {
-                    OS_Event* e = os_window_add_event(
-                        arena, &events,
-                        event.type == ButtonPress ? OS_EventType_Press : OS_EventType_Release
-                    );
-                    e->key = key;
-                    e->mouse_position = os_linux_transform_mouse(window, event.xbutton.x, event.xbutton.y);
-                    e->time.seconds = (f64)event.xbutton.time / Thousand(1);
+                OS_Event e = zero_struct;
+                if (os_linux_x11_button_to_event(window, &e, &event.xbutton)) {
+                    os_window_add_event(arena, &events, e);
                 }
-                break;
             }
             case MotionNotify: {
-                OS_Event* e = os_window_add_event(arena, &events, OS_EventType_MouseMove);
-                e->mouse_position = os_linux_transform_mouse(window, event.xmotion.x, event.xmotion.y);
-                e->time.seconds = (f64)event.xmotion.time / Thousand(1);
+                os_window_add_event(arena, &events, (OS_Event){
+                    .type = OS_EventType_MouseMove,
+                    .time = {(f64)event.xmotion.time / Thousand(1)},
+                    .mouse_position = os_linux_x11_transform_mouse(window, event.xmotion.x, event.xmotion.y),
+                });
             }
         }
+    }
+
+    if (!os_gfx_x11_state.scroll_press_this_update && os_gfx_x11_state.is_scroll_pressed) {
+        os_gfx_x11_state.is_scroll_pressed = 0;
+        os_window_add_event(arena, &events, (OS_Event){
+            .type = OS_EventType_Release,
+            .key = OS_Key_WheelY,
+        });
     }
 
     return events;

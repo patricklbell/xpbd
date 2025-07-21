@@ -44,6 +44,7 @@ typedef enum OS_EventType {
 typedef enum OS_Key {
     OS_Key_LeftMouseButton,
     OS_Key_RightMouseButton,
+    OS_Key_WheelY,
     OS_Key_COUNT,
 } OS_Key;
 
@@ -55,6 +56,7 @@ struct OS_Event {
         f64 seconds;
     } time;
     vec2_f32 mouse_position;
+    s32 scroll_direction;
 };
 
 typedef struct OS_EventNode OS_EventNode;

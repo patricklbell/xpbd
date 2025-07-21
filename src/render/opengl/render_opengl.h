@@ -104,7 +104,7 @@ static const NTString8 r_ogl_fragment_shader_src = str_8(
     "   float idotn = clamp(dot(i, n), 0, 1);"
     "   float ambient = 0.1;"
     "   vec3 Lr = ((1.f-ambient)*idotn + ambient)*albedo;"
-    "   out_color = vec4(Lr, 1.0);"
+    "   out_color = vec4(n, 1.0);"
     "}"
 );
 

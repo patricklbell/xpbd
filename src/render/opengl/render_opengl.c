@@ -212,10 +212,6 @@ void r_submit(OS_Handle window, R_PassList *passes) {
 
                 break;
             }
-            default: {
-                InvalidPath;
-                break;
-            }
         }
     }
 }

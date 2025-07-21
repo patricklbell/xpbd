@@ -19,7 +19,6 @@ void input_update(OS_Handle window) {
     vec2_f32 new_mouse_position;
     OS_EventList events = os_window_poll_events(scratch.arena, window);
 
-    // @todo sort events by time
     for EachList(n, OS_EventNode, events.first) {
         OS_Event* event = &n->v;
 
@@ -30,8 +29,16 @@ void input_update(OS_Handle window) {
             new_mouse_position = event->mouse_position;
         } else if (event->type == OS_EventType_Press) {
             input_state->held[event->key] = 1;
+
+            if (event->key = OS_Key_WheelY) {
+                input_state->scroll_delta.y = event->scroll_direction;
+            }
         } else if (event->type == OS_EventType_Release) {
             input_state->held[event->key] = 0;
+
+            if (event->key = OS_Key_WheelY) {
+                input_state->scroll_delta.y = 0;
+            }
         }
     }
     if (latest_mouse_move > 0) {
@@ -56,6 +63,11 @@ b32 input_mouse_delta(vec2_f32* delta) {
         *delta = input_state->delta;
     }
     return input_state->has_delta;
+}
+
+b32 input_scroll_delta(vec2_f32* delta) {
+    *delta = input_state->scroll_delta;
+    return input_state->held[OS_Key_WheelY];
 }
 
 b32 input_left_mouse_held() {
