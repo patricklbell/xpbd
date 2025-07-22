@@ -35,10 +35,10 @@ struct Temp
     u64 offset;
 };
 
-static u64 arena_default_page_size = KB(64);
+static u64 arena_default_page_size = KB(1);
 
 Arena *arena_alloc_(ArenaParams params);
-#define arena_alloc() arena_alloc_((ArenaParams){.page_size = arena_default_page_size, .allocation_site_file = (char*)__FILE__, .allocation_site_line = __LINE__})
+#define arena_alloc() arena_alloc_((ArenaParams){.page_size = arena_default_page_size, .optional_backing_buffer = NULL, .allocation_site_file = (char*)__FILE__, .allocation_site_line = __LINE__})
 void arena_release(Arena *arena);
 
 void *arena_push(Arena *arena, u64 size, u64 align);

@@ -19,10 +19,9 @@ INPUT_State* input_state = NULL;
 
 // core
 void    input_init();
-void    input_update(OS_Handle window);
+void    input_update(OS_Events* events);
 
 // queries
-b32 input_has_quit();
 b32 input_mouse_delta(vec2_f32* delta);
 b32 input_scroll_delta(vec2_f32* delta);
 b32 input_left_mouse_held();

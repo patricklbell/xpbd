@@ -1,13 +1,10 @@
 #pragma once
 
-#define GLAD_GL_IMPLEMENTATION
-#include "glad/gl.h"
-
 // platform specific backend
 #if OS_WINDOWING_SYSTEM == OS_WINDOWING_SYSTEM_WAYLAND
-    #define GLAD_EGL_IMPLEMENTATION
-    #include "glad/egl.h"
     #include "egl/render_opengl_egl.h"
+#elif OS_WINDOWING_SYSTEM == OS_WINDOWING_SYSTEM_WASM
+    #include "wasm/render_opengl_wasm.h"
 #else
     // @todo WINAPI -> wgl
     // @todo XWINDOWS -> glx
@@ -15,10 +12,13 @@
     #error Unsupported windowing system.
 #endif
 
+#if !defined(R_OGL_USES_ES)
+    #define R_OGL_USES_ES 0
+#endif
+
 void    r_ogl_os_init();
 void    r_ogl_os_cleanup();
 void    r_ogl_os_window_swap(OS_Handle window, R_Handle rwindow);
-void*   r_ogl_os_load_procedure_address(char* name);
 
 static GLuint  r_ogl_handle_to_buffer(R_Handle handle);
 static u32     r_ogl_handle_to_size(R_Handle handle);
@@ -59,6 +59,17 @@ static const OGL_ResourceKindMetadata r_ogl_resource_kind[] = {
     (OGL_ResourceKindMetadata) { .usage = GL_STREAM_DRAW },
 };
 
+typedef struct OGL_ResourceHintMetadata OGL_ResourceHintMetadata;
+struct OGL_ResourceHintMetadata {
+    GLenum target;
+};
+static const OGL_ResourceHintMetadata r_ogl_resource_hint[] = {
+    // R_ResourceHint_Array
+    (OGL_ResourceHintMetadata) { .target = GL_ARRAY_BUFFER },
+    // R_ResourceHint_Indices
+    (OGL_ResourceHintMetadata) { .target = GL_ELEMENT_ARRAY_BUFFER },
+};
+
 typedef struct R_OGL_Attribute R_OGL_Attribute;
 struct R_OGL_Attribute {
     GLuint location;
@@ -70,8 +81,13 @@ struct R_OGL_Attribute {
 };
 
 
-static const NTString8 r_ogl_vertex_shader_src = str_8(
+static const NTString8 r_ogl_vertex_shader_src = str_8_lit(
+    #if R_OGL_USES_ES
+    "#version 300 es\n"
+    "precision mediump float;"
+    #else
     "#version 330 core\n"
+    #endif
     ""
     "layout (location = 0) in vec3 in_position;"
     "layout (location = 1) in vec3 in_normal;"
@@ -83,14 +99,19 @@ static const NTString8 r_ogl_vertex_shader_src = str_8(
     "uniform mat4 u_projection;"
     ""
     "void main() {"
-    "   vs_normal = (in_model*vec4(in_normal, 0)).xyz;"
+    "   vs_normal = (in_model*vec4(in_normal, 0.)).xyz;"
     ""
-    "   gl_Position = u_projection*u_view*in_model*vec4(in_position, 1);"
+    "   gl_Position = u_projection*u_view*in_model*vec4(in_position, 1.);"
     "}"
 );
 
-static const NTString8 r_ogl_fragment_shader_src = str_8(
+static const NTString8 r_ogl_fragment_shader_src = str_8_lit(
+    #if R_OGL_USES_ES
+    "#version 300 es\n"
+    "precision mediump float;"
+    #else
     "#version 330 core\n"
+    #endif
     ""
     "in vec3 vs_normal;"
     ""
@@ -98,25 +119,25 @@ static const NTString8 r_ogl_fragment_shader_src = str_8(
     ""
     "void main() {"
     "   vec3 albedo = vec3(0.5, 0.4, 0.4);"
-    "   vec3 i = -normalize(vec3(1, -1, -1));"
+    "   vec3 i = -normalize(vec3(1., -1., -1.));"
     ""
     "   vec3 n = normalize(vs_normal);"
-    "   float idotn = clamp(dot(i, n), 0, 1);"
+    "   float idotn = clamp(dot(i, n), 0., 1.);"
     "   float ambient = 0.1;"
-    "   vec3 Lr = ((1.f-ambient)*idotn + ambient)*albedo;"
-    "   out_color = vec4(Lr, 1.0);"
+    "   vec3 Lr = ((1.-ambient)*idotn + ambient)*albedo;"
+    "   out_color = vec4(Lr, 1.);"
     "}"
 );
 
 // @todo x-macro
 static const R_OGL_Attribute r_ogl_shader_vertex_attributes[] = {
-    (R_OGL_Attribute) { .location = 0, .type = GL_FLOAT, .size = sizeof(Member(R_VertexLayout, position))/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_VertexLayout, position), .name = str_8("in_position") },
-    (R_OGL_Attribute) { .location = 1, .type = GL_FLOAT, .size = sizeof(Member(R_VertexLayout, normal  ))/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_VertexLayout, normal  ), .name = str_8("in_normal"  ) },
+    (R_OGL_Attribute) { .location = 0, .type = GL_FLOAT, .size = sizeof(Member(R_VertexLayout, position))/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_VertexLayout, position), .name = str_8_lit("in_position") },
+    (R_OGL_Attribute) { .location = 1, .type = GL_FLOAT, .size = sizeof(Member(R_VertexLayout, normal  ))/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_VertexLayout, normal  ), .name = str_8_lit("in_normal"  ) },
 };
 
 static const R_OGL_Attribute r_ogl_shader_instance_attributes[] = {
-    (R_OGL_Attribute) { .location = 10, .type = GL_FLOAT, .size = sizeof(vec4_f32)/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_Mesh3DInst, inst_transform.c[0]), .name = str_8("in_mvp") },
-    (R_OGL_Attribute) { .location = 11, .type = GL_FLOAT, .size = sizeof(vec4_f32)/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_Mesh3DInst, inst_transform.c[1]), .name = str_8("in_mvp") },
-    (R_OGL_Attribute) { .location = 12, .type = GL_FLOAT, .size = sizeof(vec4_f32)/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_Mesh3DInst, inst_transform.c[2]), .name = str_8("in_mvp") },
-    (R_OGL_Attribute) { .location = 13, .type = GL_FLOAT, .size = sizeof(vec4_f32)/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_Mesh3DInst, inst_transform.c[3]), .name = str_8("in_mvp") },
+    (R_OGL_Attribute) { .location = 10, .type = GL_FLOAT, .size = sizeof(vec4_f32)/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_Mesh3DInst, inst_transform.c1), .name = str_8_lit("in_mvp") },
+    (R_OGL_Attribute) { .location = 11, .type = GL_FLOAT, .size = sizeof(vec4_f32)/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_Mesh3DInst, inst_transform.c2), .name = str_8_lit("in_mvp") },
+    (R_OGL_Attribute) { .location = 12, .type = GL_FLOAT, .size = sizeof(vec4_f32)/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_Mesh3DInst, inst_transform.c3), .name = str_8_lit("in_mvp") },
+    (R_OGL_Attribute) { .location = 13, .type = GL_FLOAT, .size = sizeof(vec4_f32)/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_Mesh3DInst, inst_transform.c4), .name = str_8_lit("in_mvp") },
 };

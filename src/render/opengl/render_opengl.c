@@ -1,6 +1,8 @@
 // platform specific backend
 #if OS_WINDOWING_SYSTEM == OS_WINDOWING_SYSTEM_WAYLAND
     #include "egl/render_opengl_egl.c"
+#elif OS_WINDOWING_SYSTEM == OS_WINDOWING_SYSTEM_WASM
+    #include "wasm/render_opengl_wasm.c"
 #else
     // @todo WINAPI -> wgl
     // @todo XWINDOWS -> glx
@@ -97,9 +99,6 @@ void r_init() {
     glGenBuffers(1, &r_ogl_state.shared_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, r_ogl_state.shared_buffer);
     glBufferData(GL_ARRAY_BUFFER, r_ogl_state.shared_buffer_size, 0, GL_DYNAMIC_DRAW);
-    
-    // match colorspace of windows
-    glEnable(GL_FRAMEBUFFER_SRGB);
 }
 
 void r_cleanup() {
@@ -108,7 +107,7 @@ void r_cleanup() {
 
 void r_window_begin_frame(OS_Handle window, R_Handle rwindow) {
     r_os_select_window(window, rwindow);
-    vec2_f32 window_size = os_window_size(window);
+    vec2_f32 window_size = os_gfx_window_size(window);
 
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -127,13 +126,14 @@ void r_window_end_frame(OS_Handle window, R_Handle rwindow) {
     r_ogl_os_window_swap(window, rwindow);
 }
 
-R_Handle r_buffer_alloc(R_ResourceKind kind, u32 size, void *data) {
+R_Handle r_buffer_alloc(R_ResourceKind kind, R_ResourceHint hint, u32 size, void *data) {
     Assert(kind >= 0 && kind < ArrayLength(r_ogl_resource_kind));
+    Assert(hint >= 0 && hint < ArrayLength(r_ogl_resource_hint));
 
     R_Handle buffer;
     glGenBuffers(1, &buffer.v32[0]);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer.v32[0]);
-    glBufferData(GL_ARRAY_BUFFER, size, data, r_ogl_resource_kind[kind].usage);
+    glBindBuffer(r_ogl_resource_hint[hint].target, buffer.v32[0]);
+    glBufferData(r_ogl_resource_hint[hint].target, size, data, r_ogl_resource_kind[kind].usage);
 
     buffer.v32[1] = size;
 
@@ -161,7 +161,7 @@ void r_submit(OS_Handle window, R_PassList *passes) {
                 glUniformMatrix4fv(glGetUniformLocation(r_ogl_state.program, "u_view"), 1, GL_FALSE, &params->view.v[0][0]);
 
                 R_BatchGroup3DMap* batch_groups = &params->mesh_batches;
-                for EachIndex(slot, batch_groups->num_slots) {
+                for EachIndex(slot, batch_groups->slots_count) {
                     for EachList(batch_group_n, R_BatchGroup3DMapNode, batch_groups->slots[slot]) {
                         R_BatchList* batches = &batch_group_n->batches;
                         R_BatchGroup3DParams* group_params = &batch_group_n->params;
@@ -169,25 +169,22 @@ void r_submit(OS_Handle window, R_PassList *passes) {
                         // bind group data
                         {
                             GLuint bind_index = 0;
-                            glBindVertexBuffer(bind_index, r_ogl_handle_to_buffer(group_params->mesh_vertices), 0, sizeof(R_VertexLayout));
+                            glBindBuffer(GL_ARRAY_BUFFER, r_ogl_handle_to_buffer(group_params->mesh_vertices));
                             for EachElement(i, r_ogl_shader_vertex_attributes) {
                                 const R_OGL_Attribute* attribute = &r_ogl_shader_vertex_attributes[i];
                                 glEnableVertexAttribArray(attribute->location);
-                                glVertexAttribFormat(attribute->location, attribute->size, attribute->type, attribute->normalized, IntFromPtr(attribute->offset));
-                                glVertexAttribBinding(attribute->location, bind_index);
+                                glVertexAttribPointer(attribute->location, attribute->size, attribute->type, attribute->normalized, sizeof(R_VertexLayout), attribute->offset);
                             }
                         }
 
                         // allocate and bind per-instance data
                         u64 byte_offset = 0;
                         {
-                            GLuint ibo = r_ogl_temp_buffer(batches->num_bytes);
-                            
                             // fill buffer with instance data
-                            glBindBuffer(GL_ARRAY_BUFFER, ibo);
+                            glBindBuffer(GL_ARRAY_BUFFER, r_ogl_temp_buffer(batches->bytes_count));
                             for EachList(batch, R_BatchNode, batches->first) {
-                                glBufferSubData(GL_ARRAY_BUFFER, byte_offset, batch->v.num_bytes, batch->v.v);
-                                byte_offset += batch->v.num_bytes;
+                                glBufferSubData(GL_ARRAY_BUFFER, byte_offset, batch->v.bytes_count, batch->v.v);
+                                byte_offset += batch->v.bytes_count;
                             }
 
                             // bind instance data to shader attributes

@@ -13,13 +13,15 @@
         #define OS_LINUX 1
     #elif defined(__APPLE__) && defined(__MACH__)
         #define OS_MAC 1
+    #elif defined(__EMSCRIPTEN__)
+        #define OS_WEB 1
     #else
         #error This compiler/OS combo is not supported.
     #endif
 
-    #if defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64)
+    #if defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(__wasm64__)
         #define ARCH_X64 1
-    #elif defined(i386) || defined(__i386) || defined(__i386__)
+    #elif defined(i386) || defined(__i386) || defined(__i386__) || defined(__wasm32__)
         #define ARCH_X86 1
     #elif defined(__aarch64__)
         #define ARCH_ARM64 1
@@ -128,6 +130,7 @@
 #define OS_WINDOWING_SYSTEM_XWINDOWS    1
 #define OS_WINDOWING_SYSTEM_WAYLAND     2
 #define OS_WINDOWING_SYSTEM_LINUX       3
+#define OS_WINDOWING_SYSTEM_WASM        4
 
 #if !defined(OS_WINDOWING_SYSTEM)
     #if OS_LINUX
@@ -140,6 +143,8 @@
         #endif
     #elif OS_WINDOWS
         #define OS_WINDOWING_SYSTEM OS_WINDOWING_SYSTEM_WINAP
+    #elif OS_WEB
+        #define OS_WINDOWING_SYSTEM OS_WINDOWING_SYSTEM_WASM
     #endif
 
     #if !defined(OS_WINDOWING_SYSTEM)
@@ -221,6 +226,9 @@
 #endif
 #if !defined(OS_LINUX)
     #define OS_LINUX 0
+#endif
+#if !defined(OS_WEB)
+    #define OS_WEB 0
 #endif
 #if !defined(OS_MAC)
     #define OS_MAC 0

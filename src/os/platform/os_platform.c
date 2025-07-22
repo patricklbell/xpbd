@@ -1,3 +1,9 @@
+#if OS_LINUX || OS_WEB
+    #include "linux+wasm/os_platform_linux+wasm.c"
+#else
+    #error OS not supported.
+#endif
+
 // helpers
 OS_Handle os_zero_handle() {
     return (OS_Handle) { .v64 = 0 };
@@ -12,7 +18,7 @@ void* os_allocate(u64 size) {
     return malloc(size);
 }
 
-void  os_deallocate(void* ptr) {
+void os_deallocate(void* ptr) {
     free(ptr);
 }
 

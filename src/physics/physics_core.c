@@ -47,17 +47,17 @@ PHYS_World* phys_world_make() {
 
     *w = (PHYS_World){
         .arena = arena,
-        .substeps = 32,
+        .substeps = 16,
         .little_g = -10.f,
         .compliance = 0.001f,
         .colliders = (PHYS_ColliderMap){
-            .slots = push_array(arena, PHYS_ColliderNode*, PHYS_COLLIDER_MAP_NUM_SLOTS),
-            .num_slots = PHYS_COLLIDER_MAP_NUM_SLOTS,
+            .slots = push_array(arena, PHYS_ColliderNode*, PHYS_COLLIDER_MAP_DEFAULT_SLOTS_COUNT),
+            .slots_count = PHYS_COLLIDER_MAP_DEFAULT_SLOTS_COUNT,
             .free_chain = NULL
         },
         .constraints = (PHYS_ConstraintMap){
-            .slots = push_array(arena, PHYS_ConstraintNode*, PHYS_CONSTRAINT_MAP_NUM_SLOTS),
-            .num_slots = PHYS_CONSTRAINT_MAP_NUM_SLOTS,
+            .slots = push_array(arena, PHYS_ConstraintNode*, PHYS_CONSTRAINT_MAP_DEFAULT_SLOTS_COUNT),
+            .slots_count = PHYS_CONSTRAINT_MAP_DEFAULT_SLOTS_COUNT,
             .free_chain = NULL
         },
         .bodies = (PHYS_BodyDynamicArray){
@@ -96,13 +96,19 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
     for EachIndex(i, w->bodies.length) {
         PHYS_Body* b = &w->bodies.v[i];
 
-        // save the position before forces and constraints
+        // save the position and rotation before forces and constraints
         b->prev_position = b->position;
+        b->prev_rotation = b->rotation;
     
-        // apply forces and update positions
+        // apply torques & linear forces
         if (!b->no_gravity)
-            b->velocity = add_3f32(b->velocity, mul_3f32(a_gravity, dt));
-        b->position = add_3f32(b->position, mul_3f32(b->velocity, dt));
+            b->linear_velocity = add_3f32(b->linear_velocity, mul_3f32(a_gravity, dt));
+
+        // add velocities
+        vec3_f32 dp = mul_3f32(b->linear_velocity, dt);
+        vec4_f32 dr = mul_4f32(mul_quat(make_quat_axis(b->angular_velocity), b->rotation), 0.5f*dt);
+        b->position = add_3f32(b->position, dp);
+        b->rotation = normalize_4f32(add_4f32(b->rotation, dr));
     }
 
     // step 2: solve constraints (including collisions)
@@ -112,7 +118,7 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
         .a_dt2 = a_dt2,
     };
 
-    for EachIndex(slot, w->constraints.num_slots) {
+    for EachIndex(slot, w->constraints.slots_count) {
         for EachList(constraint_n, PHYS_ConstraintNode, w->constraints.slots[slot]) {
             PHYS_Constraint* constraint = &constraint_n->v;
 
@@ -132,12 +138,12 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
             }
         }
     }
-    for EachIndex(sloti, w->colliders.num_slots) {
+    for EachIndex(sloti, w->colliders.slots_count) {
         for EachList(collideri_n, PHYS_ColliderNode, w->colliders.slots[sloti]) {
             PHYS_Collider* collideri = &collideri_n->v;
 
             // @todo collision query acceleration structure
-            for EachIndex(slotj, w->colliders.num_slots) {
+            for EachIndex(slotj, w->colliders.slots_count) {
                 for EachList(colliderj_n, PHYS_ColliderNode, w->colliders.slots[slotj]) {
                     PHYS_Collider* colliderj = &colliderj_n->v;
                     if (collideri == colliderj)
@@ -163,11 +169,14 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
         }
     }
 
-    // step 3: set linear velocities to resultant velocity
+    // step 3: set linear & angular velocities to resultant velocity
     for EachIndex(i, w->bodies.length) {
         PHYS_Body* b = &w->bodies.v[i];
 
-        b->velocity = mul_3f32(sub_3f32(b->position, b->prev_position), inv_dt);
+        vec3_f32 dp = sub_3f32(b->position, b->prev_position);
+        vec4_f32 dr = mul_quat(b->rotation, inv_quat(b->prev_rotation));
+        b->linear_velocity = mul_3f32(dp, inv_dt);
+        b->angular_velocity = mul_3f32(dr.xyz, 2.0*inv_dt*sgn_f32(dr.w));
     }
 }
 
@@ -212,7 +221,7 @@ PHYS_collider_id phys_world_add_collider(PHYS_World* w, PHYS_Collider c) {
     } else {
         u32 new_id = w->colliders.max_id;
         w->colliders.max_id++;
-        u32 new_slot = new_id % w->colliders.num_slots;
+        u32 new_slot = new_id % w->colliders.slots_count;
         
         new_node = push_array(w->arena, PHYS_ColliderNode, 1);
         stack_push(w->colliders.slots[new_slot], new_node);
@@ -226,7 +235,7 @@ PHYS_collider_id phys_world_add_collider(PHYS_World* w, PHYS_Collider c) {
     };
 }
 static PHYS_ColliderNode* phys_world_resolve_collider_node(PHYS_World* w, u32 id) {
-    u32 slot = id % w->colliders.num_slots;
+    u32 slot = id % w->colliders.slots_count;
     for EachList(n, PHYS_ColliderNode, w->colliders.slots[slot]) {
         if (n->id == id) {
             return n;
@@ -256,7 +265,7 @@ PHYS_Ball phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings){
     Assert(settings.mass > 0.f);
     PHYS_body_id center = phys_world_add_body(w, (PHYS_Body){
         .position = settings.center,
-        .velocity = settings.velocity,
+        .linear_velocity = settings.linear_velocity,
         .inv_mass = 1.f / settings.mass,
     });
     PHYS_collider_id sphere = phys_world_add_collider(w, (PHYS_Collider){

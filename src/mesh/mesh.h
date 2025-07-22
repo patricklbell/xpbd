@@ -3,9 +3,9 @@
 typedef struct MS_Mesh MS_Mesh;
 struct MS_Mesh {
     R_VertexLayout* vertices;
-    u32 num_vertices;
+    u32 vertices_count;
     u32* indices;
-    u32 num_indices;
+    u32 indices_count;
 };
 
 typedef struct MS_MeshResult MS_MeshResult;
@@ -31,8 +31,8 @@ struct MS_VertexMapNode {
 typedef struct MS_VertexMap MS_VertexMap;
 struct MS_VertexMap {
     MS_VertexMapNode** slots;
-    u64 num_slots;
-    u64 num_vertices;
+    u64 slots_count;
+    u64 vertices_count;
 };
 
 MS_MeshResult ms_load_obj(Arena* arena, NTString8 path);

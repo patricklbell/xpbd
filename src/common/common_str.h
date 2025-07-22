@@ -8,4 +8,4 @@ struct NTString8 {
 
 b8 str_begins_with(NTString8 str, const char* prefix);
 
-#define str_8(str) ((NTString8){ .data = str, .length = strlen(str) })
+#define str_8_lit(str) ((NTString8){ .data = str, .length = sizeof(str) - 1 })

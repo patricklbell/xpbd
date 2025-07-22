@@ -6,18 +6,18 @@ R_BatchList r_batch_list_make(u64 instance_size) {
 
 void* r_batch_list_push_inst(Arena *arena, R_BatchList *list, u64 batch_inst_cap) {
     R_BatchNode *n = list->last;
-    if(n == 0 || n->v.num_bytes + list->bytes_per_inst > n->v.byte_cap)
+    if(n == 0 || n->v.bytes_count + list->bytes_per_inst > n->v.byte_cap)
     {
         n = push_array(arena, R_BatchNode, 1);
         n->v.byte_cap = batch_inst_cap*list->bytes_per_inst;
         n->v.v = push_array(arena, u8, n->v.byte_cap); 
         sllist_push(list->first, list->last, n);
-        list->num_batches += 1;
+        list->batches_count += 1;
     }
 
-    void* inst = n->v.v + n->v.num_bytes;
-    n->v.num_bytes += list->bytes_per_inst;
-    list->num_bytes += list->bytes_per_inst;
+    void* inst = n->v.v + n->v.bytes_count;
+    n->v.bytes_count += list->bytes_per_inst;
+    list->bytes_count += list->bytes_per_inst;
     
     return inst;
 }

@@ -7,7 +7,7 @@ struct D_ThreadCtx
     R_PassList passes;
 };
 
-thread_static D_ThreadCtx *d_thread_ctx = 0;
+thread_static D_ThreadCtx *d_thread_ctx = NULL;
 
 void d_begin_pipeline();
 void d_submit_pipeline(OS_Handle window, R_Handle rwindow);

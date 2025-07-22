@@ -96,6 +96,12 @@ typedef double   f64;
     #define force_inline
 #endif
 
+#if COMPILER_CLANG
+    #define ENUM_CASE_UNUSED [[maybe_unused]]
+#else
+    #define ENUM_CASE_UNUSED
+#endif
+
 // asserts
 #if COMPILER_MSVC
     #define Trap() __debugbreak()

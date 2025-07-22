@@ -8,6 +8,7 @@ typedef struct OS_GFX_X11State OS_GFX_X11State;
 struct OS_GFX_X11State {
     Display* display;
     Atom atom_wm_close;
+    b32 has_closed;
 
     b32 scroll_press_this_update;
     b32 is_scroll_pressed;

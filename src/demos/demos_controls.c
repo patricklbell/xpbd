@@ -1,7 +1,7 @@
-void demo_controls_orbit_camera(OS_Handle window, f32 dt, vec3_f32* eye, vec3_f32* target) {
+void demos_controls_orbit_camera(OS_Handle window, f32 dt, vec3_f32* eye, vec3_f32* target) {
     vec2_f32 delta_px;
     if (input_mouse_delta(&delta_px) && input_left_mouse_held()) {
-        vec2_f32 window_size = os_window_size(window);
+        vec2_f32 window_size = os_gfx_window_size(window);
         vec2_f32 delta_a = make_2f32(-2*PI * delta_px.x/window_size.x, -PI * delta_px.y/window_size.y);
      
         vec3_f32 d = sub_3f32(*eye, *target);
@@ -20,8 +20,8 @@ void demo_controls_orbit_camera(OS_Handle window, f32 dt, vec3_f32* eye, vec3_f3
         }
     
         // compute rotation
-        vec4_f32 xrot = make_quat(delta_a.x, u);
-        vec4_f32 yrot = make_quat(delta_a.y, s);
+        vec4_f32 xrot = make_quat_axis_angle(delta_a.x, u);
+        vec4_f32 yrot = make_quat_axis_angle(delta_a.y, s);
         d = rot_quat(d, xrot);
         d = rot_quat(d, yrot);
         
@@ -32,7 +32,7 @@ void demo_controls_orbit_camera(OS_Handle window, f32 dt, vec3_f32* eye, vec3_f3
     if (input_scroll_delta(&scroll_delta)) {
         vec3_f32 d = sub_3f32(*eye, *target);
         f32 d_length = length_3f32(d);
-        f32 d_zoom = d_length + scroll_delta.y*dt*DEMO_CONTOLS_ORBIT_ZOOM;
+        f32 d_zoom = d_length + scroll_delta.y*dt*DEMOS_CONTOLS_ORBIT_ZOOM;
         d = mul_3f32(d, d_zoom / d_length);
         *eye = add_3f32(d, *target);
     }

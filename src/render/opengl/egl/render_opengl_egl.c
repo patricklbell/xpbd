@@ -40,9 +40,9 @@ void r_ogl_os_init() {
         
         EGL_NONE
     };
-    EGLint num_config;
-    AssertAlways(eglChooseConfig(r_ogl_egl_state.display, attr, &r_ogl_egl_state.config, 1, &num_config));
-    AssertAlways(num_config == 1);
+    EGLint configs_count;
+    AssertAlways(eglChooseConfig(r_ogl_egl_state.display, attr, &r_ogl_egl_state.config, 1, &configs_count));
+    AssertAlways(configs_count == 1);
 
     EGLint ctxattr[] = {
         EGL_CONTEXT_MAJOR_VERSION, 3,
@@ -57,7 +57,10 @@ void r_ogl_os_init() {
     // activate context without surface
     eglMakeCurrent(r_ogl_egl_state.display, 0, 0, r_ogl_egl_state.context);
 
-    gladLoadGL((GLADloadfunc)r_ogl_os_load_procedure_address);
+    gladLoadGL((GLADloadfunc)r_ogl_egl_procedure_address);
+
+    // match colorspace of windows
+    glEnable(GL_FRAMEBUFFER_SRGB);
 }
 
 void r_ogl_os_cleanup() {
@@ -79,7 +82,7 @@ void r_ogl_os_window_swap(OS_Handle window, R_Handle rwindow) {
     eglSwapBuffers(r_ogl_egl_state.display, r_ogl_egl_handle_to_surface(rwindow));
 }
 
-void* r_ogl_os_load_procedure_address(char* name) {
+static void* r_ogl_egl_procedure_address(char* name) {
     return (void*)eglGetProcAddress(name);
 }
 
@@ -97,8 +100,8 @@ R_Handle r_os_equip_window(OS_Handle window) {
             break;
         }
     }
-    r_ogl_egl_state.num_surfaces++;
-    Assert(r_ogl_egl_state.num_surfaces <= R_OGL_EGL_MAX_SURFACES);
+    r_ogl_egl_state.active_surfaces_count++;
+    Assert(r_ogl_egl_state.active_surfaces_count <= R_OGL_EGL_MAX_SURFACES);
 
     StaticAssert(sizeof(u64) >= sizeof(EGLSurface), r_ogl_render_handle_large_enough);
     return (R_Handle){ .v64 = (u64)surface };
@@ -112,7 +115,7 @@ void r_os_unequip_window(OS_Handle window, R_Handle rwindow) {
             break;
         }
     }
-    r_ogl_egl_state.num_surfaces--;
+    r_ogl_egl_state.active_surfaces_count--;
     eglDestroySurface(r_ogl_egl_state.display, surface);
 }
 

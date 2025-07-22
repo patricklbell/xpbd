@@ -22,7 +22,7 @@ typedef struct R_Batch R_Batch;
 struct R_Batch
 {
     u8 *v;
-    u64 num_bytes;
+    u64 bytes_count;
     u64 byte_cap;
 };
 
@@ -38,8 +38,8 @@ struct R_BatchList
 {
     R_BatchNode *first;
     R_BatchNode *last;
-    u64 num_batches;
-    u64 num_bytes;
+    u64 batches_count;
+    u64 bytes_count;
     u64 bytes_per_inst;
 };
 
@@ -64,7 +64,7 @@ typedef struct R_BatchGroup3DMap R_BatchGroup3DMap;
 struct R_BatchGroup3DMap
 {
     R_BatchGroup3DMapNode **slots;
-    u64 num_slots;
+    u64 slots_count;
 };
 
 typedef struct R_PassParams_3D R_PassParams_3D;
@@ -80,7 +80,7 @@ struct R_PassParams_3D
 typedef enum R_PassKind
 {
     R_PassKind_3D,
-    R_PassKind_COUNT,
+    R_PassKind_COUNT ENUM_CASE_UNUSED,
 } R_PassKind;
 
 typedef struct R_Pass R_Pass;
@@ -117,6 +117,13 @@ typedef enum R_ResourceKind
     R_ResourceKind_COUNT,
 } R_ResourceKind;
 
+typedef enum R_ResourceHint
+{
+    R_ResourceHint_Array,
+    R_ResourceHint_Indices,
+    R_ResourceHint_COUNT,
+} R_ResourceHint;
+
 void r_init();
 void r_cleanup();
 
@@ -125,7 +132,7 @@ void* r_batch_list_push_inst(Arena *arena, R_BatchList *list, u64 batch_inst_cap
 
 R_Pass* r_add_pass_of_kind(Arena *arena, R_PassList *list, R_PassKind kind);
 
-R_Handle r_buffer_alloc(R_ResourceKind kind, u32 size, void *data);
+R_Handle r_buffer_alloc(R_ResourceKind kind, R_ResourceHint hint, u32 size, void *data);
 void r_buffer_release(R_Handle buffer);
 
 R_Handle    r_os_equip_window(OS_Handle window);
@@ -135,4 +142,4 @@ void        r_os_select_window(OS_Handle window, R_Handle rwindow);
 void r_window_begin_frame(OS_Handle window, R_Handle rwindow);
 void r_window_end_frame(OS_Handle window, R_Handle rwindow);
 
-void r_submit(R_PassList *passes);
+void r_submit(OS_Handle window, R_PassList *passes);

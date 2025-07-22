@@ -1,7 +1,5 @@
-f64 os_now_seconds() {
-    struct timeval tval;
-    gettimeofday(&tval, NULL);
-    return (f64)tval.tv_sec + (f64)tval.tv_usec / Million(1.f);
+static Window os_gfx_handle_to_window(OS_Handle handle) {
+    return (Window)handle.v64;
 }
 
 void os_gfx_init() {
@@ -10,7 +8,7 @@ void os_gfx_init() {
 
 void os_gfx_cleanup() {
     XCloseDisplay(os_gfx_x11_state.display);
-    os_gfx_x11_state = zero_struct;
+    os_gfx_x11_state.display = NULL;
 }
 
 OS_Handle os_gfx_handle() {
@@ -18,11 +16,7 @@ OS_Handle os_gfx_handle() {
     return (OS_Handle) { .v64 = (u64)os_gfx_x11_state.display };
 }
 
-static Window os_handle_to_window(OS_Handle handle) {
-    return (Window)handle.v64;
-}
-
-OS_Handle os_open_window() {
+OS_Handle os_gfx_open_window() {
     Display* display = os_gfx_x11_state.display;
     Assert(display != NULL);
 
@@ -58,7 +52,7 @@ OS_Handle os_open_window() {
         return os_zero_handle();
     }
 
-    // Cause X11 to send a 
+    // tell X11 to send a close event
     os_gfx_x11_state.atom_wm_close = XInternAtom(display, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(display, window, &os_gfx_x11_state.atom_wm_close, 1);
 
@@ -69,31 +63,24 @@ OS_Handle os_open_window() {
     return (OS_Handle) { .v64 = (u64)window };
 }
 
-void os_close_window(OS_Handle window) {
-    XDestroyWindow(os_gfx_x11_state.display, os_handle_to_window(window));
+void os_gfx_close_window(OS_Handle window) {
+    XDestroyWindow(os_gfx_x11_state.display, os_gfx_handle_to_window(window));
 }
 
-vec2_f32 os_window_size(OS_Handle window) {
+vec2_f32 os_gfx_window_size(OS_Handle window) {
     XWindowAttributes gwa;
-    XGetWindowAttributes(os_gfx_x11_state.display, os_handle_to_window(window), &gwa);
+    XGetWindowAttributes(os_gfx_x11_state.display, os_gfx_handle_to_window(window), &gwa);
     return (vec2_f32){.x = (f32)gwa.width, .y = (f32)gwa.height};
 }
 
-static void os_window_add_event(Arena* arena, OS_EventList* list, OS_Event event) {
-    OS_EventNode* n = push_array(arena, OS_EventNode, 1);
-    dllist_push_back(list->first, list->last, n);
-    list->length++;
-    n->v = event;
-}
-
-static vec2_f32 os_linux_x11_transform_mouse(OS_Handle window, int x, int y) {
+static vec2_f32 os_gfx_x11_transform_mouse(OS_Handle window, int x, int y) {
     return (vec2_f32){
         .x = (f32)x,
-        .y = os_window_size(window).y - (f32)y
+        .y = os_gfx_window_size(window).y - (f32)y
     };
 }
 
-static b32 os_linux_x11_button_to_event(OS_Handle window, OS_Event* event, XButtonEvent* xbutton) {
+static b32 os_gfx_x11_button_to_event(OS_Handle window, OS_Event* event, XButtonEvent* xbutton) {
     switch (xbutton->button) {
         case Button1: event->key = OS_Key_LeftMouseButton; break;
         case Button3: event->key = OS_Key_RightMouseButton; break;
@@ -125,7 +112,7 @@ static b32 os_linux_x11_button_to_event(OS_Handle window, OS_Event* event, XButt
         os_gfx_x11_state.scroll_direction = event->scroll_direction;
     }
 
-    event->mouse_position = os_linux_x11_transform_mouse(window, xbutton->x, xbutton->y);
+    event->mouse_position = os_gfx_x11_transform_mouse(window, xbutton->x, xbutton->y);
     event->time.seconds = (f64)xbutton->time / Thousand(1);
 
     switch (xbutton->type)
@@ -138,8 +125,8 @@ static b32 os_linux_x11_button_to_event(OS_Handle window, OS_Event* event, XButt
     return 1;
 }
 
-OS_EventList os_window_poll_events(Arena* arena, OS_Handle window) {
-    OS_EventList events = zero_struct;
+OS_Events os_gfx_window_poll_events(Arena* arena, OS_Handle window) {
+    OS_Events events = zero_struct;
 
     os_gfx_x11_state.scroll_press_this_update = 0;
 
@@ -150,24 +137,25 @@ OS_EventList os_window_poll_events(Arena* arena, OS_Handle window) {
         switch (event.type) {
             case ClientMessage: {
                 if (event.xclient.data.l[0] == os_gfx_x11_state.atom_wm_close) {
-                    os_window_add_event(arena, &events, (OS_Event){
+                    os_gfx_window_add_event(arena, &events, (OS_Event){
                         .type = OS_EventType_Quit
                     });
+                    events.quit = 1;
                 }
                 break;
             }
             case ButtonPress:
             case ButtonRelease: {
                 OS_Event e = zero_struct;
-                if (os_linux_x11_button_to_event(window, &e, &event.xbutton)) {
-                    os_window_add_event(arena, &events, e);
+                if (os_gfx_x11_button_to_event(window, &e, &event.xbutton)) {
+                    os_gfx_window_add_event(arena, &events, e);
                 }
             }
             case MotionNotify: {
-                os_window_add_event(arena, &events, (OS_Event){
+                os_gfx_window_add_event(arena, &events, (OS_Event){
                     .type = OS_EventType_MouseMove,
                     .time = {(f64)event.xmotion.time / Thousand(1)},
-                    .mouse_position = os_linux_x11_transform_mouse(window, event.xmotion.x, event.xmotion.y),
+                    .mouse_position = os_gfx_x11_transform_mouse(window, event.xmotion.x, event.xmotion.y),
                 });
             }
         }
@@ -175,11 +163,22 @@ OS_EventList os_window_poll_events(Arena* arena, OS_Handle window) {
 
     if (!os_gfx_x11_state.scroll_press_this_update && os_gfx_x11_state.is_scroll_pressed) {
         os_gfx_x11_state.is_scroll_pressed = 0;
-        os_window_add_event(arena, &events, (OS_Event){
+        os_gfx_window_add_event(arena, &events, (OS_Event){
             .type = OS_EventType_Release,
             .key = OS_Key_WheelY,
         });
     }
 
     return events;
+}
+
+void os_gfx_start_window_event_loop(OS_Handle window, OS_LoopFunction callback, void* data, OS_Events* events) {
+    Arena* events_arena = arena_alloc();
+
+    while (!events->quit) {
+        arena_clear(events_arena);
+        *events = os_gfx_window_poll_events(events_arena, window);
+        
+        (*callback)(data);
+    }
 }

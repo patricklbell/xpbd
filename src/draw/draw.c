@@ -2,6 +2,7 @@ void d_begin_pipeline() {
     Arena* arena;
     if (d_thread_ctx == NULL) {
         arena = arena_alloc();
+        d_thread_ctx = push_array(arena, D_ThreadCtx, 1);
     } else {
         arena = d_thread_ctx->arena;
         arena_clear(d_thread_ctx->arena);
@@ -32,9 +33,9 @@ R_Mesh3DInst* d_mesh(R_Handle mesh_vertices, R_Handle mesh_indices, mat4x4_f32 t
     R_PassParams_3D *params = pass->params_3d;
 
     // make batch hash map
-    if(params->mesh_batches.num_slots == 0) {
-        params->mesh_batches.num_slots = 1024;
-        params->mesh_batches.slots = push_array(d_thread_ctx->arena, R_BatchGroup3DMapNode *, params->mesh_batches.num_slots);
+    if(params->mesh_batches.slots_count == 0) {
+        params->mesh_batches.slots_count = 1024;
+        params->mesh_batches.slots = push_array(d_thread_ctx->arena, R_BatchGroup3DMapNode *, params->mesh_batches.slots_count);
     }
 
     // hash batch group params
@@ -43,7 +44,7 @@ R_Mesh3DInst* d_mesh(R_Handle mesh_vertices, R_Handle mesh_indices, mat4x4_f32 t
     {
         u64 buffer[] = { mesh_vertices.v64, mesh_indices.v64 };
         hash = hash_u64((u8*)buffer, sizeof(buffer));
-        slot_idx = hash % params->mesh_batches.num_slots;
+        slot_idx = hash % params->mesh_batches.slots_count;
     }
 
     // check map for matching hash

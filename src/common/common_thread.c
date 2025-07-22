@@ -1,5 +1,3 @@
-static thread_static ThreadCtx* thread_local_ctx;
-
 void thread_equip(ThreadCtx* ctx) {
     for EachElement(i, ctx->arenas) {
         ctx->arenas[i] = arena_alloc();

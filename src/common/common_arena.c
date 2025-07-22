@@ -103,7 +103,7 @@ void arena_pop(Arena* arena, u64 size) {
 
 void arena_clear(Arena* arena) {
     arena->page_offset = ARENA_HEADER_SIZE;
-    memset((u8*)arena + ARENA_HEADER_SIZE, 0, arena->page_size - ARENA_HEADER_SIZE);
+    // memset((u8*)arena + ARENA_HEADER_SIZE, 0, arena->page_size - ARENA_HEADER_SIZE);
 
     // add pages to free list for use
     if (arena->current != arena) {

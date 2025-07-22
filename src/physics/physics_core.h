@@ -9,9 +9,15 @@ typedef struct PHYS_Body PHYS_Body;
 struct PHYS_Body {
     vec3_f32    position;
     vec3_f32    prev_position;
-    vec3_f32    velocity;
-    f32         inv_mass;
+    vec3_f32    linear_velocity;
+    
+    vec4_f32    rotation;
+    vec4_f32    prev_rotation;
+    vec3_f32    angular_velocity; // direction -> axis, length -> rad/s
+    
     b32         no_gravity;
+    f32         inv_mass;
+    mat3x3_f32  inv_moment;
 };
 
 typedef struct PHYS_Constraint_StaticDistance PHYS_Constraint_StaticDistance;
@@ -37,7 +43,7 @@ typedef enum PHYS_ConstraintType {
     PHYS_ConstraintType_StaticDistance,
     PHYS_ConstraintType_Distance,
     PHYS_ConstraintType_Volume,
-    PHYS_ConstraintType_COUNT,
+    PHYS_ConstraintType_COUNT ENUM_CASE_UNUSED,
 } PHYS_ConstraintType;
 
 typedef struct PHYS_Constraint PHYS_Constraint;
@@ -76,6 +82,12 @@ struct PHYS_Collider_DynamicSphere {
     f32 r;
 };
 
+typedef struct PHYS_Collider_DynamicBox PHYS_Collider_DynamicBox;
+struct PHYS_Collider_DynamicBox {
+    PHYS_body_id c;
+    vec3_f32 r;
+};
+
 typedef struct PHYS_Collider_StaticPlane PHYS_Collider_StaticPlane;
 struct PHYS_Collider_StaticPlane {
     vec3_f32 p;
@@ -110,11 +122,11 @@ struct PHYS_ConstraintNode {
     u32 id;
 };
 
-#define PHYS_CONSTRAINT_MAP_NUM_SLOTS 16
+#define PHYS_CONSTRAINT_MAP_DEFAULT_SLOTS_COUNT 16
 typedef struct PHYS_ConstraintMap PHYS_ConstraintMap;
 struct PHYS_ConstraintMap {
     PHYS_ConstraintNode** slots;
-    u32 num_slots;
+    u32 slots_count;
     u32 max_id;
     PHYS_ConstraintNode* free_chain;
 };
@@ -127,16 +139,16 @@ struct PHYS_ColliderNode {
     u32 id;
 };
 
-#define PHYS_COLLIDER_MAP_NUM_SLOTS 64
+#define PHYS_COLLIDER_MAP_DEFAULT_SLOTS_COUNT 64
 typedef struct PHYS_ColliderMap PHYS_ColliderMap;
 struct PHYS_ColliderMap {
     PHYS_ColliderNode** slots;
-    u32 num_slots;
+    u32 slots_count;
     u32 max_id;
     PHYS_ColliderNode* free_chain;
 };
 
-#define PHYS_BODY_DYNAMIC_ARRAY_INITIAL_CAPACITY 1
+#define PHYS_BODY_DYNAMIC_ARRAY_INITIAL_CAPACITY 16
 #define PHYS_BODY_DYNAMIC_ARRAY_GROWTH 2
 typedef struct PHYS_BodyDynamicArray PHYS_BodyDynamicArray;
 struct PHYS_BodyDynamicArray {
@@ -178,7 +190,7 @@ struct PHYS_Ball_Settings {
     f32 radius;
     f32 mass;
     vec3_f32 center;
-    vec3_f32 velocity;
+    vec3_f32 linear_velocity;
 };
 
 typedef struct PHYS_Ball PHYS_Ball;
