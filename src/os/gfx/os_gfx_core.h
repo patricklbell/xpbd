@@ -2,6 +2,7 @@
 
 // graphics and windowing api
 void        os_gfx_init();
+void        os_gfx_disconnect_from_rendering();
 void        os_gfx_cleanup();
 OS_Handle   os_gfx_handle();
 
@@ -14,6 +15,7 @@ typedef enum OS_EventType {
     OS_EventType_Press,
     OS_EventType_Release,
     OS_EventType_MouseMove,
+    OS_EventType_Wheel,
     OS_EventType_Quit,
     OS_EventType_COUNT,
 } OS_EventType;
@@ -21,7 +23,6 @@ typedef enum OS_EventType {
 typedef enum OS_Key {
     OS_Key_LeftMouseButton,
     OS_Key_RightMouseButton,
-    OS_Key_WheelY,
     OS_Key_COUNT,
 } OS_Key;
 
@@ -29,11 +30,8 @@ typedef struct OS_Event OS_Event;
 struct OS_Event {
     OS_EventType type;
     OS_Key key;
-    struct {
-        f64 seconds;
-    } time;
     vec2_f32 mouse_position;
-    s32 scroll_direction;
+    vec2_f32 wheel_delta;
 };
 
 typedef struct OS_EventNode OS_EventNode;

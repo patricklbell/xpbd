@@ -11,58 +11,55 @@ void input_update(OS_Events* events) {
     Temp scratch = scratch_begin(NULL, 0);
 
     // reset state
-    input_state->has_quit = 0;
-    input_state->has_delta = 0;
+    input_state->is_mouse_moving = 0;
+    input_state->is_wheel_moving = 0;
+    input_state->mouse_delta = (vec2_f32){};
+    input_state->wheel_delta = (vec2_f32){};
 
-    // update with events
-    f64 latest_mouse_move = -1;
-    vec2_f32 new_mouse_position;
-
-    for EachList(n, OS_EventNode, events->first) {
+    // apply effect of each event on input state from oldest to newest
+    for EachList_N(n, OS_EventNode, events->last, prev) {
         OS_Event* event = &n->v;
 
-        if (event->type == OS_EventType_MouseMove && event->time.seconds > latest_mouse_move) {
-            latest_mouse_move = event->time.seconds;
-            new_mouse_position = event->mouse_position;
+        if (event->type == OS_EventType_MouseMove) {
+            // compute delta only if we have a valid previous position,
+            // this avoids issues such as exiting the window
+            // @todo focus events
+            if (input_state->is_mouse_position_accurate) {
+                vec2_f32 event_delta = sub_2f32(event->mouse_position, input_state->mouse_position);
+                input_state->mouse_delta = add_2f32(input_state->mouse_delta, event_delta);
+            }
+
+            input_state->mouse_position = event->mouse_position;
+            input_state->is_mouse_position_accurate = 1;
+            input_state->is_mouse_moving = 1;
         } else if (event->type == OS_EventType_Press) {
             input_state->held[event->key] = 1;
-
-            if (event->key == OS_Key_WheelY) {
-                input_state->scroll_delta.y = event->scroll_direction;
-            }
         } else if (event->type == OS_EventType_Release) {
             input_state->held[event->key] = 0;
-
-            if (event->key == OS_Key_WheelY) {
-                input_state->scroll_delta.y = 0;
-            }
+        } else if (event->type == OS_EventType_Wheel) {
+            input_state->wheel_delta = add_2f32(input_state->wheel_delta, event->wheel_delta);
+            input_state->is_wheel_moving = 1;
         }
     }
-    if (latest_mouse_move > 0) {
-        if (input_state->has_active_mouse) {
-            input_state->delta = sub_2f32(new_mouse_position, input_state->position);
-            input_state->has_delta = 1;
-        }
-        input_state->has_active_mouse = 1;
-        input_state->position = new_mouse_position;
-    }
-
+    
     scratch_end(scratch);
 }
 
 // queries
 b32 input_mouse_delta(vec2_f32* delta) {
-    if (input_state->has_delta) {
-        *delta = input_state->delta;
-    }
-    return input_state->has_delta;
+    *delta = input_state->mouse_delta;
+    return input_state->is_mouse_moving;
 }
 
-b32 input_scroll_delta(vec2_f32* delta) {
-    *delta = input_state->scroll_delta;
-    return input_state->held[OS_Key_WheelY];
+b32 input_wheel_delta(vec2_f32* delta) {
+    *delta = input_state->wheel_delta;
+    return input_state->is_wheel_moving;
 }
 
 b32 input_left_mouse_held() {
     return input_state->held[OS_Key_LeftMouseButton];
+}
+
+b32 input_right_mouse_held() {
+    return input_state->held[OS_Key_RightMouseButton];
 }

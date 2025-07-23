@@ -2,10 +2,16 @@
 
 typedef struct NTString8 NTString8;
 struct NTString8 {
-    const char* data;
+    union {
+        u8* data;
+        char* cstr;
+    };
     u64 length;
 };
+StaticAssert(sizeof(char*) == sizeof(u8*), ntstr8_cstr_union);
 
-b8 str_begins_with(NTString8 str, const char* prefix);
+NTString8   make_ntstr8(u8* data, u64 length);
+b8          ntstr8_begins_with(NTString8 str, const char* prefix);
 
-#define str_8_lit(str) ((NTString8){ .data = str, .length = sizeof(str) - 1 })
+#define ntstr8_lit(str)             make_ntstr8((u8*)str, sizeof(str) - 1)
+#define ntstr8_lit_init(str)        {(u8*)str, sizeof(str) - 1}

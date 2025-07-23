@@ -19,7 +19,7 @@ struct BallsState {
 static BallsState demos_balls_state;
 
 int demos_init_hook(DEMOS_CommonState* cs) {
-    MS_MeshResult sphere = ms_load_obj(cs->arena, str_8_lit("./data/sphere.obj"));
+    MS_MeshResult sphere = ms_load_obj(cs->arena, ntstr8_lit("./data/sphere.obj"));
     if (sphere.error.length != 0) {
         fprintf(stderr, "%s\n", sphere.error.data);
         return 1;

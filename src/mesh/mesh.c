@@ -47,7 +47,7 @@ MS_MeshResult ms_load_obj(Arena* arena, NTString8 path) {
     OS_Handle file = os_open_readonly_file(path);
 
     if (os_is_handle_zero(file)) {
-        return (MS_MeshResult) { .error = str_8_lit("Failed to open file") };
+        return (MS_MeshResult) { .error = ntstr8_lit_init("Failed to open file") };
     }
 
     MS_Mesh mesh;
@@ -60,13 +60,13 @@ MS_MeshResult ms_load_obj(Arena* arena, NTString8 path) {
             Temp temp = temp_begin(scratch.arena);
             NTString8 line = os_read_line(scratch.arena, file);
     
-            if (str_begins_with(line, "v ")) {
+            if (ntstr8_begins_with(line, "v ")) {
                 positions_count++;
-            } else if (str_begins_with(line, "vn ")) {
+            } else if (ntstr8_begins_with(line, "vn ")) {
                 normals_count++;
-            } else if (str_begins_with(line, "vt ")) {
+            } else if (ntstr8_begins_with(line, "vt ")) {
                 uvs_count++;
-            } else if (str_begins_with(line, "f ")) {
+            } else if (ntstr8_begins_with(line, "f ")) {
                 indices_count+=3;
             }
             temp_end(temp);
@@ -91,13 +91,13 @@ MS_MeshResult ms_load_obj(Arena* arena, NTString8 path) {
                 Temp temp = temp_begin(scratch.arena);
                 NTString8 line = os_read_line(scratch.arena, file);
 
-                if (str_begins_with(line, "f ")) {
+                if (ntstr8_begins_with(line, "f ")) {
                     // @todo other polygons and formats
                     static const int FACE_VERTICES_COUNT = 3;
 
                     // 1-based index
                     u32 p[FACE_VERTICES_COUNT], uv[FACE_VERTICES_COUNT], n[FACE_VERTICES_COUNT];
-                    sscanf(line.data, "f %u/%u/%u %u/%u/%u %u/%u/%u", 
+                    sscanf(line.cstr, "f %u/%u/%u %u/%u/%u %u/%u/%u", 
                         &p[0], &uv[0], &n[0],
                         &p[1], &uv[1], &n[1],
                         &p[2], &uv[2], &n[2]
@@ -115,22 +115,22 @@ MS_MeshResult ms_load_obj(Arena* arena, NTString8 path) {
                 }
         
                 // @todo replace sscanf
-                if (str_begins_with(line, "v ")) {
-                    sscanf(line.data, "v %f %f %f", 
+                if (ntstr8_begins_with(line, "v ")) {
+                    sscanf(line.cstr, "v %f %f %f", 
                         &positions[off_positions].x,
                         &positions[off_positions].y,
                         &positions[off_positions].z
                     );
                     off_positions++;
-                } else if (str_begins_with(line, "vn ")) {
-                    sscanf(line.data, "vn %f %f %f", 
+                } else if (ntstr8_begins_with(line, "vn ")) {
+                    sscanf(line.cstr, "vn %f %f %f", 
                         &normals[off_normals].x,
                         &normals[off_normals].y,
                         &normals[off_normals].z
                     );
                     off_normals++;
-                } else if (str_begins_with(line, "vt ")) {
-                    sscanf(line.data, "vt %f %f", 
+                } else if (ntstr8_begins_with(line, "vt ")) {
+                    sscanf(line.cstr, "vt %f %f", 
                         &uvs[off_uvs].x,
                         &uvs[off_uvs].y
                     );
@@ -147,5 +147,5 @@ MS_MeshResult ms_load_obj(Arena* arena, NTString8 path) {
         scratch_end(scratch);
     }
     
-    return (MS_MeshResult) { .v = mesh, .error = str_8_lit("") };;
+    return (MS_MeshResult) { .v = mesh, .error = ntstr8_lit_init("") };;
 }

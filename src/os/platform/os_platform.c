@@ -45,8 +45,8 @@ b8 os_is_eof(OS_Handle file) {
 
 NTString8 os_read_line_ml(Arena* arena, OS_Handle file, u64 max_line_length) {
     NTString8 result;
-    result.data = push_array(arena, char, max_line_length);
-    fgets((char*)result.data, max_line_length, os_handle_to_FILE(file));
-    result.length = strlen((char*)result.data);
+    result.data = push_array(arena, u8, max_line_length);
+    fgets(result.cstr, max_line_length, os_handle_to_FILE(file));
+    result.length = strlen(result.cstr);
     return result;
 }

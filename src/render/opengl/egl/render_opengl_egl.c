@@ -48,7 +48,9 @@ void r_ogl_os_init() {
         EGL_CONTEXT_MAJOR_VERSION, 3,
         EGL_CONTEXT_MINOR_VERSION, 3,
         EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
-        EGL_CONTEXT_OPENGL_DEBUG, EGL_TRUE,
+        #if BUILD_DEBUG
+            EGL_CONTEXT_OPENGL_DEBUG, EGL_TRUE,
+        #endif
         EGL_NONE
     };
     r_ogl_egl_state.context = eglCreateContext(r_ogl_egl_state.display, r_ogl_egl_state.config, EGL_NO_CONTEXT, ctxattr);
@@ -58,9 +60,6 @@ void r_ogl_os_init() {
     eglMakeCurrent(r_ogl_egl_state.display, 0, 0, r_ogl_egl_state.context);
 
     gladLoadGL((GLADloadfunc)r_ogl_egl_procedure_address);
-
-    // match colorspace of windows
-    glEnable(GL_FRAMEBUFFER_SRGB);
 }
 
 void r_ogl_os_cleanup() {
@@ -94,6 +93,9 @@ R_Handle r_os_equip_window(OS_Handle window) {
     EGLSurface surface = eglCreateWindowSurface(r_ogl_egl_state.display, r_ogl_egl_state.config, r_ogl_egl_native_window(window), surfattr);
     Assert(surface != EGL_NO_SURFACE);
 
+    // make opengl convert linear colors to srgb for default framebuffer
+    glEnable(GL_FRAMEBUFFER_SRGB);
+
     for EachIndex(i, R_OGL_EGL_MAX_SURFACES) {
         if (r_ogl_egl_state.surfaces[i] == NULL) {
             r_ogl_egl_state.surfaces[i] = surface;
@@ -122,4 +124,7 @@ void r_os_unequip_window(OS_Handle window, R_Handle rwindow) {
 void r_os_select_window(OS_Handle window, R_Handle rwindow) {
     EGLSurface surface = r_ogl_egl_handle_to_surface(rwindow);
     eglMakeCurrent(r_ogl_egl_state.display, surface, surface, r_ogl_egl_state.context);
+
+    glDrawBuffer(GL_BACK);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 }

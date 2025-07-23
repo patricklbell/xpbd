@@ -4,14 +4,13 @@ typedef struct INPUT_State INPUT_State;
 struct INPUT_State {
     Arena* arena;
     
-    b32 has_quit;
-    
-    b32 has_active_mouse;
-    b32 has_delta;
-    vec2_f32 position;
-    vec2_f32 delta;
+    b32 is_mouse_position_accurate;
+    b32 is_mouse_moving;
+    vec2_f32 mouse_position;
+    vec2_f32 mouse_delta;
 
-    vec2_f32 scroll_delta;
+    b32 is_wheel_moving;
+    vec2_f32 wheel_delta;
 
     b32 held[OS_Key_COUNT];
 };
@@ -23,5 +22,6 @@ void    input_update(OS_Events* events);
 
 // queries
 b32 input_mouse_delta(vec2_f32* delta);
-b32 input_scroll_delta(vec2_f32* delta);
+b32 input_wheel_delta(vec2_f32* delta);
 b32 input_left_mouse_held();
+b32 input_right_mouse_held();

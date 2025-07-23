@@ -29,10 +29,10 @@ void demos_controls_orbit_camera(OS_Handle window, f32 dt, vec3_f32* eye, vec3_f
     }
 
     vec2_f32 scroll_delta;
-    if (input_scroll_delta(&scroll_delta)) {
+    if (input_wheel_delta(&scroll_delta)) {
         vec3_f32 d = sub_3f32(*eye, *target);
         f32 d_length = length_3f32(d);
-        f32 d_zoom = d_length + scroll_delta.y*dt*DEMOS_CONTOLS_ORBIT_ZOOM;
+        f32 d_zoom = d_length - scroll_delta.y*dt*DEMOS_CONTOLS_ORBIT_ZOOM;
         d = mul_3f32(d, d_zoom / d_length);
         *eye = add_3f32(d, *target);
     }

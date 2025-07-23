@@ -29,9 +29,13 @@ static GLuint r_ogl_temp_buffer(u64 size) {
         // add to free list for cleanup at end of frame
         R_OGL_BufferChain* n = push_array(r_ogl_state.per_frame_arena, R_OGL_BufferChain, 1);
         n->buffer = buffer;
-        stack_push(r_ogl_state.buffer_free_list, n);
+        stack_push(r_ogl_state.buffer_free_chain, n);
     }
     return buffer;
+}
+
+static void r_ogl_debug_message_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam) {
+  fprintf(stderr, "[OpenGL] %.*s\n", (int)length, message);
 }
 
 // render implementation section
@@ -40,13 +44,16 @@ void r_init() {
 
     r_ogl_state.per_frame_arena = arena_alloc();
 
+    glGenVertexArrays(1, &r_ogl_state.shared_vao);
+    glBindVertexArray(r_ogl_state.shared_vao);
+
     // build and compile our shader program
     {
         int success;
         char log[512];
 
         // vertex shader
-        const char* vertex_src[] = { r_ogl_vertex_shader_src.data };
+        const char* vertex_src[] = { r_ogl_vertex_shader_src.cstr };
         GLint vertex_src_lens[] = { (GLint)r_ogl_vertex_shader_src.length };
         GLuint vertex_id = glCreateShader(GL_VERTEX_SHADER);
         glShaderSource(vertex_id, 1, vertex_src, vertex_src_lens);
@@ -56,7 +63,7 @@ void r_init() {
         AssertAlways(success);
     
         // fragment shader
-        const char* fragment_src[] = { r_ogl_fragment_shader_src.data };
+        const char* fragment_src[] = { r_ogl_fragment_shader_src.cstr };
         GLint fragment_src_lens[] = { (GLint)r_ogl_fragment_shader_src.length };
         GLuint fragment_id = glCreateShader(GL_FRAGMENT_SHADER);
         glShaderSource(fragment_id, 1, fragment_src, fragment_src_lens);
@@ -91,14 +98,21 @@ void r_init() {
 
     // use our program
     glUseProgram(r_ogl_state.program);
-
-    glGenVertexArrays(1, &r_ogl_state.shared_vao);
-    glBindVertexArray(r_ogl_state.shared_vao);
     
     r_ogl_state.shared_buffer_size = KB(64);
     glGenBuffers(1, &r_ogl_state.shared_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, r_ogl_state.shared_buffer);
     glBufferData(GL_ARRAY_BUFFER, r_ogl_state.shared_buffer_size, 0, GL_DYNAMIC_DRAW);
+
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+#if BUILD_DEBUG && !OS_WEB
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    glDebugMessageCallback(r_ogl_debug_message_callback, 0);
+#endif
 }
 
 void r_cleanup() {
@@ -112,15 +126,13 @@ void r_window_begin_frame(OS_Handle window, R_Handle rwindow) {
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, (GLsizei)window_size.x, (GLsizei)window_size.y);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 void r_window_end_frame(OS_Handle window, R_Handle rwindow) {
-    for EachList(n, R_OGL_BufferChain, r_ogl_state.buffer_free_list) {
+    for EachList(n, R_OGL_BufferChain, r_ogl_state.buffer_free_chain) {
         glDeleteBuffers(1, &n->buffer);
     }
-    r_ogl_state.buffer_free_list = NULL;
+    r_ogl_state.buffer_free_chain = NULL;
     arena_clear(r_ogl_state.per_frame_arena);
 
     r_ogl_os_window_swap(window, rwindow);
@@ -156,6 +168,7 @@ void r_submit(OS_Handle window, R_PassList *passes) {
                 glScissor(params->clip.tl.x, params->clip.tl.y, params->clip.br.x, params->clip.br.y);
                 glEnable(GL_SCISSOR_TEST);
                 glEnable(GL_DEPTH_TEST);
+                glEnable(GL_CULL_FACE);
 
                 glUniformMatrix4fv(glGetUniformLocation(r_ogl_state.program, "u_projection"), 1, GL_FALSE, &params->projection.v[0][0]);
                 glUniformMatrix4fv(glGetUniformLocation(r_ogl_state.program, "u_view"), 1, GL_FALSE, &params->view.v[0][0]);
@@ -204,6 +217,7 @@ void r_submit(OS_Handle window, R_PassList *passes) {
                     }
                 }
 
+                glDisable(GL_CULL_FACE);
                 glDisable(GL_SCISSOR_TEST);
                 glDisable(GL_DEPTH_TEST);
 

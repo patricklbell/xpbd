@@ -17,7 +17,7 @@ int main() {
     DEMOS_CommonState* cs = push_array(main_arena, DEMOS_CommonState, 1);
     cs->arena = main_arena;
 
-    // initialise the windowing api
+    // initialize windowing api
     os_gfx_init();
 
     // open a window
@@ -26,10 +26,10 @@ int main() {
         os_gfx_cleanup();
         return 1;
     }
-    
+
     // initialize rendering api
     r_init();
-
+    
     // equip window for rendering
     cs->rwindow = r_os_equip_window(cs->window);
 
@@ -43,8 +43,11 @@ int main() {
         demos_shutdown_hook(cs);
     }
 
-    r_cleanup();
     os_gfx_close_window(cs->window);
+
+    os_gfx_disconnect_from_rendering();
+    r_cleanup();
+
     os_gfx_cleanup();
 }
 

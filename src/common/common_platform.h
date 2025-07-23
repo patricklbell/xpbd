@@ -139,7 +139,8 @@
         #elif defined(WAYLAND)
             #define OS_WINDOWING_SYSTEM OS_WINDOWING_SYSTEM_WAYLAND
         #else
-            #define OS_WINDOWING_SYSTEM OS_WINDOWING_SYSTEM_LINUX
+            // @todo x11 + wayland support
+            #define OS_WINDOWING_SYSTEM OS_WINDOWING_SYSTEM_WAYLAND
         #endif
     #elif OS_WINDOWS
         #define OS_WINDOWING_SYSTEM OS_WINDOWING_SYSTEM_WINAP

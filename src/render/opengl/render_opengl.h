@@ -40,7 +40,7 @@ struct R_OGL_State
 
     GLuint shared_buffer;
     u64 shared_buffer_size;
-    R_OGL_BufferChain* buffer_free_list;
+    R_OGL_BufferChain* buffer_free_chain;
 };
 
 thread_static R_OGL_State r_ogl_state = zero_struct;
@@ -81,7 +81,7 @@ struct R_OGL_Attribute {
 };
 
 
-static const NTString8 r_ogl_vertex_shader_src = str_8_lit(
+static const NTString8 r_ogl_vertex_shader_src = ntstr8_lit_init(
     #if R_OGL_USES_ES
     "#version 300 es\n"
     "precision mediump float;"
@@ -105,7 +105,7 @@ static const NTString8 r_ogl_vertex_shader_src = str_8_lit(
     "}"
 );
 
-static const NTString8 r_ogl_fragment_shader_src = str_8_lit(
+static const NTString8 r_ogl_fragment_shader_src = ntstr8_lit_init(
     #if R_OGL_USES_ES
     "#version 300 es\n"
     "precision mediump float;"
@@ -118,7 +118,7 @@ static const NTString8 r_ogl_fragment_shader_src = str_8_lit(
     "out vec4 out_color;"
     ""
     "void main() {"
-    "   vec3 albedo = vec3(0.5, 0.4, 0.4);"
+    "   vec3 albedo = vec3(0.4, 0.4, 0.4);"
     "   vec3 i = -normalize(vec3(1., -1., -1.));"
     ""
     "   vec3 n = normalize(vs_normal);"
@@ -131,13 +131,13 @@ static const NTString8 r_ogl_fragment_shader_src = str_8_lit(
 
 // @todo x-macro
 static const R_OGL_Attribute r_ogl_shader_vertex_attributes[] = {
-    (R_OGL_Attribute) { .location = 0, .type = GL_FLOAT, .size = sizeof(Member(R_VertexLayout, position))/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_VertexLayout, position), .name = str_8_lit("in_position") },
-    (R_OGL_Attribute) { .location = 1, .type = GL_FLOAT, .size = sizeof(Member(R_VertexLayout, normal  ))/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_VertexLayout, normal  ), .name = str_8_lit("in_normal"  ) },
+    (R_OGL_Attribute) { .location = 0, .type = GL_FLOAT, .size = sizeof(Member(R_VertexLayout, position))/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_VertexLayout, position), .name = ntstr8_lit_init("in_position") },
+    (R_OGL_Attribute) { .location = 1, .type = GL_FLOAT, .size = sizeof(Member(R_VertexLayout, normal  ))/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_VertexLayout, normal  ), .name = ntstr8_lit_init("in_normal"  ) },
 };
 
 static const R_OGL_Attribute r_ogl_shader_instance_attributes[] = {
-    (R_OGL_Attribute) { .location = 10, .type = GL_FLOAT, .size = sizeof(vec4_f32)/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_Mesh3DInst, inst_transform.c1), .name = str_8_lit("in_mvp") },
-    (R_OGL_Attribute) { .location = 11, .type = GL_FLOAT, .size = sizeof(vec4_f32)/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_Mesh3DInst, inst_transform.c2), .name = str_8_lit("in_mvp") },
-    (R_OGL_Attribute) { .location = 12, .type = GL_FLOAT, .size = sizeof(vec4_f32)/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_Mesh3DInst, inst_transform.c3), .name = str_8_lit("in_mvp") },
-    (R_OGL_Attribute) { .location = 13, .type = GL_FLOAT, .size = sizeof(vec4_f32)/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_Mesh3DInst, inst_transform.c4), .name = str_8_lit("in_mvp") },
+    (R_OGL_Attribute) { .location = 10, .type = GL_FLOAT, .size = sizeof(vec4_f32)/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_Mesh3DInst, inst_transform.c1), .name = ntstr8_lit_init("in_mvp") },
+    (R_OGL_Attribute) { .location = 11, .type = GL_FLOAT, .size = sizeof(vec4_f32)/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_Mesh3DInst, inst_transform.c2), .name = ntstr8_lit_init("in_mvp") },
+    (R_OGL_Attribute) { .location = 12, .type = GL_FLOAT, .size = sizeof(vec4_f32)/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_Mesh3DInst, inst_transform.c3), .name = ntstr8_lit_init("in_mvp") },
+    (R_OGL_Attribute) { .location = 13, .type = GL_FLOAT, .size = sizeof(vec4_f32)/sizeof(f32), .normalized = GL_FALSE, .offset = &Member(R_Mesh3DInst, inst_transform.c4), .name = ntstr8_lit_init("in_mvp") },
 };

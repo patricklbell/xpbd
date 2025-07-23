@@ -24,7 +24,7 @@ $(BALLS_DEST):
 $(BALLS_DEST)/%: $(BALLS_SRC)/%
 	cp -f $< $@
 balls: $(BALLS_DEST) $(BALLS_FILES)
-	$(CC) $(LDFLAGS) $(LDFLAGS_GFX) $(CFLAGS) src/demos/balls/main.c -DWAYLAND -o $(BUILD_DIR)/balls/$(DEMO_OUT)
+	$(CC) $(CFLAGS) src/demos/balls/main.c $(LDFLAGS) $(LDFLAGS_GFX) -o $(BUILD_DIR)/balls/$(DEMO_OUT)
 
 clean:
 	rm -f build/*

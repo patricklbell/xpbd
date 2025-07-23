@@ -13,7 +13,7 @@ void r_ogl_os_init() {
     attributes.minorVersion = 0;
     // Passing a nullptr target chooses the DOM canvas element specified by
     // Module.canvas from JS.
-    EMSCRIPTEN_WEBGL_CONTEXT_HANDLE handle = emscripten_webgl_create_context("canvas", &attributes);
+    EMSCRIPTEN_WEBGL_CONTEXT_HANDLE handle = emscripten_webgl_create_context("#canvas", &attributes);
     Assert(handle != 0);
 
     EMSCRIPTEN_RESULT res = emscripten_webgl_make_context_current(handle);
