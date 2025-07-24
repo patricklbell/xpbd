@@ -85,8 +85,9 @@ union vec4_f32 {
     f32 v[4];
 };
 
-vec4_f32 make_quat_axis_angle(f64 t, vec3_f32 a);
-vec4_f32 make_quat_axis(vec3_f32 a);
+vec4_f32 make_axis_angle_quat(f64 t, vec3_f32 a);
+vec4_f32 make_axis_quat(vec3_f32 a);
+vec4_f32 make_identity_quat();
 vec4_f32 inv_quat(vec4_f32 q);
 vec3_f32 rot_quat(vec3_f32 a, vec4_f32 q);
 vec4_f32 mul_quat(vec4_f32 q1, vec4_f32 q2);
@@ -117,7 +118,9 @@ mat3x3_f32 make_scale_3x3f32(vec3_f32 s);
 mat3x3_f32 make_rotate_3x3f32(vec4_f32 nq);
 mat3x3_f32 add_3x3f32(mat3x3_f32 a, mat3x3_f32 b);
 mat3x3_f32 sub_3x3f32(mat3x3_f32 a, mat3x3_f32 b);
-mat3x3_f32 mul_3x3f32(mat3x3_f32 a, mat3x3_f32 b);
+vec3_f32   mul_3x3f32(mat3x3_f32 a, vec3_f32 b);
+vec3_f32   mullhs_3x3f32(vec3_f32 a, mat3x3_f32 b);
+mat3x3_f32 matmul_3x3f32(mat3x3_f32 a, mat3x3_f32 b);
 mat3x3_f32 scale_3x3f32(mat3x3_f32 a, f32 b);
 mat3x3_f32 inv_3x3f32(mat3x3_f32 m);
 mat3x3_f32 transpose_3x3f32(mat3x3_f32 m);
@@ -142,7 +145,9 @@ mat4x4_f32 make_perspective_4x4f32(f32 fov, f32 aspect_ratio, f32 near_z, f32 fa
 mat4x4_f32 make_look_at_4x4f32(vec3_f32 eye, vec3_f32 center, vec3_f32 up);
 mat4x4_f32 add_4x4f32(mat4x4_f32 a, mat4x4_f32 b);
 mat4x4_f32 sub_4x4f32(mat4x4_f32 a, mat4x4_f32 b);
-mat4x4_f32 mul_4x4f32(mat4x4_f32 a, mat4x4_f32 b);
+vec4_f32   mul_4x4f32(mat4x4_f32 a, vec4_f32 b);
+vec4_f32   mullhs_4x4f32(vec4_f32 a, mat4x4_f32 b);
+mat4x4_f32 matmul_4x4f32(mat4x4_f32 a, mat4x4_f32 b);
 mat4x4_f32 scale_4x4f32(mat4x4_f32 a, f32 b);
 mat4x4_f32 inv_4x4f32(mat4x4_f32 m);
 mat4x4_f32 transpose_4x4f32(mat4x4_f32 m);

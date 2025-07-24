@@ -20,8 +20,8 @@ void demos_controls_orbit_camera(OS_Handle window, f32 dt, vec3_f32* eye, vec3_f
         }
     
         // compute rotation
-        vec4_f32 xrot = make_quat_axis_angle(delta_a.x, u);
-        vec4_f32 yrot = make_quat_axis_angle(delta_a.y, s);
+        vec4_f32 xrot = make_axis_angle_quat(delta_a.x, u);
+        vec4_f32 yrot = make_axis_angle_quat(delta_a.y, s);
         d = rot_quat(d, xrot);
         d = rot_quat(d, yrot);
         

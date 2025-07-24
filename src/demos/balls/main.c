@@ -32,7 +32,7 @@ int demos_init_hook(DEMOS_CommonState* cs) {
     s->eye    = (vec3_f32){.x = 0,.y = 0,.z =30};
     s->target = (vec3_f32){.x = 0,.y = 0,.z = 0};
 
-    s->world = phys_world_make();    
+    s->world = phys_world_make((PHYS_WorldSettings){});    
     {
         phys_world_add_box_boundary(s->world, (PHYS_BoxBoundary_Settings){
             .extents=make_3f32(6,6,6)
@@ -77,7 +77,7 @@ void demos_frame_hook(DEMOS_CommonState* cs) {
             PHYS_Body* body = phys_world_resolve_body(s->world, s->balls[i].body_id);
             f32 radius = s->ball_settings[i].radius;
 
-            mat4x4_f32 t = mul_4x4f32(
+            mat4x4_f32 t = matmul_4x4f32(
                 make_translate_4x4f32(body->position),
                 make_scale_4x4f32(make_3f32(radius, radius, radius))
             );

@@ -1,17 +1,55 @@
+// helpers
+static void phys_body_apply_linear_correction(PHYS_Body* b, vec3_f32 corr) {
+    // apply position correction
+    vec3_f32 dp = mul_3f32(corr, b->inv_mass);
+    b->position = add_3f32(b->position, dp);
+}
+static void phys_body_apply_angular_correction(PHYS_Body* b, vec3_f32 corr, vec3_f32 r) {
+    // torque in inertial frame
+    vec3_f32 t = rot_quat(cross_3f32(r, corr), inv_quat(b->rotation));
+    // delta angle in world frame
+    vec3_f32 dw = rot_quat(mul_3x3f32(b->inv_inertia, t), b->rotation);
+    // apply rotation correction
+    vec4_f32 dr = mul_quat(make_axis_quat(dw), b->rotation);
+    b->rotation = normalize_4f32(add_4f32(b->rotation, mul_4f32(dr, 0.5f)));
+}
+
+static f32 phys_body_generalized_inverse_mass(PHYS_Body* b, vec3_f32 r, vec3_f32 dC) {
+    // direction of torque
+    vec3_f32 nt = rot_quat(cross_3f32(r, dC), inv_quat(b->rotation));
+    return b->inv_mass + dot_3f32(nt, mul_3x3f32(b->inv_inertia, nt));
+}
+
 // constraints
 void phys_constrain_distance(PHYS_Constraint_Distance* c, PHYS_ConstraintSolveSettings settings) {
     PHYS_Body* b1 = phys_world_resolve_body(settings.w, c->b1);
     PHYS_Body* b2 = phys_world_resolve_body(settings.w, c->b2);
 
-    vec3_f32 d = sub_3f32(b2->position, b1->position);
+    vec3_f32 r1 = rot_quat(c->offset1, b1->rotation);
+    vec3_f32 r2 = rot_quat(c->offset2, b2->rotation);
+
+    vec3_f32 d = sub_3f32(
+        c->is_offset ? add_3f32(b1->position, r1) : b1->position,
+        c->is_offset ? add_3f32(b2->position, r2) : b2->position
+    );
     f32 d_length = length_3f32(d);
+    if (c->unilateral && d_length < c->d) return;
     f32 C = d_length - c->d;
     vec3_f32 dC = mul_3f32(d, 1.f/d_length);
+
+    f32 w1 = c->is_offset ? phys_body_generalized_inverse_mass(b1, r1, dC) : b1->inv_mass;
+    f32 w2 = c->is_offset ? phys_body_generalized_inverse_mass(b2, r2, dC) : b2->inv_mass;
     f32 a_on_dt2 = settings.inv_dt2*c->compliance;
-    f32 l = 1.f / (b1->inv_mass + b2->inv_mass + a_on_dt2);
+    f32 l = 1.f / (w1 + w2 + a_on_dt2);
     
-    b1->position = add_3f32(b1->position, mul_3f32(dC, +C*b1->inv_mass*l));
-    b2->position = add_3f32(b2->position, mul_3f32(dC, -C*b2->inv_mass*l));
+    vec3_f32 corr1 = mul_3f32(dC, -C*l);
+    vec3_f32 corr2 = mul_3f32(dC, +C*l);
+    phys_body_apply_linear_correction(b1, corr1);
+    phys_body_apply_linear_correction(b2, corr2);
+    if (c->is_offset) {
+        phys_body_apply_angular_correction(b1, corr1, r1);
+        phys_body_apply_angular_correction(b2, corr2, r2);
+    }
 }
 
 void phys_constrain_volume(PHYS_Constraint_Volume* c, PHYS_ConstraintSolveSettings settings) {
@@ -52,14 +90,15 @@ static void phys_collide_sphere_with_plane(const PHYS_Collider_Sphere* c1, PHYS_
 }
 
 // world
-PHYS_World* phys_world_make() {
+PHYS_World* phys_world_make(PHYS_WorldSettings settings) {
     Arena* arena = arena_alloc();
     PHYS_World* w = push_array(arena, PHYS_World, 1);
 
     *w = (PHYS_World){
         .arena = arena,
-        .substeps = 16,
-        .little_g = -10.f,
+        .substeps = (!settings.substeps) ? 16 : settings.substeps,
+        .little_g = (!settings.little_g) ? -10 : settings.little_g,
+        .damping  = settings.damping,
         .colliders = (PHYS_ColliderMap){
             .slots = push_array(arena, PHYS_ColliderNode*, PHYS_COLLIDER_MAP_DEFAULT_SLOTS_COUNT),
             .slots_count = PHYS_COLLIDER_MAP_DEFAULT_SLOTS_COUNT,
@@ -105,7 +144,7 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
     const vec3_f32 a_gravity = {.x = 0, .y = w->little_g, .z = 0};
     for EachIndex(i, w->bodies.length) {
         PHYS_Body* b = &w->bodies.v[i];
-        // don't compute delta for objects with infinite inertia
+        // don't compute delta for objects with infinite mass
         if (b->inv_mass != 0.f) {
             // save the position and rotation before forces and constraints
             b->prev_position = b->position;
@@ -119,9 +158,9 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
 
         // add velocities
         vec3_f32 dp = mul_3f32(b->linear_velocity, dt);
-        vec4_f32 dr = mul_4f32(mul_quat(make_quat_axis(b->angular_velocity), b->rotation), 0.5f*dt);
         b->position = add_3f32(b->position, dp);
-        b->rotation = normalize_4f32(add_4f32(b->rotation, dr));
+        vec4_f32 dr = mul_4f32(mul_quat(make_axis_quat(b->angular_velocity), b->rotation), dt);
+        b->rotation = normalize_4f32(add_4f32(b->rotation, mul_4f32(dr, 0.5f)));
     }
 
     // step 2: solve constraints (including collisions)
@@ -183,7 +222,7 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
         if (b->inv_mass != 0.f) {
             vec3_f32 dp = sub_3f32(b->position, b->prev_position);
             vec4_f32 dr = mul_quat(b->rotation, inv_quat(b->prev_rotation));
-            b->linear_velocity = mul_3f32(dp, inv_dt);
+            b->linear_velocity = mul_3f32(dp, inv_dt*Max(1.f - w->damping*dt, 0.f));
             b->angular_velocity = mul_3f32(dr.xyz, 2.0*inv_dt*sgn_f32(dr.w));
         }
     }
@@ -203,6 +242,11 @@ PHYS_body_id phys_world_add_body(PHYS_World* w, PHYS_Body b) {
     if (w->bodies.length > w->bodies.capacity) {
         w->bodies.capacity *= PHYS_BODY_DYNAMIC_ARRAY_GROWTH;
         phys_bodies_adjust_allocation(w);
+    }
+
+    // initialise rotation if not set
+    if (dot_4f32(b.rotation, b.rotation) < FLT_EPSILON) {
+        b.rotation = make_identity_quat();
     }
     
     w->bodies.v[new_id] = b;
@@ -349,7 +393,7 @@ PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings){
         .linear_velocity = settings.linear_velocity,
         .angular_velocity = settings.angular_velocity,
         .inv_mass = 1.f / settings.mass,
-        .inv_moment = phys_inv_moment_rect_cuboid(mul_3f32(settings.extents, 2.0), settings.mass),
+        .inv_inertia = phys_inv_moment_rect_cuboid(mul_3f32(settings.extents, 2.0), settings.mass),
     });
     PHYS_collider_id rect_cuboid = phys_world_add_collider(w, (PHYS_Collider){
         .type = PHYS_ColliderType_RectCuboid,

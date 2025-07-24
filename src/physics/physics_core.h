@@ -16,7 +16,7 @@ struct PHYS_Body {
     
     b32         no_gravity;
     f32         inv_mass;
-    mat3x3_f32  inv_moment;
+    mat3x3_f32  inv_inertia;
 };
 
 // constraints
@@ -34,6 +34,12 @@ struct PHYS_Constraint_Distance {
     PHYS_body_id b1;
     PHYS_body_id b2;
     f32 d;
+
+    b32 is_offset;
+    vec3_f32 offset1;
+    vec3_f32 offset2;
+
+    b32 unilateral; // eg. string
 };
 
 typedef struct PHYS_Constraint_Volume PHYS_Constraint_Volume;
@@ -64,6 +70,10 @@ struct PHYS_ConstraintSolveSettings {
     PHYS_World* w;
     f64 inv_dt2;
 };
+
+static void phys_body_apply_linear_correction(PHYS_Body* b, vec3_f32 corr);
+static void phys_body_apply_angular_correction(PHYS_Body* b, vec3_f32 corr, vec3_f32 r);
+static f32 phys_body_generalized_inverse_mass(PHYS_Body* b, vec3_f32 r, vec3_f32 dC);
 
 static void phys_constrain_distance(PHYS_Constraint_Distance* c, PHYS_ConstraintSolveSettings settings);
 static void phys_constrain_volume(PHYS_Constraint_Volume* c, PHYS_ConstraintSolveSettings settings);
@@ -164,18 +174,26 @@ struct PHYS_BodyDynamicArray {
     PHYS_body_id capacity;
 };
 
+typedef struct PHYS_WorldSettings PHYS_WorldSettings;
+struct PHYS_WorldSettings {
+    u64 substeps;    
+    f32 little_g;
+    f32 damping;
+};
+
 typedef struct PHYS_World PHYS_World;
 struct PHYS_World {
     Arena* arena;
 
     u64 substeps;    
     f32 little_g;
+    f32 damping;
     PHYS_ColliderMap colliders;
     PHYS_ConstraintMap constraints;
     PHYS_BodyDynamicArray bodies;
 };
 
-PHYS_World*         phys_world_make();
+PHYS_World*         phys_world_make(PHYS_WorldSettings settings);
 void                phys_world_cleanup(PHYS_World* w);
 void                phys_world_step(PHYS_World* w, f64 dt);
 static void         phys_world_substep(PHYS_World* w, f64 dt);
