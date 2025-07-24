@@ -13,7 +13,7 @@ struct BallsState {
 
     PHYS_World* world;
     PHYS_Ball_Settings ball_settings[BALLS_COUNT];
-    PHYS_Ball balls[BALLS_COUNT];
+    PHYS_RigidBody balls[BALLS_COUNT];
     f64 time;
 };
 static BallsState demos_balls_state;
@@ -43,6 +43,7 @@ int demos_init_hook(DEMOS_CommonState* cs) {
             s->ball_settings[i] = (PHYS_Ball_Settings){
                 .radius=radius,
                 .mass=radius*radius*radius*(3.f/4.f)*PI*density,
+                .compliance = 0.0001f,
                 .center=make_3f32(rand_f32()*6-3, 0, rand_f32()*6-3),
                 .linear_velocity=make_3f32(rand_f32()*12, 0, rand_f32()*12),
             };
@@ -73,7 +74,7 @@ void demos_frame_hook(DEMOS_CommonState* cs) {
         d_begin_3d_pass(viewport, view, projection);
         
         for EachElement(i, s->balls) {
-            PHYS_Body* body = phys_world_resolve_body(s->world, s->balls[i].center);
+            PHYS_Body* body = phys_world_resolve_body(s->world, s->balls[i].body_id);
             f32 radius = s->ball_settings[i].radius;
 
             mat4x4_f32 t = mul_4x4f32(

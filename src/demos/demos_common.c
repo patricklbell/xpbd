@@ -36,10 +36,8 @@ int main() {
     input_init();
 
     // demo hooks section
-    {
-        if (!demos_init_hook(cs)) {
-            os_gfx_start_window_event_loop(cs->window, window_event_loop, cs, &cs->events);
-        }
+    if (!demos_init_hook(cs)) {
+        os_gfx_start_window_event_loop(cs->window, window_event_loop, cs, &cs->events);
         demos_shutdown_hook(cs);
     }
 

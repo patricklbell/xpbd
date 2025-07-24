@@ -3,7 +3,6 @@
 // @note units are generally assumed to be m,kg,seconds (MKS),
 typedef struct PHYS_World PHYS_World;
 
-// constraints
 typedef u64 PHYS_body_id;
 typedef struct PHYS_Body PHYS_Body;
 struct PHYS_Body {
@@ -20,14 +19,18 @@ struct PHYS_Body {
     mat3x3_f32  inv_moment;
 };
 
-typedef struct PHYS_Constraint_StaticDistance PHYS_Constraint_StaticDistance;
-struct PHYS_Constraint_StaticDistance {
-    PHYS_body_id b;
-    vec3_f32 p;
-};
+// constraints
+typedef union PHYS_constraint_id {
+    struct {
+        u32 id;
+        u32 version;
+    };
+    u64 v;
+} PHYS_constraint_id;
 
 typedef struct PHYS_Constraint_Distance PHYS_Constraint_Distance;
 struct PHYS_Constraint_Distance {
+    f32 compliance;
     PHYS_body_id b1;
     PHYS_body_id b2;
     f32 d;
@@ -35,12 +38,12 @@ struct PHYS_Constraint_Distance {
 
 typedef struct PHYS_Constraint_Volume PHYS_Constraint_Volume;
 struct PHYS_Constraint_Volume {
+    f32 compliance;
     PHYS_body_id b[4];
-    f32 d;
+    f32 v;
 };
 
 typedef enum PHYS_ConstraintType {
-    PHYS_ConstraintType_StaticDistance,
     PHYS_ConstraintType_Distance,
     PHYS_ConstraintType_Volume,
     PHYS_ConstraintType_COUNT ENUM_CASE_UNUSED,
@@ -51,23 +54,22 @@ struct PHYS_Constraint {
     PHYS_ConstraintType type;
 
     union {
-        PHYS_Constraint_StaticDistance  static_distance;
         PHYS_Constraint_Distance        distance;
         PHYS_Constraint_Volume          volume;
     };
 };
 
-typedef struct PHYS_ConstraintSettings PHYS_ConstraintSettings;
-struct PHYS_ConstraintSettings {
+typedef struct PHYS_ConstraintSolveSettings PHYS_ConstraintSolveSettings;
+struct PHYS_ConstraintSolveSettings {
     PHYS_World* w;
-    f64 a_dt2;
+    f64 inv_dt2;
 };
 
-static void phys_constrain_static(PHYS_Constraint_StaticDistance c, PHYS_ConstraintSettings settings);
-static void phys_constrain_distance(PHYS_Constraint_Distance c, PHYS_ConstraintSettings settings);
-static void phys_constrain_volume(PHYS_Constraint_Volume c, PHYS_ConstraintSettings settings);
+static void phys_constrain_distance(PHYS_Constraint_Distance* c, PHYS_ConstraintSolveSettings settings);
+static void phys_constrain_volume(PHYS_Constraint_Volume* c, PHYS_ConstraintSolveSettings settings);
 
 // colliders
+// @todo static colliders
 typedef union PHYS_collider_id {
     struct {
         u32 id;
@@ -76,27 +78,31 @@ typedef union PHYS_collider_id {
     u64 v;
 } PHYS_collider_id;
 
-typedef struct PHYS_Collider_DynamicSphere PHYS_Collider_DynamicSphere;
-struct PHYS_Collider_DynamicSphere {
+typedef struct PHYS_Collider_Sphere PHYS_Collider_Sphere;
+struct PHYS_Collider_Sphere {
+    f32 compliance;
     PHYS_body_id c;
     f32 r;
 };
 
-typedef struct PHYS_Collider_DynamicBox PHYS_Collider_DynamicBox;
-struct PHYS_Collider_DynamicBox {
+typedef struct PHYS_Collider_RectCuboid PHYS_Collider_RectCuboid;
+struct PHYS_Collider_RectCuboid {
+    f32 compliance;
     PHYS_body_id c;
     vec3_f32 r;
 };
 
-typedef struct PHYS_Collider_StaticPlane PHYS_Collider_StaticPlane;
-struct PHYS_Collider_StaticPlane {
-    vec3_f32 p;
+typedef struct PHYS_Collider_Plane PHYS_Collider_Plane;
+struct PHYS_Collider_Plane {
+    f32 compliance;
+    PHYS_body_id p;
     vec3_f32 n;
 };
 
 typedef enum PHYS_ColliderType {
-    PHYS_ColliderType_DynamicSphere,
-    PHYS_ColliderType_StaticPlane,
+    PHYS_ColliderType_Sphere,
+    PHYS_ColliderType_RectCuboid,
+    PHYS_ColliderType_Plane,
     PHYS_ColliderType_COUNT,
 } PHYS_ColliderType;
 
@@ -105,13 +111,14 @@ struct PHYS_Collider {
     PHYS_ColliderType type;
 
     union {
-        PHYS_Collider_DynamicSphere     dynamic_sphere;
-        PHYS_Collider_StaticPlane       static_plane;
+        PHYS_Collider_Sphere         sphere;
+        PHYS_Collider_RectCuboid     rect_cuboid;
+        PHYS_Collider_Plane          plane;
     };
 };
 
-static void phys_collide_dynamic_spheres(const PHYS_Collider_DynamicSphere* c1, PHYS_Collider_DynamicSphere* c2, PHYS_ConstraintSettings settings);
-static void phys_collide_dynamic_sphere_with_static_plane(const PHYS_Collider_DynamicSphere* c1, PHYS_Collider_StaticPlane* c2, PHYS_ConstraintSettings settings);
+static void phys_collide_spheres(const PHYS_Collider_Sphere* c1, PHYS_Collider_Sphere* c2, PHYS_ConstraintSolveSettings settings);
+static void phys_collide_sphere_with_plane(const PHYS_Collider_Sphere* c1, PHYS_Collider_Plane* c2, PHYS_ConstraintSolveSettings settings);
 
 // world
 typedef struct PHYS_ConstraintNode PHYS_ConstraintNode;
@@ -163,16 +170,15 @@ struct PHYS_World {
 
     u64 substeps;    
     f32 little_g;
-    f32 compliance;
     PHYS_ColliderMap colliders;
     PHYS_ConstraintMap constraints;
     PHYS_BodyDynamicArray bodies;
 };
 
-PHYS_World* phys_world_make();
-void        phys_world_cleanup(PHYS_World* w);
-void        phys_world_step(PHYS_World* w, f64 dt);
-static void phys_world_substep(PHYS_World* w, f64 dt);
+PHYS_World*         phys_world_make();
+void                phys_world_cleanup(PHYS_World* w);
+void                phys_world_step(PHYS_World* w, f64 dt);
+static void         phys_world_substep(PHYS_World* w, f64 dt);
 
 PHYS_body_id        phys_world_add_body(PHYS_World* w, PHYS_Body b);
 void                phys_world_remove_body(PHYS_World* w, PHYS_body_id dp);
@@ -182,26 +188,46 @@ PHYS_collider_id    phys_world_add_collider(PHYS_World* w, PHYS_Collider c);
 void                phys_world_remove_collider(PHYS_World* w, PHYS_collider_id col);
 PHYS_Collider*      phys_world_resolve_collider(PHYS_World* w, PHYS_collider_id col);
 
-// @todo add, remove, resolve constraint
+PHYS_constraint_id  phys_world_add_constraint(PHYS_World* w, PHYS_Constraint c);
+void                phys_world_remove_constraint(PHYS_World* w, PHYS_constraint_id col);
+PHYS_Constraint*    phys_world_resolve_constraint(PHYS_World* w, PHYS_constraint_id col);
 
 // helper objects
+typedef struct PHYS_RigidBody_Settings PHYS_RigidBody_Settings;
+struct PHYS_RigidBody_Settings {
+    PHYS_Body       body;
+    PHYS_Collider   collider;
+};
+
+typedef struct PHYS_RigidBody PHYS_RigidBody;
+struct PHYS_RigidBody {
+    PHYS_body_id        body_id;
+    PHYS_collider_id    collider_id;
+};
+
 typedef struct PHYS_Ball_Settings PHYS_Ball_Settings;
 struct PHYS_Ball_Settings {
     f32 radius;
     f32 mass;
+    f32 compliance;
     vec3_f32 center;
     vec3_f32 linear_velocity;
 };
 
-typedef struct PHYS_Ball PHYS_Ball;
-struct PHYS_Ball {
-    PHYS_collider_id sphere;
-    PHYS_body_id center;
+typedef struct PHYS_Box_Settings PHYS_Box_Settings;
+struct PHYS_Box_Settings {
+    f32 mass;
+    f32 compliance;
+    vec3_f32 center;
+    vec3_f32 extents;
+    vec3_f32 linear_velocity;
+    vec3_f32 angular_velocity;
 };
 
 typedef struct PHYS_BoxBoundary PHYS_BoxBoundary;
 struct PHYS_BoxBoundary {
     PHYS_collider_id areas[6];
+    PHYS_body_id positions[6];
 };
 
 typedef struct PHYS_BoxBoundary_Settings PHYS_BoxBoundary_Settings;
@@ -210,7 +236,9 @@ struct PHYS_BoxBoundary_Settings {
     vec3_f32 extents;
 };
 
-PHYS_Ball           phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings);
-void                phys_world_remove_ball(PHYS_World* w, PHYS_Ball object);
+PHYS_RigidBody      phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings);
+PHYS_RigidBody      phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings);
 PHYS_BoxBoundary    phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Settings settings);
-void                phys_world_remove_box_boundary(PHYS_World* w, PHYS_BoxBoundary object);
+
+void                phys_world_remove_rigid_body(PHYS_World* w, PHYS_RigidBody* object);
+void                phys_world_remove_box_boundary(PHYS_World* w, PHYS_BoxBoundary* object);

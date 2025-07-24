@@ -87,11 +87,44 @@ mat3x3_f32 mul_3x3f32(mat3x3_f32 a, mat3x3_f32 b){
     }
     return result;
 }
-mat3x3_f32 transpose_3x3f32(mat3x3_f32 a) {
+mat3x3_f32 scale_3x3f32(mat3x3_f32 a, f32 b) {
     return (mat3x3_f32) {.v = {
-        {a.v[0][0], a.v[1][0], a.v[2][0]},
-        {a.v[0][1], a.v[1][1], a.v[2][1]},
-        {a.v[0][2], a.v[1][2], a.v[2][2]},
+        {a.v[0][0]*b, a.v[0][1]*b, a.v[0][2]*b},
+        {a.v[1][0]*b, a.v[1][1]*b, a.v[1][2]*b},
+        {a.v[2][0]*b, a.v[2][1]*b, a.v[2][2]*b},
+    }};
+}
+mat3x3_f32 inv_3x3f32(mat3x3_f32 m) {
+    f32 coef00 = m.v[1][1] * m.v[2][2] - m.v[2][1] * m.v[1][2];
+    f32 coef01 = m.v[1][0] * m.v[2][2] - m.v[1][2] * m.v[2][0];
+    f32 coef02 = m.v[1][0] * m.v[2][1] - m.v[1][1] * m.v[2][0];
+    f32 coef10 = m.v[0][2] * m.v[2][1] - m.v[0][1] * m.v[2][2];
+    f32 coef11 = m.v[0][0] * m.v[2][2] - m.v[0][2] * m.v[2][0];
+    f32 coef12 = m.v[2][0] * m.v[0][1] - m.v[0][0] * m.v[2][1];
+    f32 coef20 = m.v[0][1] * m.v[1][2] - m.v[0][2] * m.v[1][1];
+    f32 coef21 = m.v[1][0] * m.v[0][2] - m.v[0][0] * m.v[1][2];
+    f32 coef22 = m.v[0][0] * m.v[1][1] - m.v[1][0] * m.v[0][1];
+
+    vec3_f32 fac0 = { coef00, coef10, coef20 };
+    vec3_f32 fac1 = { coef01, coef11, coef21 };
+    vec3_f32 fac2 = { coef02, coef12, coef22 };
+
+    mat3x3_f32 inv;
+    inv.c1 = fac0;
+    inv.c2 = fac1;
+    inv.c3 = fac2;
+
+    vec3_f32 row0 = { m.v[0][0], m.v[0][1], m.v[0][2] };
+    f32 det = row0.x*coef00 - row0.y*coef01 + row0.z*coef02;
+    f32 one_over_det = 1.f / det;
+
+    return scale_3x3f32(inv, one_over_det);
+}
+mat3x3_f32 transpose_3x3f32(mat3x3_f32 m) {
+    return (mat3x3_f32) {.v = {
+        {m.v[0][0], m.v[1][0], m.v[2][0]},
+        {m.v[0][1], m.v[1][1], m.v[2][1]},
+        {m.v[0][2], m.v[1][2], m.v[2][2]},
     }};
 }
 
@@ -178,12 +211,77 @@ mat4x4_f32 mul_4x4f32(mat4x4_f32 a, mat4x4_f32 b){
     }
     return result;
 }
-mat4x4_f32 transpose_4x4f32(mat4x4_f32 a) {
+mat4x4_f32 scale_4x4f32(mat4x4_f32 a, f32 b) {
     return (mat4x4_f32) {.v = {
-        {a.v[0][0], a.v[1][0], a.v[2][0], a.v[3][0]},
-        {a.v[0][1], a.v[1][1], a.v[2][1], a.v[3][1]},
-        {a.v[0][2], a.v[1][2], a.v[2][2], a.v[3][2]},
-        {a.v[0][3], a.v[1][3], a.v[2][3], a.v[3][3]},
+        {a.v[0][0]*b, a.v[0][1]*b, a.v[0][2]*b, a.v[0][3]*b},
+        {a.v[1][0]*b, a.v[1][1]*b, a.v[1][2]*b, a.v[1][3]*b},
+        {a.v[2][0]*b, a.v[2][1]*b, a.v[2][2]*b, a.v[2][3]*b},
+        {a.v[3][0]*b, a.v[3][1]*b, a.v[3][2]*b, a.v[3][3]*b},
+    }};
+}
+mat4x4_f32 inv_4x4f32(mat4x4_f32 m) {
+    f32 coef00 = m.v[2][2] * m.v[3][3] - m.v[3][2] * m.v[2][3];
+    f32 coef02 = m.v[1][2] * m.v[3][3] - m.v[3][2] * m.v[1][3];
+    f32 coef03 = m.v[1][2] * m.v[2][3] - m.v[2][2] * m.v[1][3];
+    f32 coef04 = m.v[2][1] * m.v[3][3] - m.v[3][1] * m.v[2][3];
+    f32 coef06 = m.v[1][1] * m.v[3][3] - m.v[3][1] * m.v[1][3];
+    f32 coef07 = m.v[1][1] * m.v[2][3] - m.v[2][1] * m.v[1][3];
+    f32 coef08 = m.v[2][1] * m.v[3][2] - m.v[3][1] * m.v[2][2];
+    f32 coef10 = m.v[1][1] * m.v[3][2] - m.v[3][1] * m.v[1][2];
+    f32 coef11 = m.v[1][1] * m.v[2][2] - m.v[2][1] * m.v[1][2];
+    f32 coef12 = m.v[2][0] * m.v[3][3] - m.v[3][0] * m.v[2][3];
+    f32 coef14 = m.v[1][0] * m.v[3][3] - m.v[3][0] * m.v[1][3];
+    f32 coef15 = m.v[1][0] * m.v[2][3] - m.v[2][0] * m.v[1][3];
+    f32 coef16 = m.v[2][0] * m.v[3][2] - m.v[3][0] * m.v[2][2];
+    f32 coef18 = m.v[1][0] * m.v[3][2] - m.v[3][0] * m.v[1][2];
+    f32 coef19 = m.v[1][0] * m.v[2][2] - m.v[2][0] * m.v[1][2];
+    f32 coef20 = m.v[2][0] * m.v[3][1] - m.v[3][0] * m.v[2][1];
+    f32 coef22 = m.v[1][0] * m.v[3][1] - m.v[3][0] * m.v[1][1];
+    f32 coef23 = m.v[1][0] * m.v[2][1] - m.v[2][0] * m.v[1][1];
+
+    vec4_f32 fac0 = { coef00, coef00, coef02, coef03 };
+    vec4_f32 fac1 = { coef04, coef04, coef06, coef07 };
+    vec4_f32 fac2 = { coef08, coef08, coef10, coef11 };
+    vec4_f32 fac3 = { coef12, coef12, coef14, coef15 };
+    vec4_f32 fac4 = { coef16, coef16, coef18, coef19 };
+    vec4_f32 fac5 = { coef20, coef20, coef22, coef23 };
+
+    vec4_f32 vec0 = { m.v[1][0], m.v[0][0], m.v[0][0], m.v[0][0] };
+    vec4_f32 vec1 = { m.v[1][1], m.v[0][1], m.v[0][1], m.v[0][1] };
+    vec4_f32 vec2 = { m.v[1][2], m.v[0][2], m.v[0][2], m.v[0][2] };
+    vec4_f32 vec3 = { m.v[1][3], m.v[0][3], m.v[0][3], m.v[0][3] };
+
+    vec4_f32 inv0 = add_4f32(sub_4f32(elmul_4f32(vec1, fac0), elmul_4f32(vec2, fac1)), elmul_4f32(vec3, fac2));
+    vec4_f32 inv1 = add_4f32(sub_4f32(elmul_4f32(vec0, fac0), elmul_4f32(vec2, fac3)), elmul_4f32(vec3, fac4));
+    vec4_f32 inv2 = add_4f32(sub_4f32(elmul_4f32(vec0, fac1), elmul_4f32(vec1, fac3)), elmul_4f32(vec3, fac5));
+    vec4_f32 inv3 = add_4f32(sub_4f32(elmul_4f32(vec0, fac2), elmul_4f32(vec1, fac4)), elmul_4f32(vec2, fac5));
+
+    vec4_f32 sign_a = { +1, -1, +1, -1 };
+    vec4_f32 sign_b = { -1, +1, -1, +1 };
+
+    mat4x4_f32 inv;
+    for(int i = 0; i < 4; i += 1) {
+        inv.v[0][i] = inv0.v[i] * sign_a.v[i];
+        inv.v[1][i] = inv1.v[i] * sign_b.v[i];
+        inv.v[2][i] = inv2.v[i] * sign_a.v[i];
+        inv.v[3][i] = inv3.v[i] * sign_b.v[i];
+    }
+
+    vec4_f32 row0 = { inv.v[0][0], inv.v[1][0], inv.v[2][0], inv.v[3][0] };
+    vec4_f32 m0 = { m.v[0][0], m.v[0][1], m.v[0][2], m.v[0][3] };
+    vec4_f32 dot0 = elmul_4f32(m0, row0);
+    f32 dot1 = (dot0.x + dot0.y) + (dot0.z + dot0.w);
+
+    f32 one_over_det = 1.f / dot1;
+
+    return scale_4x4f32(inv, one_over_det);
+}
+mat4x4_f32 transpose_4x4f32(mat4x4_f32 m) {
+    return (mat4x4_f32) {.v = {
+        {m.v[0][0], m.v[1][0], m.v[2][0], m.v[3][0]},
+        {m.v[0][1], m.v[1][1], m.v[2][1], m.v[3][1]},
+        {m.v[0][2], m.v[1][2], m.v[2][2], m.v[3][2]},
+        {m.v[0][3], m.v[1][3], m.v[2][3], m.v[3][3]},
     }};
 }
 

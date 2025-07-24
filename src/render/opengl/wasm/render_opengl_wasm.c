@@ -6,7 +6,7 @@ void r_ogl_os_init() {
     attributes.stencil = true;
     attributes.premultipliedAlpha = false;
     attributes.preserveDrawingBuffer = false;
-    attributes.antialias = false;
+    attributes.antialias = true;
     attributes.enableExtensionsByDefault = true;
     attributes.explicitSwapControl = false;
     attributes.majorVersion = 2;

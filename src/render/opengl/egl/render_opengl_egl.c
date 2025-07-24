@@ -31,7 +31,8 @@ void r_ogl_os_init() {
         EGL_CONFORMANT,        EGL_OPENGL_BIT,
         EGL_RENDERABLE_TYPE,   EGL_OPENGL_BIT,
         EGL_COLOR_BUFFER_TYPE, EGL_RGB_BUFFER,
-
+        
+        EGL_SAMPLES,       2,
         EGL_RED_SIZE,      8,
         EGL_GREEN_SIZE,    8,
         EGL_BLUE_SIZE,     8,
@@ -95,6 +96,7 @@ R_Handle r_os_equip_window(OS_Handle window) {
 
     // make opengl convert linear colors to srgb for default framebuffer
     glEnable(GL_FRAMEBUFFER_SRGB);
+    glEnable(GL_MULTISAMPLE);
 
     for EachIndex(i, R_OGL_EGL_MAX_SURFACES) {
         if (r_ogl_egl_state.surfaces[i] == NULL) {
