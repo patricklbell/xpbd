@@ -47,7 +47,7 @@ int demos_init_hook(DEMOS_CommonState* cs) {
         s->anchor_id = phys_world_add_body(s->world, (PHYS_Body){
             .position = make_3f32(0,0,0),
             .inv_mass = 0.f,
-            .no_gravity = true,
+            .no_gravity = 1,
         });
 
         {
