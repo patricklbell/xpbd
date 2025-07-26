@@ -51,6 +51,7 @@ copy_data_file() {
 # Function to clean build directory
 clean() {
     rm -rf "${BUILD_DIR}"/*
+    rm -rf docs/demos/*
 }
 
 # Function to build all demos
@@ -63,9 +64,10 @@ build_demos() {
 build_emcc() {
     CC="emcc"
     LDFLAGS="${LDFLAGS}"
-    LDFLAGS_GFX="-sFETCH -sPTHREAD_POOL_SIZE=2 -sALLOW_BLOCKING_ON_MAIN_THREAD=1 -sFULL_ES3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sGL_SUPPORT_SIMPLE_ENABLE_EXTENSIONS"
+    LDFLAGS_GFX="-sFETCH -sEXPORTED_FUNCTIONS=['_main','_os_gfx_wasm_resize_callback'] -sALLOW_BLOCKING_ON_MAIN_THREAD=1 -sFULL_ES3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sGL_SUPPORT_SIMPLE_ENABLE_EXTENSIONS"
+    BUILD_DIR="docs/demos"
     BUILD_EXT=".html"
-    CFLAGS="${CFLAGS} -pthread -sINITIAL_MEMORY=1024mb -sALLOW_MEMORY_GROWTH=1 -sTOTAL_STACK=512mb"
+    CFLAGS="${CFLAGS} --shell-file docs/emcc-template.html --pre-js docs/emcc-pre.js -pthread -sINITIAL_MEMORY=1024mb -sALLOW_MEMORY_GROWTH=1 -sTOTAL_STACK=512mb"
     
     build_demos
 }

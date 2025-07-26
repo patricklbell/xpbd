@@ -8,37 +8,18 @@ static void os_gfx_wasm_add_os_event(OS_Event os_event, void *user_data) {
     os_gfx_window_add_event(arena, &s->queued_events, os_event);
 }
 
-EM_JS(int, os_gfx_wasm_get_canvas_screen_x, (), {
-  return document.getElementById("canvas").getBoundingClientRect().left;
-});
-EM_JS(int, os_gfx_wasm_get_canvas_screen_y, (), {
-  return document.getElementById("canvas").getBoundingClientRect().top;
-});
-EM_JS(int, os_gfx_wasm_get_canvas_width, (), {
-  return document.getElementById("canvas").width;
-});
-EM_JS(int, os_gfx_wasm_get_canvas_height, (), {
-  return document.getElementById("canvas").height;
-});
-
 static vec2_f32 os_gfx_wasm_transform_screen_xy(int x, int y) {
     return (vec2_f32){
-        .x = (f32)(x - os_gfx_wasm_get_canvas_screen_x()),
-        .y = (f32)(os_gfx_wasm_get_canvas_height() - (y - os_gfx_wasm_get_canvas_screen_y())),
+        .x = (f32)(x - os_gfx_wasm_state.window_position.x),
+        .y = (f32)(os_gfx_wasm_state.window_size.y - (y - os_gfx_wasm_state.window_position.y)),
     };
 }
 
-static vec2_f32 os_gfx_wasm_query_canvas_size() {
-    return make_2f32((f32)os_gfx_wasm_get_canvas_width(), (f32)os_gfx_wasm_get_canvas_height());
-}
-
 // callbacks
-// @todo listener to element rather than screen
-static EM_BOOL os_gfx_wasm_resize_callback(int eventType, const EmscriptenUiEvent *uiEvent, void *userData) {
-    OS_GFX_WASMState* s = (OS_GFX_WASMState*)userData;
-
-    s->window_size = os_gfx_wasm_query_canvas_size();
-    return EM_TRUE;
+EMSCRIPTEN_KEEPALIVE void os_gfx_wasm_resize_callback(int x, int y, int width, int height) {
+    os_gfx_wasm_state.window_position = make_2f32((f32)x,(f32)y);
+    os_gfx_wasm_state.window_size = make_2f32((f32)width,(f32)height);
+    printf("%f %f\n", os_gfx_wasm_state.window_size.x, os_gfx_wasm_state.window_size.y);
 }
 
 static EM_BOOL os_gfx_wasm_scroll_callback(int eventType, const EmscriptenWheelEvent *wheelEvent, void *userData) {
@@ -97,16 +78,12 @@ static EM_BOOL os_gfx_wasm_mouse_up_callback(int eventType, const EmscriptenMous
 
 void os_gfx_init() {
     os_gfx_wasm_state = (OS_GFX_WASMState) {
-        .window_size = os_gfx_wasm_query_canvas_size(),
         .events_arenas = { arena_alloc(), arena_alloc() },
         .active_events_arena = 0,
         .submit_events = NULL,
     };
     
-    // @todo attach event listeners
     NTString8 selector = ntstr8_lit_init("#canvas");
-    // @todo resize observer callback for actual canvas element
-    emscripten_set_resize_callback      (selector.cstr, &os_gfx_wasm_state, /* useCapture */ true, os_gfx_wasm_resize_callback);
     emscripten_set_wheel_callback       (selector.cstr, &os_gfx_wasm_state, /* useCapture */ true, os_gfx_wasm_scroll_callback);
     emscripten_set_mousedown_callback   (selector.cstr, &os_gfx_wasm_state, /* useCapture */ true, os_gfx_wasm_mouse_down_callback);
     emscripten_set_mousemove_callback   (selector.cstr, &os_gfx_wasm_state, /* useCapture */ true, os_gfx_wasm_mouse_move_callback);
