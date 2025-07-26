@@ -19,7 +19,6 @@ static vec2_f32 os_gfx_wasm_transform_screen_xy(int x, int y) {
 EMSCRIPTEN_KEEPALIVE void os_gfx_wasm_resize_callback(int x, int y, int width, int height) {
     os_gfx_wasm_state.window_position = make_2f32((f32)x,(f32)y);
     os_gfx_wasm_state.window_size = make_2f32((f32)width,(f32)height);
-    printf("%f %f\n", os_gfx_wasm_state.window_size.x, os_gfx_wasm_state.window_size.y);
 }
 
 static EM_BOOL os_gfx_wasm_scroll_callback(int eventType, const EmscriptenWheelEvent *wheelEvent, void *userData) {
