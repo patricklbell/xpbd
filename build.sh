@@ -51,7 +51,7 @@ copy_data_file() {
 # Function to clean build directory
 clean() {
     rm -rf "${BUILD_DIR}"/*
-    rm -rf docs/demos/*
+    rm -rf docs/demos
 }
 
 # Function to build all demos
@@ -69,6 +69,7 @@ build_emcc() {
     BUILD_EXT=".html"
     CFLAGS="${CFLAGS} --shell-file docs/emcc-template.html --pre-js docs/emcc-pre.js -pthread -sINITIAL_MEMORY=1024mb -sALLOW_MEMORY_GROWTH=1 -sTOTAL_STACK=512mb"
     
+    mkdir -p "${BUILD_DIR}"
     build_demos
 }
 
