@@ -1,14 +1,19 @@
 #pragma once
 
-#if OS_LINUX || OS_WEB
+#if OS_LINUX
     #include "linux+wasm/os_platform_linux+wasm.h"
+    #include "linux/os_platform_linux.h"
+#elif OS_WEB
+    #include "linux+wasm/os_platform_linux+wasm.h"
+    #include "wasm/os_platform_wasm.h"
 #else
     #error OS not supported.
 #endif
 
 typedef union OS_Handle OS_Handle;
 union OS_Handle {
-    u64 v64;
+    u64 v64[2];
+    u32 v32[4];
 };
 
 // helpers

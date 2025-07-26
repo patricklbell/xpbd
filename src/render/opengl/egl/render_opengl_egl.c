@@ -1,13 +1,13 @@
 static EGLSurface r_ogl_egl_handle_to_surface(R_Handle handle) {
-    return (EGLSurface)handle.v64;
+    return (EGLSurface)handle.v64[0];
 }
 
 static EGLNativeDisplayType r_ogl_egl_native_display() {
-    return (EGLNativeDisplayType) os_gfx_handle().v64;
+    return (EGLNativeDisplayType) os_gfx_handle().v64[0];
 }
 
 static EGLNativeWindowType r_ogl_egl_native_window(OS_Handle window) {
-    return (EGLNativeWindowType) window.v64;
+    return (EGLNativeWindowType) window.v64[0];
 }
 
 // @todo graceful
@@ -108,7 +108,9 @@ R_Handle r_os_equip_window(OS_Handle window) {
     Assert(r_ogl_egl_state.active_surfaces_count <= R_OGL_EGL_MAX_SURFACES);
 
     StaticAssert(sizeof(u64) >= sizeof(EGLSurface), r_ogl_render_handle_large_enough);
-    return (R_Handle){ .v64 = (u64)surface };
+    R_Handle handle = zero_struct;
+    handle.v64[0] = (u64)surface;
+    return handle;
 }
 
 void r_os_unequip_window(OS_Handle window, R_Handle rwindow) {

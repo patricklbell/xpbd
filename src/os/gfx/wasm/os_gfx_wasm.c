@@ -1,3 +1,5 @@
+#include <emscripten.h>
+
 // helpers
 static void os_gfx_wasm_add_os_event(OS_Event os_event, void *user_data) {
     OS_GFX_WASMState* s = (OS_GFX_WASMState*)user_data;
@@ -116,7 +118,9 @@ void os_gfx_disconnect_from_rendering() {}
 void os_gfx_cleanup() {}
 
 static OS_Handle os_gfx_make_magic_handle() {
-    return (OS_Handle) { .v64 = OS_GFX_WASM_MAGIC_HANDLE };
+    OS_Handle handle = zero_struct;
+    handle.v64[0] = OS_GFX_WASM_MAGIC_HANDLE;
+    return handle;
 }
 
 OS_Handle os_gfx_handle() {
@@ -133,11 +137,11 @@ OS_Handle os_gfx_open_window() {
 }
 
 void os_gfx_close_window(OS_Handle window) {
-    Assert(window.v64 == OS_GFX_WASM_MAGIC_HANDLE);
+    Assert(window.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
 }
 
 vec2_f32 os_gfx_window_size(OS_Handle window) {
-    Assert(window.v64 == OS_GFX_WASM_MAGIC_HANDLE);
+    Assert(window.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
 
     return os_gfx_wasm_state.window_size;
 }

@@ -1,5 +1,5 @@
 static Window os_gfx_handle_to_window(OS_Handle handle) {
-    return (Window)handle.v64;
+    return (Window)handle.v64[0];
 }
 
 void os_gfx_init() {
@@ -23,7 +23,9 @@ void os_gfx_cleanup() {
 
 OS_Handle os_gfx_handle() {
     StaticAssert(sizeof(u64) >= sizeof(os_gfx_x11_state.display), os_handle_large_enough);
-    return (OS_Handle) { .v64 = (u64)os_gfx_x11_state.display };
+    OS_Handle handle = zero_struct;
+    handle.v64[0] = (u64)os_gfx_x11_state.display;
+    return handle;
 }
 
 OS_Handle os_gfx_open_window() {
@@ -70,7 +72,10 @@ OS_Handle os_gfx_open_window() {
     XMapWindow(display, window);
 
     StaticAssert(sizeof(u64) >= sizeof(Window), x11_window_handle_size_check);
-    return (OS_Handle) { .v64 = (u64)window };
+
+    OS_Handle handle = zero_struct;
+    handle.v64[0] = (u64)window;
+    return handle;
 }
 
 void os_gfx_close_window(OS_Handle window) {

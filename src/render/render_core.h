@@ -14,7 +14,7 @@ struct R_Mesh3DInst {
 
 typedef union R_Handle R_Handle;
 union R_Handle {
-    u64 v64;
+    u64 v64[1];
     u32 v32[2];
 };
 

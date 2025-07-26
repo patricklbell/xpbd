@@ -42,7 +42,7 @@ R_Mesh3DInst* d_mesh(R_Handle mesh_vertices, R_Handle mesh_indices, mat4x4_f32 t
     u64 hash = 0;
     u64 slot_idx = 0;
     {
-        u64 buffer[] = { mesh_vertices.v64, mesh_indices.v64 };
+        R_Handle buffer[] = { mesh_vertices, mesh_indices };
         hash = hash_u64((u8*)buffer, sizeof(buffer));
         slot_idx = hash % params->mesh_batches.slots_count;
     }

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <emscripten.h>
-
 typedef struct OS_GFX_WASMState OS_GFX_WASMState;
 struct OS_GFX_WASMState {
     vec2_f32 window_size;

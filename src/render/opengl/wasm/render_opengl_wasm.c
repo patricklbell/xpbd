@@ -23,21 +23,23 @@ void r_ogl_os_init() {
 void r_ogl_os_cleanup() {}
 
 void r_ogl_os_window_swap(OS_Handle window, R_Handle rwindow) {
-    Assert(window.v64 == OS_GFX_WASM_MAGIC_HANDLE);
-    Assert(rwindow.v64 == OS_GFX_WASM_MAGIC_HANDLE);
+    Assert(window.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
+    Assert(rwindow.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
 }
 
 R_Handle r_os_equip_window(OS_Handle window) {
-    Assert(window.v64 == OS_GFX_WASM_MAGIC_HANDLE);
-    return (R_Handle){ .v64 = OS_GFX_WASM_MAGIC_HANDLE };
+    Assert(window.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
+    R_Handle handle = zero_struct;
+    handle.v64[0] = OS_GFX_WASM_MAGIC_HANDLE;
+    return handle;
 }
 
 void r_os_unequip_window(OS_Handle window, R_Handle rwindow) {
-    Assert(window.v64 == OS_GFX_WASM_MAGIC_HANDLE);
-    Assert(rwindow.v64 == OS_GFX_WASM_MAGIC_HANDLE);
+    Assert(window.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
+    Assert(rwindow.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
 }
 
 void r_os_select_window(OS_Handle window, R_Handle rwindow) {
-    Assert(window.v64 == OS_GFX_WASM_MAGIC_HANDLE);
-    Assert(rwindow.v64 == OS_GFX_WASM_MAGIC_HANDLE);
+    Assert(window.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
+    Assert(rwindow.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
 }
