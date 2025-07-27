@@ -58,6 +58,7 @@ clean() {
 build_demos() {
     build_demo "balls" "sphere.obj"
     build_demo "hanging_boxes" "cube.obj"
+    build_demo "softbody" "cube.obj"
 }
 
 # Emscripten configuration

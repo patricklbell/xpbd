@@ -7,8 +7,8 @@
 #include "draw/draw.h"
 #include "mesh/mesh.h"
 #include "input/input.h"
-#include "demos_controls.h"
-#include "demos_common.h"
+#include "demos_helpers.h"
+#include "demos_main.h"
 
 typedef struct DEMOS_CommonState DEMOS_CommonState;
 struct DEMOS_CommonState {
@@ -19,7 +19,7 @@ struct DEMOS_CommonState {
     OS_Events events;
 };
 
-// Implemented by each demo
+// hooks implemented by each demo
 int demos_init_hook(DEMOS_CommonState*);
 void demos_frame_hook(DEMOS_CommonState*);
 void demos_shutdown_hook(DEMOS_CommonState*);
