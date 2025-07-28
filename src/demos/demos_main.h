@@ -7,6 +7,7 @@
 #include "draw/draw.h"
 #include "mesh/mesh.h"
 #include "input/input.h"
+#include "vtk/vtk.h"
 #include "demos_helpers.h"
 #include "demos_main.h"
 

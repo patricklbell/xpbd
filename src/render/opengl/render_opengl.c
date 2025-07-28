@@ -152,6 +152,12 @@ R_Handle r_buffer_alloc(R_ResourceKind kind, R_ResourceHint hint, u32 size, void
     return buffer;
 }
 
+void r_buffer_load(R_Handle handle, u32 offset, u32 size, void *data) {
+    GLuint buffer = r_ogl_handle_to_buffer(handle);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, data);
+}
+
 void r_buffer_release(R_Handle handle) {
     GLuint buffer = r_ogl_handle_to_buffer(handle);
     glDeleteBuffers(1, &buffer);

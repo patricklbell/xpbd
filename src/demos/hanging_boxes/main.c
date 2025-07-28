@@ -15,7 +15,7 @@ struct HangingBoxesState {
     DEMOS_Camera camera;
 
     PHYS_World* world;
-
+    
     PHYS_body_id anchor_id;
     PHYS_constraint_id anchor_to_box1;
     HangingBox box1;
@@ -27,7 +27,7 @@ struct HangingBoxesState {
 static HangingBoxesState s;
 
 int demos_init_hook(DEMOS_CommonState* cs) {
-    MS_MeshResult cube = ms_load_obj(cs->arena, ntstr8_lit("./data/cube.obj"));
+    MS_LoadResult cube = ms_load_obj(cs->arena, ntstr8_lit("./data/cube.obj"), (MS_LoadSettings){});
     if (cube.error.length != 0) {
         fprintf(stderr, "%s\n", cube.error.data);
         return 1;
@@ -123,9 +123,8 @@ void demos_frame_hook(DEMOS_CommonState* cs) {
     phys_world_step(s.world, dt);
     
     d_begin_pipeline();
+    d_begin_3d_pass_camera(cs->window, &s.camera);
     {
-        d_begin_3d_pass_camera(cs->window, &s.camera);
-        
         d_hanging_box(&s.box1);
         d_hanging_box(&s.box2);
     }

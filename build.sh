@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Default configuration
 CC=${CC:-gcc}
@@ -33,8 +34,9 @@ build_demo() {
         done
     fi
     
-    echo "Building ${demo_name}"
-    ${CC} ${CFLAGS} ${main_file} ${LDFLAGS} ${LDFLAGS_GFX} ${embed_args} -o ${BUILD_DIR}/${demo_name}${BUILD_EXT}
+    build_command="${CC} ${CFLAGS} ${main_file} ${LDFLAGS} ${LDFLAGS_GFX} ${embed_args} -o ${BUILD_DIR}/${demo_name}${BUILD_EXT}"
+    echo ${build_command}
+    eval ${build_command}
 }
 
 # Function to build data files
@@ -56,9 +58,22 @@ clean() {
 
 # Function to build all demos
 build_demos() {
-    build_demo "balls" "sphere.obj"
-    build_demo "hanging_boxes" "cube.obj"
-    build_demo "softbody" "cube.obj"
+    case "$1" in
+        balls)
+            build_demo "balls" "sphere.obj"
+            ;;
+        hanging_boxes)
+            build_demo "hanging_boxes" "cube.obj"
+            ;;
+        softbody)
+            build_demo "softbody" "cube.obj" "cube.vtk"
+            ;;
+        *)
+            build_demo "balls" "sphere.obj"
+            build_demo "hanging_boxes" "cube.obj"
+            build_demo "softbody" "cube.obj" "cube.vtk"
+            ;;
+    esac
 }
 
 # Emscripten configuration
@@ -71,7 +86,7 @@ build_emcc() {
     CFLAGS="${CFLAGS} --shell-file docs/emcc-template.html --pre-js docs/emcc-pre.js -pthread -sINITIAL_MEMORY=1024mb -sALLOW_MEMORY_GROWTH=1 -sTOTAL_STACK=512mb"
     
     mkdir -p "${BUILD_DIR}"
-    build_demos
+    build_demos $1
 }
 
 # Main command handling
@@ -80,9 +95,9 @@ case "$1" in
         clean
         ;;
     emcc)
-        build_emcc
+        build_emcc $2
         ;;
     *)
-        build_demos
+        build_demos $1
         ;;
 esac

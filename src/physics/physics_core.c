@@ -1,4 +1,10 @@
 // helpers
+static f32 phys_body_generalized_inverse_mass(PHYS_Body* b, vec3_f32 r, vec3_f32 dC) {
+    // direction of torque
+    vec3_f32 nt = rot_quat(cross_3f32(r, dC), inv_quat(b->rotation));
+    return b->inv_mass + dot_3f32(nt, mul_3x3f32(b->inv_inertia, nt));
+}
+
 static void phys_body_apply_linear_correction(PHYS_Body* b, vec3_f32 corr) {
     // apply position correction
     vec3_f32 dp = mul_3f32(corr, b->inv_mass);
@@ -14,19 +20,42 @@ static void phys_body_apply_angular_correction(PHYS_Body* b, vec3_f32 corr, vec3
     b->rotation = normalize_4f32(add_4f32(b->rotation, mul_4f32(dr, 0.5f)));
 }
 
-static f32 phys_body_generalized_inverse_mass(PHYS_Body* b, vec3_f32 r, vec3_f32 dC) {
-    // direction of torque
-    vec3_f32 nt = rot_quat(cross_3f32(r, dC), inv_quat(b->rotation));
-    return b->inv_mass + dot_3f32(nt, mul_3x3f32(b->inv_inertia, nt));
+static void phys_2body_apply_correction_wo_offset(PHYS_Body* b1, PHYS_Body* b2, f32 alpha, f32 C, vec3_f32 dC) {
+    f32 w1 = b1->inv_mass;
+    f32 w2 = b2->inv_mass;
+    f32 l = 1.f / (w1 + w2 + alpha);
+
+    vec3_f32 corr1 = mul_3f32(dC, -C*l);
+    vec3_f32 corr2 = mul_3f32(dC, +C*l);
+    
+    phys_body_apply_linear_correction(b1, corr1);
+    phys_body_apply_linear_correction(b2, corr2);
 }
 
-// constraints
+static void phys_2body_apply_correction_wt_offset(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, f32 alpha, f32 C, vec3_f32 dC) {
+    f32 w1 = phys_body_generalized_inverse_mass(b1, r1, dC);
+    f32 w2 = phys_body_generalized_inverse_mass(b2, r2, dC);
+    f32 l = 1.f / (w1 + w2 + alpha);
+    
+    vec3_f32 corr1 = mul_3f32(dC, -C*l);
+    vec3_f32 corr2 = mul_3f32(dC, +C*l);
+
+    phys_body_apply_linear_correction(b1, corr1);
+    phys_body_apply_linear_correction(b2, corr2);
+    phys_body_apply_angular_correction(b1, corr1, r1);
+    phys_body_apply_angular_correction(b2, corr2, r2);
+}
+
+// solvers
 void phys_constrain_distance(PHYS_Constraint_Distance* c, PHYS_ConstraintSolveSettings settings) {
     PHYS_Body* b1 = phys_world_resolve_body(settings.w, c->b1);
     PHYS_Body* b2 = phys_world_resolve_body(settings.w, c->b2);
 
-    vec3_f32 r1 = rot_quat(c->offset1, b1->rotation);
-    vec3_f32 r2 = rot_quat(c->offset2, b2->rotation);
+    vec3_f32 r1, r2;
+    if (c->is_offset) {
+        r1 = rot_quat(c->offset1, b1->rotation);
+        r2 = rot_quat(c->offset2, b2->rotation);
+    }
 
     vec3_f32 d = sub_3f32(
         c->is_offset ? add_3f32(b1->position, r1) : b1->position,
@@ -36,24 +65,52 @@ void phys_constrain_distance(PHYS_Constraint_Distance* c, PHYS_ConstraintSolveSe
     if (c->unilateral && d_length < c->d) return;
     f32 C = d_length - c->d;
     vec3_f32 dC = mul_3f32(d, 1.f/d_length);
+    f32 alpha = settings.inv_dt2*c->compliance;
 
-    f32 w1 = c->is_offset ? phys_body_generalized_inverse_mass(b1, r1, dC) : b1->inv_mass;
-    f32 w2 = c->is_offset ? phys_body_generalized_inverse_mass(b2, r2, dC) : b2->inv_mass;
-    f32 a_on_dt2 = settings.inv_dt2*c->compliance;
-    f32 l = 1.f / (w1 + w2 + a_on_dt2);
-    
-    vec3_f32 corr1 = mul_3f32(dC, -C*l);
-    vec3_f32 corr2 = mul_3f32(dC, +C*l);
-    phys_body_apply_linear_correction(b1, corr1);
-    phys_body_apply_linear_correction(b2, corr2);
     if (c->is_offset) {
-        phys_body_apply_angular_correction(b1, corr1, r1);
-        phys_body_apply_angular_correction(b2, corr2, r2);
+        phys_2body_apply_correction_wt_offset(b1, b2, r1, r2, alpha, C, dC);
+    } else {
+        phys_2body_apply_correction_wo_offset(b1, b2, alpha, C, dC);
     }
 }
 
 void phys_constrain_volume(PHYS_Constraint_Volume* c, PHYS_ConstraintSolveSettings settings) {
-    NotImplemented;
+    PHYS_Body* p1 = phys_world_resolve_body(settings.w, c->p[0]);
+    PHYS_Body* p2 = phys_world_resolve_body(settings.w, c->p[1]);
+    PHYS_Body* p3 = phys_world_resolve_body(settings.w, c->p[2]);
+    PHYS_Body* p4 = phys_world_resolve_body(settings.w, c->p[3]);
+
+    vec3_f32 d21 = sub_3f32(p2->position, p1->position);
+    vec3_f32 d31 = sub_3f32(p3->position, p1->position);
+    vec3_f32 d41 = sub_3f32(p4->position, p1->position);
+    vec3_f32 d32 = sub_3f32(p3->position, p2->position);
+    vec3_f32 d42 = sub_3f32(p4->position, p2->position);
+    vec3_f32 d43 = sub_3f32(p4->position, p3->position);
+
+    vec3_f32 dC1 = cross_3f32(d42, d32);
+    vec3_f32 dC2 = cross_3f32(d31, d41);
+    vec3_f32 dC3 = cross_3f32(d41, d21);
+    vec3_f32 dC4 = cross_3f32(d21, d31);
+
+    f32 v = phys_tet_volume_axis(d21, d31, d41);
+    f32 C = 6.f*(v - c->v_rest);
+
+    f32 alpha = settings.inv_dt2*c->compliance;
+    f32 w1 = p1->inv_mass;
+    f32 w2 = p2->inv_mass;
+    f32 w3 = p3->inv_mass;
+    f32 w4 = p4->inv_mass;
+    f32 l = 1.f / (alpha + w1*dot_3f32(dC1,dC1) + w2*dot_3f32(dC2,dC2) + w3*dot_3f32(dC3,dC3) + w4*dot_3f32(dC4,dC4));
+
+    vec3_f32 corr1 = mul_3f32(dC1, -C*l);
+    vec3_f32 corr2 = mul_3f32(dC2, -C*l);
+    vec3_f32 corr3 = mul_3f32(dC3, -C*l);
+    vec3_f32 corr4 = mul_3f32(dC4, -C*l);
+    
+    phys_body_apply_linear_correction(p1, corr1);
+    phys_body_apply_linear_correction(p2, corr2);
+    phys_body_apply_linear_correction(p3, corr3);
+    phys_body_apply_linear_correction(p4, corr4);
 }
 
 // colliders
@@ -61,17 +118,15 @@ static void phys_collide_spheres(const PHYS_Collider_Sphere* c1, PHYS_Collider_S
     PHYS_Body* b1 = phys_world_resolve_body(settings.w, c1->c);
     PHYS_Body* b2 = phys_world_resolve_body(settings.w, c2->c);
 
-    vec3_f32 d = sub_3f32(b2->position, b1->position);
+    vec3_f32 d = sub_3f32(b1->position, b2->position);
     f32 d_length = length_3f32(d);
     if (d_length >= c1->r + c2->r) return;
 
     f32 C = d_length - (c1->r + c2->r);
     vec3_f32 dC = mul_3f32(d, 1.f/d_length);
-    f32 a_on_dt2 = settings.inv_dt2*(c1->compliance + c2->compliance); // @todo physical correctness?
-    f32 l = 1.f / (b1->inv_mass + b2->inv_mass + a_on_dt2);
-    
-    b1->position = add_3f32(b1->position, mul_3f32(dC, +C*b1->inv_mass*l));
-    b2->position = add_3f32(b2->position, mul_3f32(dC, -C*b2->inv_mass*l));
+    f32 alpha = settings.inv_dt2*(c1->compliance + c2->compliance); // @todo physical correctness?
+
+    phys_2body_apply_correction_wo_offset(b1, b2, alpha, C, dC);
 }
 
 static void phys_collide_sphere_with_plane(const PHYS_Collider_Sphere* c1, PHYS_Collider_Plane* c2, PHYS_ConstraintSolveSettings settings) {
@@ -83,10 +138,25 @@ static void phys_collide_sphere_with_plane(const PHYS_Collider_Sphere* c1, PHYS_
 
     f32 C = d_length - c1->r;
     vec3_f32 dC = c2->n;
-    f32 a_on_dt2 = settings.inv_dt2*(c1->compliance + c2->compliance); // @todo physical correctness?
-    f32 l = 1.f / (b1->inv_mass + a_on_dt2);
+    f32 alpha = settings.inv_dt2*(c1->compliance + c2->compliance); // @todo physical correctness?
 
-    b1->position = add_3f32(b1->position, mul_3f32(dC, -C*b1->inv_mass*l));
+    phys_2body_apply_correction_wo_offset(b1, b2, alpha, C, dC);
+}
+
+static void phys_collide_triangle_with_plane(const PHYS_Collider_Triangle* c1, PHYS_Collider_Plane* c2, PHYS_ConstraintSolveSettings settings) {
+    PHYS_Body* p = phys_world_resolve_body(settings.w, c2->p);
+    
+    f32 alpha = settings.inv_dt2*(c1->compliance + c2->compliance); // @todo physical correctness?
+    vec3_f32 dC = c2->n;
+
+    for EachElement(i, c1->p) {
+        PHYS_Body* v = phys_world_resolve_body(settings.w, c1->p[i]);
+
+        f32 C = dot_3f32(sub_3f32(v->position, p->position), c2->n);
+        if (C >= 0) continue;
+
+        phys_2body_apply_correction_wo_offset(v, p, alpha, C, dC);
+    }
 }
 
 // world
@@ -175,20 +245,17 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
             switch (constraint->type) {
                 case PHYS_ConstraintType_Distance: {
                     phys_constrain_distance(&constraint->distance, settings);
-                    break;
-                }
+                }break;
                 case PHYS_ConstraintType_Volume: {
                     phys_constrain_volume(&constraint->volume, settings);
-                    break;
-                }
+                }break;
             }
         }
     }
+    // @todo collision query acceleration structure
     for EachIndex(sloti, w->colliders.slots_count) {
         for EachList(collideri_n, PHYS_ColliderNode, w->colliders.slots[sloti]) {
             PHYS_Collider* collideri = &collideri_n->v;
-
-            // @todo collision query acceleration structure
             for EachIndex(slotj, w->colliders.slots_count) {
                 for EachList(colliderj_n, PHYS_ColliderNode, w->colliders.slots[slotj]) {
                     PHYS_Collider* colliderj = &colliderj_n->v;
@@ -209,6 +276,13 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
                         PHYS_Collider_Sphere* sphere_1 = &collideri->sphere;
                         PHYS_Collider_Sphere* sphere_2 = &colliderj->sphere;
                         phys_collide_spheres(sphere_1, sphere_2, settings);
+                    } else if (
+                        collideri->type == PHYS_ColliderType_Triangle &&
+                        colliderj->type == PHYS_ColliderType_Plane
+                    ) {
+                        PHYS_Collider_Triangle* triangle = &collideri->triangle;
+                        PHYS_Collider_Plane* plane = &colliderj->plane;
+                        phys_collide_triangle_with_plane(triangle, plane, settings);
                     }
                 }
             }
@@ -278,6 +352,7 @@ PHYS_collider_id phys_world_add_collider(PHYS_World* w, PHYS_Collider c) {
         u32 new_slot = new_id % w->colliders.slots_count;
         
         new_node = push_array(w->arena, PHYS_ColliderNode, 1);
+        new_node->id = new_id;
         stack_push(w->colliders.slots[new_slot], new_node);
     }
     Assert(new_node != NULL);
@@ -327,6 +402,7 @@ PHYS_constraint_id phys_world_add_constraint(PHYS_World* w, PHYS_Constraint c) {
         u32 new_slot = new_id % w->constraints.slots_count;
         
         new_node = push_array(w->arena, PHYS_ConstraintNode, 1);
+        new_node->id = new_id;
         stack_push(w->constraints.slots[new_slot], new_node);
     }
     Assert(new_node != NULL);
@@ -373,7 +449,7 @@ PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings){
     });
     PHYS_collider_id sphere = phys_world_add_collider(w, (PHYS_Collider){
         .type = PHYS_ColliderType_Sphere,
-        .sphere = (PHYS_Collider_Sphere){
+        .sphere = {
             .compliance = settings.compliance,
             .c = center,
             .r = settings.radius,
@@ -397,7 +473,7 @@ PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings){
     });
     PHYS_collider_id rect_cuboid = phys_world_add_collider(w, (PHYS_Collider){
         .type = PHYS_ColliderType_RectCuboid,
-        .rect_cuboid = (PHYS_Collider_RectCuboid){
+        .rect_cuboid = {
             .compliance = settings.compliance,
             .c = center,
             .r = settings.extents,
@@ -410,7 +486,7 @@ PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings){
     };
 }
 PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Settings settings){
-    PHYS_BoxBoundary box;
+    PHYS_BoxBoundary result;
 
     int i = 0;
     for EachIndex(dim, 3) {
@@ -422,16 +498,16 @@ PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Set
             position.v[dim] = -offset*settings.extents.v[dim];
             position = add_3f32(settings.center, position);
 
-            box.positions[i] = phys_world_add_body(w, (PHYS_Body){
+            result.positions[i] = phys_world_add_body(w, (PHYS_Body){
                 .position = position,
                 .no_gravity = 1,
                 .inv_mass = 0.f,
             });
-            box.areas[i] = phys_world_add_collider(w, (PHYS_Collider){
+            result.areas[i] = phys_world_add_collider(w, (PHYS_Collider){
                 .type = PHYS_ColliderType_Plane,
-                .plane = (PHYS_Collider_Plane){
+                .plane = {
                     .compliance = 0.f,
-                    .p = box.positions[i],
+                    .p = result.positions[i],
                     .n = normal,
                 }
             });
@@ -439,7 +515,114 @@ PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Set
         }
     }
 
-    return box;
+    return result;
+}
+PHYS_Softbody phys_world_add_tet_tri_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Settings settings) {
+    PHYS_Softbody result;
+
+    // @todo angular stuff from tets
+
+    // vertices
+    result.vertices_count = settings.vertices_count;
+    result.vertices = push_array(settings.arena, PHYS_body_id, result.vertices_count);
+    for EachIndex(vert_i, result.vertices_count) {
+        result.vertices[vert_i] = phys_world_add_body(w, (PHYS_Body){
+            .position = settings.vertices[vert_i],
+            .linear_velocity = settings.linear_velocity,
+            .inv_mass = 0.0f, // will be filled when constructing tets
+        });
+    }
+
+    // surface collider
+    const static int tri_size = 3;
+    result.triangle_colliders_count = settings.surface_indices_count / tri_size;
+    result.triangle_colliders = push_array(settings.arena, PHYS_collider_id, result.triangle_colliders_count);
+    for (int tri_i = 0; tri_i < result.triangle_colliders_count; tri_i++) {
+        u32 v1 = settings.surface_indices[tri_i*tri_size + 0];
+        u32 v2 = settings.surface_indices[tri_i*tri_size + 1];
+        u32 v3 = settings.surface_indices[tri_i*tri_size + 2];
+
+        result.triangle_colliders[tri_i] = phys_world_add_collider(w, (PHYS_Collider){
+            .type = PHYS_ColliderType_Triangle,
+            .triangle = {
+                .compliance = settings.compliance,
+                .p = {
+                    result.vertices[v1],
+                    result.vertices[v2],
+                    result.vertices[v3]
+                }
+            }
+        });
+    }
+
+    // edge constraints
+    const static int edge_size = 2;
+    result.distance_constraints_count = settings.tet_edge_indices_count / edge_size;
+    result.distance_constraints = push_array(settings.arena, PHYS_constraint_id, result.distance_constraints_count);
+    for (int edge_i = 0; edge_i < result.distance_constraints_count; edge_i++) {
+        u32 v1 = settings.tet_edge_indices[edge_i*edge_size + 0];
+        u32 v2 = settings.tet_edge_indices[edge_i*edge_size + 1];
+
+        result.distance_constraints[edge_i] = phys_world_add_constraint(w, (PHYS_Constraint){
+            .type = PHYS_ConstraintType_Distance,
+            .distance = {
+                .compliance = settings.compliance,
+                .b1 = result.vertices[v1],
+                .b2 = result.vertices[v2],
+                .d = length_3f32(sub_3f32(settings.vertices[v1], settings.vertices[v2]))
+            }
+        });
+    }
+
+    f32 total_volume = 0.f;
+
+    // volume constraints
+    const static int tet_size = 4;
+    result.volume_constraints_count = settings.tet_indices_count / tet_size;
+    result.volume_constraints = push_array(settings.arena, PHYS_constraint_id, result.volume_constraints_count);
+    for (int tet_i = 0; tet_i < result.volume_constraints_count; tet_i++) {
+        u32 v1 = settings.tet_indices[tet_i*tet_size + 0];
+        u32 v2 = settings.tet_indices[tet_i*tet_size + 1];
+        u32 v3 = settings.tet_indices[tet_i*tet_size + 2];
+        u32 v4 = settings.tet_indices[tet_i*tet_size + 3];
+
+        f32 v_rest = phys_tet_volume(
+            settings.vertices[v1],
+            settings.vertices[v2],
+            settings.vertices[v3],
+            settings.vertices[v4]
+        );
+
+        // distribute mass among vertices (normalize and inverse after)
+        total_volume+=v_rest;
+        for (int offset = 0; offset < tet_size; offset++) {
+            u32 v = settings.tet_indices[tet_i*tet_size + offset];
+            PHYS_Body* b = phys_world_resolve_body(w, result.vertices[v]);
+            b->inv_mass += v_rest / (f32)tet_size;
+        }
+
+        result.volume_constraints[tet_i] = phys_world_add_constraint(w, (PHYS_Constraint){
+            .type = PHYS_ConstraintType_Volume,
+            .volume = {
+                .compliance = settings.compliance,
+                .p = {
+                    result.vertices[v1],
+                    result.vertices[v2],
+                    result.vertices[v3],
+                    result.vertices[v4]
+                },
+                .v_rest = v_rest,
+            }
+        });
+    }
+
+    // normalise and invert vertex masses
+    for EachIndex(vert_i, result.vertices_count) {
+        PHYS_Body* b = phys_world_resolve_body(w, result.vertices[vert_i]);
+        b->inv_mass = 1.f / (settings.mass*b->inv_mass/total_volume);
+    }
+
+    return result;
 }
 
 void phys_world_remove_rigid_body(PHYS_World* w, PHYS_RigidBody* object) {

@@ -128,12 +128,13 @@ void r_init();
 void r_cleanup();
 
 R_BatchList r_batch_list_make(u64 instance_size);
-void* r_batch_list_push_inst(Arena *arena, R_BatchList *list, u64 batch_inst_cap);
+void*       r_batch_list_push_inst(Arena *arena, R_BatchList *list, u64 batch_inst_cap);
 
-R_Pass* r_add_pass_of_kind(Arena *arena, R_PassList *list, R_PassKind kind);
+R_Pass*     r_add_pass_of_kind(Arena *arena, R_PassList *list, R_PassKind kind);
 
-R_Handle r_buffer_alloc(R_ResourceKind kind, R_ResourceHint hint, u32 size, void *data);
-void r_buffer_release(R_Handle buffer);
+R_Handle    r_buffer_alloc(R_ResourceKind kind, R_ResourceHint hint, u32 size, void *data);
+void        r_buffer_load(R_Handle handle, u32 offset, u32 size, void *data);
+void        r_buffer_release(R_Handle buffer);
 
 R_Handle    r_os_equip_window(OS_Handle window);
 void        r_os_unequip_window(OS_Handle window, R_Handle rwindow);

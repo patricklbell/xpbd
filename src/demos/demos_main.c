@@ -5,6 +5,7 @@
 #include "draw/draw.c"
 #include "mesh/mesh.c"
 #include "input/input.c"
+#include "vtk/vtk.c"
 #include "demos_helpers.c"
 
 void window_event_loop(void* data);

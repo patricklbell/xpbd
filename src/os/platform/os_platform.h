@@ -29,10 +29,12 @@ OS_Handle   os_open_readonly_file(NTString8 path);
 void        os_close_file(OS_Handle file);
 void        os_set_file_offset(OS_Handle file, u64 offset);
 b8          os_is_eof(OS_Handle file);
-NTString8   os_read_line_ml(Arena* arena, OS_Handle file, u64 max_line_length);
+NTString8   os_read_line_ml(OS_Handle file, Arena* arena, u64 max_line_length);
+void        os_read_line_to_buffer_ml(OS_Handle file, NTString8* str, u64 max_line_length);
 
-#define DEFAULT_MAX_LINE_LENGTH 256
-#define os_read_line(arena, file) os_read_line_ml(arena, file, DEFAULT_MAX_LINE_LENGTH)
+#define OS_DEFAULT_MAX_LINE_LENGTH 256
+#define os_read_line(file, arena) os_read_line_ml(file, arena, OS_DEFAULT_MAX_LINE_LENGTH)
+#define os_read_line_to_buffer(file, str) os_read_line_to_buffer_ml(file, str, OS_DEFAULT_MAX_LINE_LENGTH)
 
 // time
 f64 os_now_seconds();

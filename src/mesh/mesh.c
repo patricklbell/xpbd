@@ -3,7 +3,7 @@ static b32 ms_hash_is_eq(MS_VertexMapHash a, MS_VertexMapHash b) {
     return (a.normal == b.normal && a.position == b.position && a.uv == b.uv);
 }
 
-static MS_VertexMap make_vertex_map(Arena* arena, u64 slots_count) {
+static MS_VertexMap ms_make_vertex_map(Arena* arena, u64 slots_count) {
     MS_VertexMap result;
     result.slots_count = slots_count;
     result.slots = push_array(arena, MS_VertexMapNode*, result.slots_count);
@@ -34,31 +34,43 @@ static R_VertexLayout* ms_vertex_map_data(Arena* arena, MS_VertexMap* map, vec3_
     R_VertexLayout* result = push_array(arena, R_VertexLayout, map->vertices_count);
     for EachIndex(slot, map->slots_count) {
         for EachList(n_vertex, MS_VertexMapNode, map->slots[slot]) {
-            result[n_vertex->index].position  = positions [n_vertex->hash.position];
-            result[n_vertex->index].normal    = normals   [n_vertex->hash.normal];
-            result[n_vertex->index].uv        = uvs       [n_vertex->hash.uv];
+            if (n_vertex->hash.position != (u32)-1)
+                result[n_vertex->index].position  = positions [n_vertex->hash.position];
+            if (n_vertex->hash.normal != (u32)-1)
+                result[n_vertex->index].normal    = normals   [n_vertex->hash.normal];
+            if (n_vertex->hash.uv != (u32)-1)
+                result[n_vertex->index].uv        = uvs       [n_vertex->hash.uv];
         }
     }
     return result;
 }
 
 // loaders
-MS_MeshResult ms_load_obj(Arena* arena, NTString8 path) {
+MS_LoadResult ms_load_obj(Arena* arena, NTString8 path, MS_LoadSettings settings) {
     OS_Handle file = os_open_readonly_file(path);
 
     if (os_is_handle_zero(file)) {
-        return (MS_MeshResult) { .error = ntstr8_lit_init("Failed to open file") };
+        return (MS_LoadResult) { .error = ntstr8_lit_init("Failed to open file") };
+    }
+
+    if (settings.topology == MS_Topology_Default) {
+        settings.topology = MS_Topology_Triangle;
+    }
+    if (settings.vertex_flags == MS_VertexFlags_Default) {
+        settings.vertex_flags = MS_VertexFlags_PTN;
     }
 
     MS_Mesh mesh;
     {
         Temp scratch = scratch_begin_a(arena);
 
+        NTString8 line;
+        line.data = push_array(scratch.arena, u8, OS_DEFAULT_MAX_LINE_LENGTH);
+
         // determine buffer sizes
         u32 positions_count = 0, normals_count = 0, uvs_count = 0, indices_count = 0;
         while (!os_is_eof(file)) {
-            Temp temp = temp_begin(scratch.arena);
-            NTString8 line = os_read_line(scratch.arena, file);
+            os_read_line_to_buffer(file, &line);
     
             if (ntstr8_begins_with(line, "v ")) {
                 positions_count++;
@@ -67,9 +79,8 @@ MS_MeshResult ms_load_obj(Arena* arena, NTString8 path) {
             } else if (ntstr8_begins_with(line, "vt ")) {
                 uvs_count++;
             } else if (ntstr8_begins_with(line, "f ")) {
-                indices_count+=3;
+                indices_count+=settings.topology;
             }
-            temp_end(temp);
         }
         Assert(positions_count < ((u32)-1) && normals_count < ((u32)-1) && uvs_count < ((u32)-1));
         
@@ -78,7 +89,7 @@ MS_MeshResult ms_load_obj(Arena* arena, NTString8 path) {
         
         {
             // map for deduplicating vertex data
-            MS_VertexMap vertex_map = make_vertex_map(scratch.arena, Max(Max(positions_count, normals_count), uvs_count));
+            MS_VertexMap vertex_map = ms_make_vertex_map(scratch.arena, Max(Max(positions_count, normals_count), uvs_count));
     
             // allocate buffers
             vec3_f32* positions = push_array(scratch.arena, vec3_f32, positions_count);
@@ -88,34 +99,57 @@ MS_MeshResult ms_load_obj(Arena* arena, NTString8 path) {
             u32 off_positions = 0, off_normals = 0, off_uvs = 0, off_indices = 0;
             os_set_file_offset(file, 0);
             while (!os_is_eof(file)) {
-                Temp temp = temp_begin(scratch.arena);
-                NTString8 line = os_read_line(scratch.arena, file);
+                os_read_line_to_buffer(file, &line);
 
+                // @todo replace sscanf
                 if (ntstr8_begins_with(line, "f ")) {
-                    // @todo other polygons and formats
-                    static const int FACE_VERTICES_COUNT = 3;
-
                     // 1-based index
-                    u32 p[FACE_VERTICES_COUNT], uv[FACE_VERTICES_COUNT], n[FACE_VERTICES_COUNT];
-                    sscanf(line.cstr, "f %u/%u/%u %u/%u/%u %u/%u/%u", 
-                        &p[0], &uv[0], &n[0],
-                        &p[1], &uv[1], &n[1],
-                        &p[2], &uv[2], &n[2]
-                    );
-                    temp_end(temp); // @note needs to end temp to persist allocation
+                    u32 p[MS_Topology_COUNT] = zero_struct;
+                    u32 t[MS_Topology_COUNT] = zero_struct;
+                    u32 n[MS_Topology_COUNT] = zero_struct;
+
+                    for (int offset = 1, vertex_index = 0; vertex_index < settings.topology; vertex_index++) {
+                        int consumed = 0, success = 0;
+
+                        switch (settings.vertex_flags) {
+                            case MS_VertexFlags_P: {
+                                success = sscanf(&line.cstr[offset], " %u%n", 
+                                    &p[vertex_index], &consumed
+                                ) == 1;
+                            }break;
+                            case MS_VertexFlags_PT: {
+                                success = sscanf(&line.cstr[offset], " %u/%u%n", 
+                                    &p[vertex_index], &t[vertex_index], &consumed
+                                ) == 2;
+                            }break;
+                            case MS_VertexFlags_PN: {
+                                success = sscanf(&line.cstr[offset], " %u//%u%n", 
+                                    &p[vertex_index], &n[vertex_index], &consumed
+                                ) == 2;
+                            }break;
+                            case MS_VertexFlags_PTN: {
+                                success = sscanf(&line.cstr[offset], " %u/%u/%u%n", 
+                                    &p[vertex_index], &t[vertex_index], &n[vertex_index], &consumed
+                                ) == 3;
+                            }break;
+                            default: Assert(0);
+                        }
+
+                        offset += consumed;
+                        if (!success) {
+                            // @todo logging
+                            fprintf(stderr, "Failed to process face in obj: %s", line.cstr);
+                            break;
+                        }
+                    }
     
                     // deduplicate indices so that vertex data is shared and store indice
-                    for EachIndex(i, FACE_VERTICES_COUNT) {
-                        MS_VertexMapHash hash = {.position = p[i] - 1, .normal = n[i] - 1, .uv = uv[i] - 1};
+                    for EachIndex(i, settings.topology) {
+                        MS_VertexMapHash hash = {.position = p[i] - 1, .normal = n[i] - 1, .uv = t[i] - 1};
                         u32 indice = ms_add_to_vertex_map(scratch.arena, &vertex_map, hash);
                         mesh.indices[off_indices++] = indice;
                     }
-
-                    continue;
-                }
-        
-                // @todo replace sscanf
-                if (ntstr8_begins_with(line, "v ")) {
+                } else if (ntstr8_begins_with(line, "v ")) {
                     sscanf(line.cstr, "v %f %f %f", 
                         &positions[off_positions].x,
                         &positions[off_positions].y,
@@ -136,10 +170,9 @@ MS_MeshResult ms_load_obj(Arena* arena, NTString8 path) {
                     );
                     off_uvs++;
                 }
-
-                temp_end(temp);
             }
     
+            
             mesh.vertices_count = vertex_map.vertices_count;
             mesh.vertices = ms_vertex_map_data(arena, &vertex_map, positions, normals, uvs);
         }
@@ -147,5 +180,28 @@ MS_MeshResult ms_load_obj(Arena* arena, NTString8 path) {
         scratch_end(scratch);
     }
     
-    return (MS_MeshResult) { .v = mesh, .error = ntstr8_lit_init("") };;
+    os_close_file(file);
+    return (MS_LoadResult) { .v = mesh, .error = ntstr8_lit_init("") };;
+}
+
+// helpers
+// @note assumes CCW winding order
+void ms_calculate_flat_normals(MS_Mesh* mesh, MS_Topology topology) {
+    AssertAlways(topology == MS_Topology_Triangle); // @todo
+    Assert(mesh->vertices_count == mesh->indices_count);
+    
+    for (u32 i = 0; i < mesh->vertices_count;) {
+        u32 i1 = i + 0;
+        u32 i2 = i + 1;
+        u32 i3 = i + 2;
+
+        vec3_f32 u = sub_3f32(mesh->vertices[i1].position, mesh->vertices[i2].position);
+        vec3_f32 v = sub_3f32(mesh->vertices[i3].position, mesh->vertices[i2].position);
+
+        vec3_f32 n = normalize_3f32(cross_3f32(v, u));
+
+        for (int tri_i = 0; tri_i < MS_Topology_Triangle; tri_i++, i++) {
+            mesh->vertices[i].normal = n;
+        }
+    }
 }

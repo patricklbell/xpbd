@@ -45,8 +45,8 @@ struct PHYS_Constraint_Distance {
 typedef struct PHYS_Constraint_Volume PHYS_Constraint_Volume;
 struct PHYS_Constraint_Volume {
     f32 compliance;
-    PHYS_body_id b[4];
-    f32 v;
+    PHYS_body_id p[4];
+    f32 v_rest;
 };
 
 typedef enum PHYS_ConstraintType {
@@ -71,10 +71,14 @@ struct PHYS_ConstraintSolveSettings {
     f64 inv_dt2;
 };
 
+// helpers
 static void phys_body_apply_linear_correction(PHYS_Body* b, vec3_f32 corr);
 static void phys_body_apply_angular_correction(PHYS_Body* b, vec3_f32 corr, vec3_f32 r);
 static f32 phys_body_generalized_inverse_mass(PHYS_Body* b, vec3_f32 r, vec3_f32 dC);
+static void phys_2body_apply_correction_wo_offset(PHYS_Body* b1, PHYS_Body* b2, f32 alpha, f32 C, vec3_f32 dC);
+static void phys_2body_apply_correction_wt_offset(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, f32 alpha, f32 C, vec3_f32 dC);
 
+// solvers
 static void phys_constrain_distance(PHYS_Constraint_Distance* c, PHYS_ConstraintSolveSettings settings);
 static void phys_constrain_volume(PHYS_Constraint_Volume* c, PHYS_ConstraintSolveSettings settings);
 
@@ -95,13 +99,6 @@ struct PHYS_Collider_Sphere {
     f32 r;
 };
 
-typedef struct PHYS_Collider_RectCuboid PHYS_Collider_RectCuboid;
-struct PHYS_Collider_RectCuboid {
-    f32 compliance;
-    PHYS_body_id c;
-    vec3_f32 r;
-};
-
 typedef struct PHYS_Collider_Plane PHYS_Collider_Plane;
 struct PHYS_Collider_Plane {
     f32 compliance;
@@ -109,10 +106,26 @@ struct PHYS_Collider_Plane {
     vec3_f32 n;
 };
 
+typedef struct PHYS_Collider_Triangle PHYS_Collider_Triangle;
+struct PHYS_Collider_Triangle {
+    f32 compliance;
+    PHYS_body_id p[3];
+    
+    // @todo option for two sided (eg. cloth)
+};
+
+typedef struct PHYS_Collider_RectCuboid PHYS_Collider_RectCuboid;
+struct PHYS_Collider_RectCuboid {
+    f32 compliance;
+    PHYS_body_id c;
+    vec3_f32 r;
+};
+
 typedef enum PHYS_ColliderType {
     PHYS_ColliderType_Sphere,
-    PHYS_ColliderType_RectCuboid,
     PHYS_ColliderType_Plane,
+    PHYS_ColliderType_Triangle,
+    PHYS_ColliderType_RectCuboid,
     PHYS_ColliderType_COUNT,
 } PHYS_ColliderType;
 
@@ -122,13 +135,15 @@ struct PHYS_Collider {
 
     union {
         PHYS_Collider_Sphere         sphere;
-        PHYS_Collider_RectCuboid     rect_cuboid;
         PHYS_Collider_Plane          plane;
+        PHYS_Collider_Triangle       triangle;
+        PHYS_Collider_RectCuboid     rect_cuboid;
     };
 };
 
 static void phys_collide_spheres(const PHYS_Collider_Sphere* c1, PHYS_Collider_Sphere* c2, PHYS_ConstraintSolveSettings settings);
 static void phys_collide_sphere_with_plane(const PHYS_Collider_Sphere* c1, PHYS_Collider_Plane* c2, PHYS_ConstraintSolveSettings settings);
+static void phys_collide_triangle_with_plane(const PHYS_Collider_Triangle* c1, PHYS_Collider_Plane* c2, PHYS_ConstraintSolveSettings settings);
 
 // world
 typedef struct PHYS_ConstraintNode PHYS_ConstraintNode;
@@ -211,16 +226,46 @@ void                phys_world_remove_constraint(PHYS_World* w, PHYS_constraint_
 PHYS_Constraint*    phys_world_resolve_constraint(PHYS_World* w, PHYS_constraint_id col);
 
 // helper objects
-typedef struct PHYS_RigidBody_Settings PHYS_RigidBody_Settings;
-struct PHYS_RigidBody_Settings {
-    PHYS_Body       body;
-    PHYS_Collider   collider;
-};
-
 typedef struct PHYS_RigidBody PHYS_RigidBody;
 struct PHYS_RigidBody {
     PHYS_body_id        body_id;
     PHYS_collider_id    collider_id;
+};
+
+typedef struct PHYS_TetTriSoftbody_Settings PHYS_TetTriSoftbody_Settings;
+struct PHYS_TetTriSoftbody_Settings {
+    Arena* arena;
+    
+    f32 mass;
+    f32 compliance;
+    vec3_f32 center;
+    vec3_f32 linear_velocity;
+
+    vec3_f32* vertices;
+    u32 vertices_count;
+
+    u32* tet_edge_indices;
+    u32 tet_edge_indices_count;
+    u32* tet_indices;
+    u32 tet_indices_count;
+
+    u32* surface_indices;
+    u32 surface_indices_count;
+};
+
+typedef struct PHYS_Softbody PHYS_Softbody;
+struct PHYS_Softbody {
+    u32 vertices_count;
+    PHYS_body_id* vertices;
+
+    u32 triangle_colliders_count;
+    PHYS_collider_id* triangle_colliders;
+
+    u32 distance_constraints_count;
+    PHYS_constraint_id* distance_constraints;
+
+    u32 volume_constraints_count;
+    PHYS_constraint_id* volume_constraints;
 };
 
 typedef struct PHYS_Ball_Settings PHYS_Ball_Settings;
@@ -257,6 +302,7 @@ struct PHYS_BoxBoundary_Settings {
 PHYS_RigidBody      phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings);
 PHYS_RigidBody      phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings);
 PHYS_BoxBoundary    phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Settings settings);
+PHYS_Softbody       phys_world_add_tet_tri_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Settings settings);
 
 void                phys_world_remove_rigid_body(PHYS_World* w, PHYS_RigidBody* object);
 void                phys_world_remove_box_boundary(PHYS_World* w, PHYS_BoxBoundary* object);

@@ -18,7 +18,7 @@ struct BallsState {
 static BallsState s;
 
 int demos_init_hook(DEMOS_CommonState* cs) {
-    MS_MeshResult sphere = ms_load_obj(cs->arena, ntstr8_lit("./data/sphere.obj"));
+    MS_LoadResult sphere = ms_load_obj(cs->arena, ntstr8_lit("./data/sphere.obj"), (MS_LoadSettings){});
     if (sphere.error.length != 0) {
         fprintf(stderr, "%s\n", sphere.error.data);
         return 1;
@@ -63,9 +63,8 @@ void demos_frame_hook(DEMOS_CommonState* cs) {
     phys_world_step(s.world, dt);
     
     d_begin_pipeline();
+    d_begin_3d_pass_camera(cs->window, &s.camera);
     {
-        d_begin_3d_pass_camera(cs->window, &s.camera);
-        
         for EachElement(i, s.balls) {
             PHYS_Body* body = phys_world_resolve_body(s.world, s.balls[i].body_id);
             f32 radius = s.ball_settings[i].radius;
