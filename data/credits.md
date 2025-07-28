@@ -1,0 +1,3 @@
+- Stanford University Computer Graphics Laboratory
+- Blender Software
+- MeshLab
