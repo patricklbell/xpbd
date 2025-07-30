@@ -126,7 +126,7 @@ typedef enum PHYS_ColliderType {
     PHYS_ColliderType_Plane,
     PHYS_ColliderType_Triangle,
     PHYS_ColliderType_RectCuboid,
-    PHYS_ColliderType_COUNT,
+    PHYS_ColliderType_COUNT ENUM_CASE_UNUSED,
 } PHYS_ColliderType;
 
 typedef struct PHYS_Collider PHYS_Collider;
