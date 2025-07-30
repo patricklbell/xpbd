@@ -74,11 +74,11 @@ void r_init() {
 
         // enable attributes
         for EachElement(i, r_ogl_shader_vertex_attributes) {
-            const R_OGL_Attribute* attribute = &r_ogl_shader_vertex_attributes[i];
+            const R_OGL_VertexAttribute* attribute = &r_ogl_shader_vertex_attributes[i];
             glEnableVertexAttribArray(attribute->location);
         }
         for EachElement(i, r_ogl_shader_instance_attributes) {
-            const R_OGL_Attribute* attribute = &r_ogl_shader_instance_attributes[i];
+            const R_OGL_InstanceAttribute* attribute = &r_ogl_shader_instance_attributes[i];
             glEnableVertexAttribArray(attribute->location);
         }
     
@@ -190,9 +190,11 @@ void r_submit(OS_Handle window, R_PassList *passes) {
                             GLuint bind_index = 0;
                             glBindBuffer(GL_ARRAY_BUFFER, r_ogl_handle_to_buffer(group_params->mesh_vertices));
                             for EachElement(i, r_ogl_shader_vertex_attributes) {
-                                const R_OGL_Attribute* attribute = &r_ogl_shader_vertex_attributes[i];
+                                const R_OGL_VertexAttribute* attribute = &r_ogl_shader_vertex_attributes[i];
                                 glEnableVertexAttribArray(attribute->location);
-                                glVertexAttribPointer(attribute->location, attribute->size, attribute->type, attribute->normalized, sizeof(R_VertexLayout), attribute->offset);
+                                u64 offset = r_vertex_offset(group_params->mesh_flags, attribute->flag);
+                                u64 stride = r_vertex_stride(group_params->mesh_flags, attribute->flag);
+                                glVertexAttribPointer(attribute->location, attribute->size, attribute->type, attribute->normalized, stride, (void*)offset);
                             }
                         }
 
@@ -208,7 +210,7 @@ void r_submit(OS_Handle window, R_PassList *passes) {
 
                             // bind instance data to shader attributes
                             for EachElement(i, r_ogl_shader_instance_attributes) {
-                                const R_OGL_Attribute* attribute = &r_ogl_shader_instance_attributes[i];
+                                const R_OGL_InstanceAttribute* attribute = &r_ogl_shader_instance_attributes[i];
                                 glEnableVertexAttribArray(attribute->location);
                                 glVertexAttribPointer(attribute->location, attribute->size, attribute->type, attribute->normalized, batches->bytes_per_inst, attribute->offset);
                                 glVertexAttribDivisor(attribute->location, 1);
@@ -219,7 +221,7 @@ void r_submit(OS_Handle window, R_PassList *passes) {
                         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, r_ogl_handle_to_buffer(group_params->mesh_indices));
 
                         // draw instances
-                        glDrawElementsInstanced(GL_TRIANGLES, r_ogl_handle_to_size(group_params->mesh_indices)/sizeof(u32), GL_UNSIGNED_INT, 0, byte_offset/batches->bytes_per_inst);
+                        glDrawElementsInstanced(r_ogl_topology_mode[group_params->mesh_topology], r_ogl_handle_to_size(group_params->mesh_indices)/sizeof(u32), GL_UNSIGNED_INT, 0, byte_offset/batches->bytes_per_inst);
                     }
                 }
 

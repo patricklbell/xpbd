@@ -237,7 +237,9 @@ struct PHYS_TetTriSoftbody_Settings {
     Arena* arena;
     
     f32 mass;
-    f32 compliance;
+    f32 edge_compliance;
+    f32 volume_compliance;
+    f32 collider_compliance;
     vec3_f32 center;
     vec3_f32 linear_velocity;
 

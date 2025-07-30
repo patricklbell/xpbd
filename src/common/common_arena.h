@@ -52,7 +52,7 @@ Temp temp_begin(Arena *arena);
 void temp_end(Temp temp);
 
 // push helper macros
-#define push_array_no_zero_aligned(a, T, c, align) (T*)arena_push((a), sizeof(T)*(c), (align))
-#define push_array_aligned(a, T, c, align) (T*)memset(push_array_no_zero_aligned(a, T, c, align), 0, sizeof(T)*(c))
-#define push_array_no_zero(a, T, c) push_array_no_zero_aligned(a, T, c, Max(8, AlignOf(T)))
-#define push_array(a, T, c) push_array_aligned(a, T, c, Max(8, AlignOf(T)))
+#define push_array_no_zero_aligned(a, T, c, align)  (T*)arena_push((a), sizeof(T)*(c), (align))
+#define push_array_aligned(a, T, c, align)          (T*)memset(push_array_no_zero_aligned(a, T, c, align), 0, sizeof(T)*(c))
+#define push_array_no_zero(a, T, c)                 push_array_no_zero_aligned(a, T, c, Max(8, AlignOf(T)))
+#define push_array(a, T, c)                         push_array_aligned(a, T, c, Max(8, AlignOf(T)))

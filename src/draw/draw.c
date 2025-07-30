@@ -28,22 +28,34 @@ R_PassParams_3D* d_begin_3d_pass(rect_f32 viewport, mat4x4_f32 view, mat4x4_f32 
     return params;
 }
 
-R_Mesh3DInst* d_mesh(R_Handle mesh_vertices, R_Handle mesh_indices, mat4x4_f32 transform) {
+R_Mesh3DInstance* d_mesh(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R_VertexTopology topology, mat4x4_f32 transform, vec3_f32 color) {
     R_Pass *pass = r_pass_from_kind(d_thread_ctx->arena, &d_thread_ctx->passes, R_PassKind_3D);
     R_PassParams_3D *params = pass->params_3d;
 
     // make batch hash map
     if(params->mesh_batches.slots_count == 0) {
         params->mesh_batches.slots_count = 1024;
-        params->mesh_batches.slots = push_array(d_thread_ctx->arena, R_BatchGroup3DMapNode *, params->mesh_batches.slots_count);
+        params->mesh_batches.slots = push_array(d_thread_ctx->arena, R_BatchGroup3DMapNode*, params->mesh_batches.slots_count);
     }
 
     // hash batch group params
     u64 hash = 0;
     u64 slot_idx = 0;
     {
-        R_Handle buffer[] = { mesh_vertices, mesh_indices };
-        hash = hash_u64((u8*)buffer, sizeof(buffer));
+        struct {
+            R_Handle mesh_vertices;
+            R_VertexFlag mesh_flags;
+            R_Handle mesh_indices;
+            R_VertexTopology mesh_topology;
+            R_Mesh3DMaterial mesh_material;
+        } buffer = {
+            .mesh_vertices = vertices,
+            .mesh_flags = flags,
+            .mesh_indices = indices,
+            .mesh_topology = topology,
+            .mesh_material = R_Mesh3DMaterial_Lambertian, // @todo materials
+        };
+        hash = hash_u64((u8*)&buffer, sizeof(buffer));
         slot_idx = hash % params->mesh_batches.slots_count;
     }
 
@@ -57,19 +69,23 @@ R_Mesh3DInst* d_mesh(R_Handle mesh_vertices, R_Handle mesh_indices, mat4x4_f32 t
             }
         }
 
-        // if there is not matching batch group, make one
+        // if there is no matching batch group, make one
         if (node == 0) {
             node = push_array(d_thread_ctx->arena, R_BatchGroup3DMapNode, 1);
             stack_push(params->mesh_batches.slots[slot_idx], node);
             node->hash = hash;
-            node->batches = r_batch_list_make(sizeof(R_Mesh3DInst));
-            node->params.mesh_vertices = mesh_vertices;
-            node->params.mesh_indices = mesh_indices;
+            node->batches = r_batch_list_make(sizeof(R_Mesh3DInstance));
+            node->params.mesh_vertices = vertices;
+            node->params.mesh_flags = flags;
+            node->params.mesh_indices = indices;
+            node->params.mesh_topology = topology;
+            node->params.mesh_material = R_Mesh3DMaterial_Lambertian; // @todo materials
             node->params.batch_transform = make_diagonal_4x4f32(1.f);
         }
     }
 
-    R_Mesh3DInst *inst = (R_Mesh3DInst*)r_batch_list_push_inst(d_thread_ctx->arena, &node->batches, 256);
-    inst->inst_transform = transform;
+    R_Mesh3DInstance *inst = (R_Mesh3DInstance*)r_batch_list_push_inst(d_thread_ctx->arena, &node->batches, 256);
+    inst->transform = transform;
+    inst->color = color;
     return inst;
 }

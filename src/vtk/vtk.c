@@ -8,56 +8,50 @@ static VTK_PointCount vtk_cell_type_to_point_count(VTK_CellType type) {
 }
 
 static void vtk_load_points(OS_Handle file, NTString8 line, vec3_f32* points, u32 points_count) {
-    Temp scratch = scratch_begin(NULL, 0);
+    {DeferResource(Temp scratch = scratch_begin(NULL, 0), scratch_end(scratch)){
+        u32 point_i;
+        for (point_i = 0; !os_is_eof(file) && point_i < points_count; point_i++) {
+            os_read_line_to_buffer(file, &line);
 
-    u32 point_i;
-    for (point_i = 0; !os_is_eof(file) && point_i < points_count; point_i++) {
-        os_read_line_to_buffer(file, &line);
-
-        int matched = sscanf(line.cstr, "%f %f %f",
-            &points[point_i].x,
-            &points[point_i].y,
-            &points[point_i].z
-        );
-        Assert(matched == 3);
-    }
-    Assert(point_i == points_count); // @todo logging
-
-    scratch_end(scratch);
+            int matched = sscanf(line.cstr, "%f %f %f",
+                &points[point_i].x,
+                &points[point_i].y,
+                &points[point_i].z
+            );
+            Assert(matched == 3);
+        }
+        Assert(point_i == points_count); // @todo logging
+    }}
 }
 
 static void vtk_load_cells(OS_Handle file, NTString8 line, u32 cells_count, u32* cells_data, u32 cells_data_count) {
-    Temp scratch = scratch_begin(NULL, 0);
-
-    u32 cell_i, cell_data_i;
-    for (cell_i = 0, cell_data_i = 0; !os_is_eof(file) && cell_i < cells_count; cell_i++) {
-        os_read_line_to_buffer(file, &line);
-
-        int offset = 0, size, count;
-        while (sscanf(&line.cstr[offset], "%u%n", &cells_data[cell_data_i], &size) > 0) {
-            cell_data_i++;
-            offset+=size;
+    {DeferResource(Temp scratch = scratch_begin(NULL, 0), scratch_end(scratch)){
+        u32 cell_i, cell_data_i;
+        for (cell_i = 0, cell_data_i = 0; !os_is_eof(file) && cell_i < cells_count; cell_i++) {
+            os_read_line_to_buffer(file, &line);
+    
+            int offset = 0, size, count;
+            while (sscanf(&line.cstr[offset], "%u%n", &cells_data[cell_data_i], &size) > 0) {
+                cell_data_i++;
+                offset+=size;
+            }
         }
-    }
-    Assert(cell_data_i == cells_data_count);
-    Assert(cell_i == cells_count); // @todo logging
-
-    scratch_end(scratch);
+        Assert(cell_data_i == cells_data_count);
+        Assert(cell_i == cells_count); // @todo logging
+    }}
 }
 
 static void vtk_load_cell_types(OS_Handle file, NTString8 line, VTK_CellType* cells_type, u32 cells_count) {
-    Temp scratch = scratch_begin(NULL, 0);
+    {DeferResource(Temp scratch = scratch_begin(NULL, 0), scratch_end(scratch)){
+        u32 cell_i;
+        for (cell_i = 0; !os_is_eof(file) && cell_i < cells_count; cell_i++) {
+            os_read_line_to_buffer(file, &line);
 
-    u32 cell_i;
-    for (cell_i = 0; !os_is_eof(file) && cell_i < cells_count; cell_i++) {
-        os_read_line_to_buffer(file, &line);
-
-        int matched = sscanf(line.cstr, "%u", &cells_type[cell_i]);
-        Assert(matched == 1);
-    }
-    Assert(cell_i == cells_count); // @todo logging
-
-    scratch_end(scratch);
+            int matched = sscanf(line.cstr, "%u", &cells_type[cell_i]);
+            Assert(matched == 1);
+        }
+        Assert(cell_i == cells_count); // @todo logging
+    }}
 }
 
 // edge map
@@ -114,9 +108,8 @@ VTK_LoadResult vtk_load(Arena* arena, NTString8 path, VTK_LoadSettings settings)
     }
 
     VTK_Data data;
-    {
-        Temp scratch = scratch_begin_a(arena);
 
+    {DeferResource(Temp scratch = scratch_begin_a(arena), scratch_end(scratch)) {
         NTString8 line;
         line.data = push_array(scratch.arena, u8, OS_DEFAULT_MAX_LINE_LENGTH);
 
@@ -200,44 +193,42 @@ VTK_LoadResult vtk_load(Arena* arena, NTString8 path, VTK_LoadSettings settings)
 
         // calculate edges
         if (settings.calculate_surface_edges) {
-            Temp temp = temp_begin(scratch.arena);
-            VTK_EdgeMap surface_edge_map = vtk_make_edge_map(temp.arena, data.surface_indices_count/VTK_PointCount_Triangle);
-
-            // add each edge of each triangle
-            for (int surface_i = 0; surface_i < data.surface_indices_count; surface_i+=VTK_PointCount_Triangle) {
-                for (int edge_offset = 0; edge_offset < VTK_PointCount_Triangle; edge_offset++) {
-                    vtk_add_to_edge_map(temp.arena, &surface_edge_map, (VTK_EdgeMapHash){
-                        .i1 = data.surface_indices[surface_i + edge_offset],
-                        .i2 = data.surface_indices[surface_i + (edge_offset+1)%VTK_PointCount_Triangle],
-                    });
+            {DeferResource(Temp temp = temp_begin(scratch.arena), temp_end(temp)) {
+                VTK_EdgeMap surface_edge_map = vtk_make_edge_map(temp.arena, data.surface_indices_count/VTK_PointCount_Triangle);
+    
+                // add each edge of each triangle
+                for (int surface_i = 0; surface_i < data.surface_indices_count; surface_i+=VTK_PointCount_Triangle) {
+                    for (int edge_offset = 0; edge_offset < VTK_PointCount_Triangle; edge_offset++) {
+                        vtk_add_to_edge_map(temp.arena, &surface_edge_map, (VTK_EdgeMapHash){
+                            .i1 = data.surface_indices[surface_i + edge_offset],
+                            .i2 = data.surface_indices[surface_i + (edge_offset+1)%VTK_PointCount_Triangle],
+                        });
+                    }
                 }
-            }
-
-            // extract deduplicated edges
-            vtk_extract_edges_from_edge_map(arena, &surface_edge_map, &data.surface_edge_indices, &data.surface_edge_indices_count);
-            temp_end(temp);
+    
+                // extract deduplicated edges
+                vtk_extract_edges_from_edge_map(arena, &surface_edge_map, &data.surface_edge_indices, &data.surface_edge_indices_count);
+            }}
         }
         if (settings.calculate_volume_edges) {
-            Temp temp = temp_begin(scratch.arena);
-            VTK_EdgeMap volume_edge_map = vtk_make_edge_map(temp.arena, data.volume_indices_count/VTK_PointCount_Tetrahedron);
+            {DeferResource(Temp temp = temp_begin(scratch.arena), temp_end(temp)) {
+                VTK_EdgeMap volume_edge_map = vtk_make_edge_map(temp.arena, data.volume_indices_count/VTK_PointCount_Tetrahedron);
 
-            // add each edge of each triangle
-            for (int volume_i = 0; volume_i < data.volume_indices_count; volume_i+=VTK_PointCount_Tetrahedron) {
-                for (int edge_offset = 0; edge_offset < VTK_PointCount_Tetrahedron; edge_offset++) {
-                    vtk_add_to_edge_map(temp.arena, &volume_edge_map, (VTK_EdgeMapHash){
-                        .i1 = data.volume_indices[volume_i + edge_offset],
-                        .i2 = data.volume_indices[volume_i + (edge_offset+1)%VTK_PointCount_Tetrahedron],
-                    });
+                // add each edge of each triangle
+                for (int volume_i = 0; volume_i < data.volume_indices_count; volume_i+=VTK_PointCount_Tetrahedron) {
+                    for (int edge_offset = 0; edge_offset < VTK_PointCount_Tetrahedron; edge_offset++) {
+                        vtk_add_to_edge_map(temp.arena, &volume_edge_map, (VTK_EdgeMapHash){
+                            .i1 = data.volume_indices[volume_i + edge_offset],
+                            .i2 = data.volume_indices[volume_i + (edge_offset+1)%VTK_PointCount_Tetrahedron],
+                        });
+                    }
                 }
-            }
 
-            // extract deduplicated edges
-            vtk_extract_edges_from_edge_map(arena, &volume_edge_map, &data.volume_edge_indices, &data.volume_edge_indices_count);
-            temp_end(temp);
+                // extract deduplicated edges
+                vtk_extract_edges_from_edge_map(arena, &volume_edge_map, &data.volume_edge_indices, &data.volume_edge_indices_count);
+            }}
         }
-        
-        scratch_end(scratch);
-    }
+    }}
     
-    return (VTK_LoadResult) { .v = data, .error = ntstr8_lit_init("") };;
+    return (VTK_LoadResult) { .v = data, .error = ntstr8_lit_init("") };
 }

@@ -11,6 +11,8 @@ typedef struct HangingBoxesState HangingBoxesState;
 struct HangingBoxesState {
     R_Handle cube_vertices;
     R_Handle cube_indices;
+    R_VertexFlag cube_flags;
+    R_VertexTopology cube_topology;
 
     DEMOS_Camera camera;
 
@@ -32,8 +34,10 @@ int demos_init_hook(DEMOS_CommonState* cs) {
         fprintf(stderr, "%s\n", cube.error.data);
         return 1;
     }
-    s.cube_vertices = r_buffer_alloc(R_ResourceKind_Static, R_ResourceHint_Array, cube.v.vertices_count*sizeof(*cube.v.vertices), cube.v.vertices);
+    s.cube_vertices = r_buffer_alloc(R_ResourceKind_Static, R_ResourceHint_Array, cube.v.vertices_count*r_vertex_size(cube.v.flags), cube.v.vertices);
     s.cube_indices  = r_buffer_alloc(R_ResourceKind_Static, R_ResourceHint_Indices, cube.v.indices_count*sizeof(*cube.v.indices), cube.v.indices);
+    s.cube_flags = cube.v.flags;
+    s.cube_topology = cube.v.topology;
 
     s.camera.eye    = (vec3_f32){.x = 0,.y =-10,.z =40};
     s.camera.target = (vec3_f32){.x = 0,.y =-10,.z = 0};
@@ -53,7 +57,7 @@ int demos_init_hook(DEMOS_CommonState* cs) {
             s.box1.extents = make_3f32(1,1,1);
             PHYS_Box_Settings box_settings = {
                 .mass = 1,
-                .center = make_3f32(0,-10,0),
+                .center = make_3f32(0,-5,0),
                 .extents = s.box1.extents,
             };
             s.box1.rigid_body = phys_world_add_box(s.world, box_settings);
@@ -62,10 +66,10 @@ int demos_init_hook(DEMOS_CommonState* cs) {
         s.anchor_to_box1 = phys_world_add_constraint(s.world, (PHYS_Constraint){
             .type = PHYS_ConstraintType_Distance,
             .distance = {
-                .compliance = 0.0001f,
+                .compliance = 0.1f,
                 .b1 = s.anchor_id,
                 .b2 = s.box1.rigid_body.body_id,
-                .d = 11.f,
+                .d = 5.f,
 
                 .is_offset = 1,
                 .offset2 = make_3f32(0,1,0),
@@ -76,8 +80,8 @@ int demos_init_hook(DEMOS_CommonState* cs) {
             s.box2.extents = make_3f32(1,1,1);
             PHYS_Box_Settings box_settings = {
                 .mass = 1,
-                .center = make_3f32(0,-20,0),
-                .linear_velocity = make_3f32(1,0,0),
+                .center = make_3f32(0,-15,0),
+                .linear_velocity = make_3f32(5,0,0),
                 .extents = s.box2.extents,
             };
             s.box2.rigid_body = phys_world_add_box(s.world, box_settings);
@@ -86,14 +90,14 @@ int demos_init_hook(DEMOS_CommonState* cs) {
         s.box1_to_box2 = phys_world_add_constraint(s.world, (PHYS_Constraint){
             .type = PHYS_ConstraintType_Distance,
             .distance = {
-                .compliance = 0.0001f,
+                .compliance = 0.1f,
                 .b1 = s.box1.rigid_body.body_id,
                 .b2 = s.box2.rigid_body.body_id,
                 .d = 9.f,
 
                 .is_offset = 1,
                 .offset1 = make_3f32(0,-1,0),
-                .offset2 = make_3f32(0,1,0),
+                .offset2 = make_3f32(1,1,1),
             }
         });
     }
@@ -110,17 +114,18 @@ void d_hanging_box(HangingBox* hanging_box) {
         make_rotate_4x4f32(normalize_4f32(body->rotation))),
         make_scale_4x4f32(hanging_box->extents)
     );
-    d_mesh(s.cube_vertices, s.cube_indices, t);
+    d_mesh(s.cube_vertices, s.cube_flags, s.cube_indices, s.cube_topology, t, make_3f32(0,1,0));
 }
 
 void demos_frame_hook(DEMOS_CommonState* cs) {
     f64 ntime = os_now_seconds();
     f64 dt = ntime - s.time;
+    f64 pdt = 1.f/60.f;
     s.time = ntime;
 
     demos_camera_controls_orbit(cs->window, dt, &s.camera);
 
-    phys_world_step(s.world, dt);
+    phys_world_step(s.world, pdt);
     
     d_begin_pipeline();
     d_begin_3d_pass_camera(cs->window, &s.camera);

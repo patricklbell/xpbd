@@ -88,11 +88,11 @@ typedef double   f64;
 #endif
 
 #if COMPILER_MSVC
-# define force_inline __forceinline
+    # define force_inline __forceinline
 #elif COMPILER_CLANG
-    #define force_inline __attribute__((always_inline))
+    #define force_inline inline __attribute__((always_inline))
 #elif COMPILER_GCC
-    #define force_inline __attribute__((always_inline))
+    #define force_inline inline __attribute__((always_inline))
 #else
     #define force_inline
 #endif
@@ -173,8 +173,15 @@ typedef double   f64;
 #define stack_push(f,n) stack_push_n(f,n,next)
 #define stack_pop(f) stack_pop_n(f,next)
 
-// looping helpers
+// loop helpers
 #define EachIndex(var, length)          (int var = 0; var < length; var++)
 #define EachElement(var, arr)           (int var = 0; var < ArrayLength(arr); var++)
 #define EachList_N(node, type, f, n)    (type* node = f; node != NULL; node = node->n)
 #define EachList(node, type, f)         EachList_N(node, type, f, next)
+
+#define DeferCall(begin, end)           for(int _i_ = ((begin), 0); !_i_; _i_ += 1, (end))
+#define DeferResource(begin, end)       begin; for(int _i_ = 0; !_i_; _i_ += 1, (end))
+
+// bit bashing
+int count_ones_u64(u64 x);
+int first_set_bit_u64(u64 x);

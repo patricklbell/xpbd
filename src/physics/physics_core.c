@@ -23,6 +23,7 @@ static void phys_body_apply_angular_correction(PHYS_Body* b, vec3_f32 corr, vec3
 static void phys_2body_apply_correction_wo_offset(PHYS_Body* b1, PHYS_Body* b2, f32 alpha, f32 C, vec3_f32 dC) {
     f32 w1 = b1->inv_mass;
     f32 w2 = b2->inv_mass;
+    if (w1 + w2 == 0.f) return;
     f32 l = 1.f / (w1 + w2 + alpha);
 
     vec3_f32 corr1 = mul_3f32(dC, -C*l);
@@ -35,6 +36,7 @@ static void phys_2body_apply_correction_wo_offset(PHYS_Body* b1, PHYS_Body* b2, 
 static void phys_2body_apply_correction_wt_offset(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, f32 alpha, f32 C, vec3_f32 dC) {
     f32 w1 = phys_body_generalized_inverse_mass(b1, r1, dC);
     f32 w2 = phys_body_generalized_inverse_mass(b2, r2, dC);
+    if (w1 + w2 == 0.f) return;
     f32 l = 1.f / (w1 + w2 + alpha);
     
     vec3_f32 corr1 = mul_3f32(dC, -C*l);
@@ -64,6 +66,7 @@ void phys_constrain_distance(PHYS_Constraint_Distance* c, PHYS_ConstraintSolveSe
     f32 d_length = length_3f32(d);
     if (c->unilateral && d_length < c->d) return;
     f32 C = d_length - c->d;
+    if (C == 0.f) return;
     vec3_f32 dC = mul_3f32(d, 1.f/d_length);
     f32 alpha = settings.inv_dt2*c->compliance;
 
@@ -94,13 +97,15 @@ void phys_constrain_volume(PHYS_Constraint_Volume* c, PHYS_ConstraintSolveSettin
 
     f32 v = phys_tet_volume_axis(d21, d31, d41);
     f32 C = 6.f*(v - c->v_rest);
+    if (C == 0.f) return;
 
     f32 alpha = settings.inv_dt2*c->compliance;
-    f32 w1 = p1->inv_mass;
-    f32 w2 = p2->inv_mass;
-    f32 w3 = p3->inv_mass;
-    f32 w4 = p4->inv_mass;
-    f32 l = 1.f / (alpha + w1*dot_3f32(dC1,dC1) + w2*dot_3f32(dC2,dC2) + w3*dot_3f32(dC3,dC3) + w4*dot_3f32(dC4,dC4));
+    f32 w  = p1->inv_mass*dot_3f32(dC1, dC1);
+        w += p2->inv_mass*dot_3f32(dC2, dC2);
+        w += p3->inv_mass*dot_3f32(dC3, dC3);
+        w += p4->inv_mass*dot_3f32(dC4, dC4);
+    if (w == 0.f) return;
+    f32 l = 1.f / (w + alpha);
 
     vec3_f32 corr1 = mul_3f32(dC1, -C*l);
     vec3_f32 corr2 = mul_3f32(dC2, -C*l);
@@ -153,7 +158,7 @@ static void phys_collide_triangle_with_plane(const PHYS_Collider_Triangle* c1, P
         PHYS_Body* v = phys_world_resolve_body(settings.w, c1->p[i]);
 
         f32 C = dot_3f32(sub_3f32(v->position, p->position), c2->n);
-        if (C >= 0) continue;
+        if (C >= 0.f) continue;
 
         phys_2body_apply_correction_wo_offset(v, p, alpha, C, dC);
     }
@@ -545,7 +550,7 @@ PHYS_Softbody phys_world_add_tet_tri_softbody(PHYS_World* w, PHYS_TetTriSoftbody
         result.triangle_colliders[tri_i] = phys_world_add_collider(w, (PHYS_Collider){
             .type = PHYS_ColliderType_Triangle,
             .triangle = {
-                .compliance = settings.compliance,
+                .compliance = settings.collider_compliance,
                 .p = {
                     result.vertices[v1],
                     result.vertices[v2],
@@ -566,7 +571,7 @@ PHYS_Softbody phys_world_add_tet_tri_softbody(PHYS_World* w, PHYS_TetTriSoftbody
         result.distance_constraints[edge_i] = phys_world_add_constraint(w, (PHYS_Constraint){
             .type = PHYS_ConstraintType_Distance,
             .distance = {
-                .compliance = settings.compliance,
+                .compliance = settings.edge_compliance,
                 .b1 = result.vertices[v1],
                 .b2 = result.vertices[v2],
                 .d = length_3f32(sub_3f32(settings.vertices[v1], settings.vertices[v2]))
@@ -604,7 +609,7 @@ PHYS_Softbody phys_world_add_tet_tri_softbody(PHYS_World* w, PHYS_TetTriSoftbody
         result.volume_constraints[tet_i] = phys_world_add_constraint(w, (PHYS_Constraint){
             .type = PHYS_ConstraintType_Volume,
             .volume = {
-                .compliance = settings.compliance,
+                .compliance = settings.volume_compliance,
                 .p = {
                     result.vertices[v1],
                     result.vertices[v2],

@@ -66,12 +66,12 @@ build_demos() {
             build_demo "hanging_boxes" "cube.obj"
             ;;
         softbody)
-            build_demo "softbody" "cube.obj" "cube.vtk"
+            build_demo "softbody" "bunny.vtk"
             ;;
         *)
             build_demo "balls" "sphere.obj"
             build_demo "hanging_boxes" "cube.obj"
-            build_demo "softbody" "cube.obj" "cube.vtk"
+            build_demo "softbody" "bunny.vtk"
             ;;
     esac
 }

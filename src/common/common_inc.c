@@ -1,3 +1,4 @@
+#include "common_core.c"
 #include "common_math.c"
 #include "common_arena.c"
 #include "common_str.c"

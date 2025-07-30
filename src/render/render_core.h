@@ -1,17 +1,57 @@
 #pragma once
 
-typedef struct R_VertexLayout R_VertexLayout;
-struct R_VertexLayout {
-    vec3_f32 position;
-    vec3_f32 normal;
-    vec2_f32 uv;
+// vertex
+typedef enum R_VertexFlag {
+    R_VertexFlag_ZERO = 0,
+    R_VertexFlag_P = 1 << 0,
+    R_VertexFlag_N = 1 << 1,
+    R_VertexFlag_T = 1 << 2,
+    R_VertexFlag_C = 1 << 3,
+    R_VertexFlag_PN     = R_VertexFlag_P   | R_VertexFlag_N,
+    R_VertexFlag_PT     = R_VertexFlag_P   | R_VertexFlag_T,
+    R_VertexFlag_PC     = R_VertexFlag_P   | R_VertexFlag_C,
+    R_VertexFlag_NT     = R_VertexFlag_N   | R_VertexFlag_T,
+    R_VertexFlag_NC     = R_VertexFlag_N   | R_VertexFlag_C,
+    R_VertexFlag_TC     = R_VertexFlag_T   | R_VertexFlag_C,
+    R_VertexFlag_PNT    = R_VertexFlag_PN  | R_VertexFlag_T,
+    R_VertexFlag_PNTC   = R_VertexFlag_PNT | R_VertexFlag_C,
+    R_VertexFlag_COUNT,
+} R_VertexFlag;
+
+typedef vec3_f32 R_VertexType_P;
+typedef vec3_f32 R_VertexType_N;
+typedef vec2_f32 R_VertexType_T;
+typedef vec3_f32 R_VertexType_C;
+
+static force_inline u64 r_vertex_size(R_VertexFlag flags);
+static force_inline u64 r_vertex_align(R_VertexFlag flags);
+static force_inline u64 r_vertex_offset(R_VertexFlag flags, R_VertexFlag flag);
+static force_inline u64 r_vertex_stride(R_VertexFlag flags, R_VertexFlag flag);
+static force_inline u64 r_vertex_i_offset(R_VertexFlag flags, R_VertexFlag flag, u64 i);
+
+typedef enum R_VertexTopology {
+    R_VertexTopology_ZERO = 0,
+    R_VertexTopology_Points,
+    R_VertexTopology_Lines,
+    R_VertexTopology_LineStrip,
+    R_VertexTopology_Triangles,
+    R_VertexTopology_TriangleStrip,
+    R_VertexTopology_COUNT ENUM_CASE_UNUSED,
+} R_VertexTopology;
+
+// mesh
+typedef enum R_Mesh3DMaterial {
+    R_Mesh3DMaterial_Lambertian,
+    R_Mesh3DMaterial_Flat,
+} R_Mesh3DMaterial;
+
+typedef struct R_Mesh3DInstance R_Mesh3DInstance;
+struct R_Mesh3DInstance {
+    mat4x4_f32 transform;
+    vec3_f32 color;
 };
 
-typedef struct R_Mesh3DInst R_Mesh3DInst;
-struct R_Mesh3DInst {
-    mat4x4_f32 inst_transform;
-};
-
+// batches
 typedef union R_Handle R_Handle;
 union R_Handle {
     u64 v64[1];
@@ -47,7 +87,10 @@ typedef struct R_BatchGroup3DParams R_BatchGroup3DParams;
 struct R_BatchGroup3DParams
 {
     R_Handle mesh_vertices;
+    R_VertexFlag mesh_flags;
     R_Handle mesh_indices;
+    R_VertexTopology mesh_topology;
+    R_Mesh3DMaterial mesh_material;
     mat4x4_f32 batch_transform;
 };
 
@@ -67,6 +110,10 @@ struct R_BatchGroup3DMap
     u64 slots_count;
 };
 
+R_BatchList r_batch_list_make(u64 instance_size);
+void*       r_batch_list_push_inst(Arena *arena, R_BatchList *list, u64 batch_inst_cap);
+
+// passes
 typedef struct R_PassParams_3D R_PassParams_3D;
 struct R_PassParams_3D
 {
@@ -109,6 +156,9 @@ struct R_PassList
     u64 length;
 };
 
+R_Pass* r_add_pass_of_kind(Arena *arena, R_PassList *list, R_PassKind kind);
+
+// resources
 typedef enum R_ResourceKind
 {
     R_ResourceKind_Static,
@@ -124,23 +174,20 @@ typedef enum R_ResourceHint
     R_ResourceHint_COUNT,
 } R_ResourceHint;
 
+R_Handle r_buffer_alloc(R_ResourceKind kind, R_ResourceHint hint, u32 size, void *data);
+void     r_buffer_load(R_Handle handle, u32 offset, u32 size, void *data);
+void     r_buffer_release(R_Handle buffer);
+
+// setup/teardown
 void r_init();
 void r_cleanup();
 
-R_BatchList r_batch_list_make(u64 instance_size);
-void*       r_batch_list_push_inst(Arena *arena, R_BatchList *list, u64 batch_inst_cap);
+// windows
+R_Handle r_os_equip_window(OS_Handle window);
+void     r_os_unequip_window(OS_Handle window, R_Handle rwindow);
+void     r_os_select_window(OS_Handle window, R_Handle rwindow);
 
-R_Pass*     r_add_pass_of_kind(Arena *arena, R_PassList *list, R_PassKind kind);
-
-R_Handle    r_buffer_alloc(R_ResourceKind kind, R_ResourceHint hint, u32 size, void *data);
-void        r_buffer_load(R_Handle handle, u32 offset, u32 size, void *data);
-void        r_buffer_release(R_Handle buffer);
-
-R_Handle    r_os_equip_window(OS_Handle window);
-void        r_os_unequip_window(OS_Handle window, R_Handle rwindow);
-void        r_os_select_window(OS_Handle window, R_Handle rwindow);
-
+// draw
 void r_window_begin_frame(OS_Handle window, R_Handle rwindow);
 void r_window_end_frame(OS_Handle window, R_Handle rwindow);
-
 void r_submit(OS_Handle window, R_PassList *passes);
