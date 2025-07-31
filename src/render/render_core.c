@@ -1,3 +1,4 @@
+// vertices
 static force_inline u64 r_vertex_size(R_VertexFlag flags) {
     return count_ones_u64(flags)*sizeof(vec4_f32);
 }
@@ -6,7 +7,7 @@ static force_inline u64 r_vertex_align(R_VertexFlag flags) {
 }
 static force_inline u64 r_vertex_offset(R_VertexFlag flags, R_VertexFlag flag) {
     Assert(flags & flag);
-    return first_set_bit_u64(flags & flag)*sizeof(vec4_f32);
+    return count_ones_u64(flags & (flag-1))*sizeof(vec4_f32);
 }
 static force_inline u64 r_vertex_stride(R_VertexFlag flags, R_VertexFlag flag) {
     Assert(flags & flag);
@@ -16,6 +17,16 @@ static force_inline u64 r_vertex_i_offset(R_VertexFlag flags, R_VertexFlag flag,
     return r_vertex_offset(flags, flag) + i*r_vertex_stride(flags, flag);
 }
 
+// handle
+b32 r_is_zero_handle(R_Handle handle) {
+    return handle.v64[0] == 0;
+}
+R_Handle r_zero_handle() {
+    R_Handle handle = zero_struct;
+    return handle;
+}
+
+// batches
 R_BatchList r_batch_list_make(u64 instance_size) {
     R_BatchList list = {0};
     list.bytes_per_inst = instance_size;

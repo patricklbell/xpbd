@@ -13,9 +13,7 @@ void d_begin_pipeline() {
 }
 
 void d_submit_pipeline(OS_Handle window, R_Handle rwindow) {
-    r_window_begin_frame(window, rwindow);
     r_submit(window, &d_thread_ctx->passes);
-    r_window_end_frame(window, rwindow);
 }
 
 R_PassParams_3D* d_begin_3d_pass(rect_f32 viewport, mat4x4_f32 view, mat4x4_f32 projection) {
@@ -28,7 +26,7 @@ R_PassParams_3D* d_begin_3d_pass(rect_f32 viewport, mat4x4_f32 view, mat4x4_f32 
     return params;
 }
 
-R_Mesh3DInstance* d_mesh(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R_VertexTopology topology, mat4x4_f32 transform, vec3_f32 color) {
+R_Mesh3DInstance* d_mesh(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R_VertexTopology topology, R_Mesh3DMaterial material, mat4x4_f32 transform, vec3_f32 color) {
     R_Pass *pass = r_pass_from_kind(d_thread_ctx->arena, &d_thread_ctx->passes, R_PassKind_3D);
     R_PassParams_3D *params = pass->params_3d;
 
@@ -53,7 +51,7 @@ R_Mesh3DInstance* d_mesh(R_Handle vertices, R_VertexFlag flags, R_Handle indices
             .mesh_flags = flags,
             .mesh_indices = indices,
             .mesh_topology = topology,
-            .mesh_material = R_Mesh3DMaterial_Lambertian, // @todo materials
+            .mesh_material = material,
         };
         hash = hash_u64((u8*)&buffer, sizeof(buffer));
         slot_idx = hash % params->mesh_batches.slots_count;
@@ -79,7 +77,7 @@ R_Mesh3DInstance* d_mesh(R_Handle vertices, R_VertexFlag flags, R_Handle indices
             node->params.mesh_flags = flags;
             node->params.mesh_indices = indices;
             node->params.mesh_topology = topology;
-            node->params.mesh_material = R_Mesh3DMaterial_Lambertian; // @todo materials
+            node->params.mesh_material = material;
             node->params.batch_transform = make_diagonal_4x4f32(1.f);
         }
     }

@@ -11,4 +11,4 @@ struct DEMOS_Camera {
 void demos_camera_controls_orbit(OS_Handle window, f32 dt, DEMOS_Camera* camera);
 
 // rendering
-R_PassParams_3D* d_begin_3d_pass_camera(OS_Handle window, DEMOS_Camera* camera);
+R_PassParams_3D* demos_d_begin_3d_pass_camera(OS_Handle window, DEMOS_Camera* camera);

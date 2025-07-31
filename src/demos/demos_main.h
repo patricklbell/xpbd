@@ -8,6 +8,7 @@
 #include "mesh/mesh.h"
 #include "input/input.h"
 #include "vtk/vtk.h"
+#include "dbgdraw/dbgdraw.h"
 #include "demos_helpers.h"
 #include "demos_main.h"
 

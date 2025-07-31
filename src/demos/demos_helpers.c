@@ -40,7 +40,7 @@ void demos_camera_controls_orbit(OS_Handle window, f32 dt, DEMOS_Camera* camera)
 }
 
 // rendering
-R_PassParams_3D* d_begin_3d_pass_camera(OS_Handle window, DEMOS_Camera* camera) {
+R_PassParams_3D* demos_d_begin_3d_pass_camera(OS_Handle window, DEMOS_Camera* camera) {
     vec2_f32 window_size = os_gfx_window_size(window);
     rect_f32 viewport = make_rect_f32((vec2_f32){}, window_size);
     mat4x4_f32 projection = make_perspective_4x4f32(DegreesToRad(45), window_size.x / window_size.y, 0.1, 100.f);

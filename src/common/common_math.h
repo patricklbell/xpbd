@@ -39,6 +39,11 @@ union vec3_f32 {
         f32 g;
         f32 b;
     };
+    struct {
+        f32 h;
+        f32 s;
+        f32 l;
+    };
 
     f32 v[3];
 };
@@ -54,6 +59,7 @@ f32 length_3f32(vec3_f32 a);
 vec3_f32 normalize_3f32(vec3_f32 a);
 vec3_f32 cross_3f32(vec3_f32 a, vec3_f32 b);
 vec3_f32 reflect_3f32(vec3_f32 i, vec3_f32 n);
+vec3_f32 lerp_3f32(vec3_f32 x, vec3_f32 y, f32 a);
 
 typedef union vec4_f32 vec4_f32;
 union vec4_f32 {
@@ -179,6 +185,8 @@ rect_f32 make_rect_f32(vec2_f32 tl, vec2_f32 br);
 #define tan_f32(v)    tanf(v)
 #define sgn_f32(v)    (((v) < 0.f) ? -1.f : 1.f)
 #define rand_f32()    ((f32)rand()/(f32)RAND_MAX)
+
+f32 smoothstep_f32(f32 edge_0, f32 edge_1, f32 x);
 
 #define sqrt_f64(v)   sqrt(v)
 #define cbrt_f64(v)   cbrt(v)

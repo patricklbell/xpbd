@@ -44,7 +44,9 @@ copy_data_file() {
     local file="$1"
     mkdir -p "${BUILD_DIR}/${DATA_DIR}"
     if [ -f "${DATA_DIR}/${file}" ]; then
-        cp -f "${DATA_DIR}/${file}" "${BUILD_DIR}/${DATA_DIR}/${file}"
+        copy_command="cp -f '${DATA_DIR}/${file}' '${BUILD_DIR}/${DATA_DIR}/${file}'"
+        echo ${copy_command}
+        eval ${copy_command}
     else
         echo "Warning: Data file ${DATA_DIR}/${file} not found"
     fi
@@ -58,22 +60,20 @@ clean() {
 
 # Function to build all demos
 build_demos() {
-    case "$1" in
-        balls)
-            build_demo "balls" "sphere.obj"
-            ;;
-        hanging_boxes)
-            build_demo "hanging_boxes" "cube.obj"
-            ;;
-        softbody)
-            build_demo "softbody" "bunny.vtk"
-            ;;
-        *)
-            build_demo "balls" "sphere.obj"
-            build_demo "hanging_boxes" "cube.obj"
-            build_demo "softbody" "bunny.vtk"
-            ;;
-    esac
+    declare -A dependencies=(
+        [balls]="sphere.obj"
+        [hanging_boxes]="cube.obj"
+        [softbody]="bunny.vtk"
+        [cloth]="cloth.vtk"
+    )
+
+    if [[ -n "$1" && -n "${dependencies[$1]}" ]]; then
+        build_demo "$1" ${dependencies[$1]}
+    else
+        for demo in "${!dependencies[@]}"; do
+            build_demo "$demo" ${dependencies[$demo]}
+        done
+    fi
 }
 
 # Emscripten configuration

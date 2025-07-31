@@ -16,5 +16,5 @@ f32 phys_tet_volume(vec3_f32 v1, vec3_f32 v2, vec3_f32 v3, vec3_f32 v4) {
 }
 
 f32 phys_tet_volume_axis(vec3_f32 d21, vec3_f32 d31, vec3_f32 d41) {
-    return abs_f32((1.f/6.f)*dot_3f32(cross_3f32(d21, d31), d41));
+    return (1.f/6.f)*dot_3f32(cross_3f32(d21, d31), d41);
 }

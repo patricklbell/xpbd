@@ -77,7 +77,7 @@ static void d_ball(Ball* ball) {
         make_translate_4x4f32(center->position),
         make_scale_4x4f32(make_3f32(ball->radius, ball->radius, ball->radius))
     );
-    d_mesh(s.sphere_vertices, s.sphere_flags, s.sphere_indices, s.sphere_topology, t, ball->color);
+    d_mesh(s.sphere_vertices, s.sphere_flags, s.sphere_indices, s.sphere_topology, R_Mesh3DMaterial_Lambertian, t, ball->color);
 }
 
 void demos_frame_hook(DEMOS_CommonState* cs) {
@@ -90,14 +90,16 @@ void demos_frame_hook(DEMOS_CommonState* cs) {
 
     phys_world_step(s.world, pdt);
     
+    r_window_begin_frame(cs->window, cs->rwindow);
     d_begin_pipeline();
-    d_begin_3d_pass_camera(cs->window, &s.camera);
+    demos_d_begin_3d_pass_camera(cs->window, &s.camera);
     {
         for EachElement(i, s.balls) {
             d_ball(&s.balls[i]);
         }
     }
     d_submit_pipeline(cs->window, cs->rwindow);
+    r_window_end_frame(cs->window, cs->rwindow);
 }
 
 void demos_shutdown_hook(DEMOS_CommonState* cs) {

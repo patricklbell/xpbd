@@ -1,30 +1,31 @@
-vec2_f32 make_2f32(f32 x, f32 y)                { return (vec2_f32) {.x=x,.y=y}; }
-vec2_f32 add_2f32(vec2_f32 a, vec2_f32 b)       { return (vec2_f32) {.x = a.x + b.x,.y = a.y + b.y}; }
-vec2_f32 sub_2f32(vec2_f32 a, vec2_f32 b)       { return (vec2_f32) {.x = a.x - b.x,.y = a.y - b.y}; }
-vec2_f32 mul_2f32(vec2_f32 a, f32 b)            { return (vec2_f32) {.x = a.x*b,.y = a.y*b}; }
-vec2_f32 elmul_2f32(vec2_f32 a, vec2_f32 b)     { return (vec2_f32) {.x = a.x*b.x,.y = a.y*b.y}; }
-f32      dot_2f32(vec2_f32 a, vec2_f32 b)       { return a.x*b.x + a.y*b.y; }
-f32      length_2f32(vec2_f32 a)                { return sqrt_f32(a.x*a.x + a.y*a.y); }
-vec2_f32 normalize_2f32(vec2_f32 a)             { f32 l = length_2f32(a); return (vec2_f32) {.x = a.x/l,.y = a.y/l}; }
+vec2_f32 make_2f32(f32 x, f32 y)                    { return (vec2_f32) {.x=x,.y=y}; }
+vec2_f32 add_2f32(vec2_f32 a, vec2_f32 b)           { return (vec2_f32) {.x = a.x + b.x,.y = a.y + b.y}; }
+vec2_f32 sub_2f32(vec2_f32 a, vec2_f32 b)           { return (vec2_f32) {.x = a.x - b.x,.y = a.y - b.y}; }
+vec2_f32 mul_2f32(vec2_f32 a, f32 b)                { return (vec2_f32) {.x = a.x*b,.y = a.y*b}; }
+vec2_f32 elmul_2f32(vec2_f32 a, vec2_f32 b)         { return (vec2_f32) {.x = a.x*b.x,.y = a.y*b.y}; }
+f32      dot_2f32(vec2_f32 a, vec2_f32 b)           { return a.x*b.x + a.y*b.y; }
+f32      length_2f32(vec2_f32 a)                    { return sqrt_f32(a.x*a.x + a.y*a.y); }
+vec2_f32 normalize_2f32(vec2_f32 a)                 { f32 l = length_2f32(a); return (vec2_f32) {.x = a.x/l,.y = a.y/l}; }
 
-vec3_f32 make_3f32(f32 x, f32 y, f32 z)         { return (vec3_f32) {.x=x,.y=y,.z=z}; }
-vec3_f32 make_up_3f32()                         { return (vec3_f32) {.x=0,.y=1,.z=0}; }
-vec3_f32 add_3f32(vec3_f32 a, vec3_f32 b)       { return (vec3_f32) {.x = a.x + b.x,.y = a.y + b.y,.z = a.z + b.z}; }
-vec3_f32 sub_3f32(vec3_f32 a, vec3_f32 b)       { return (vec3_f32) {.x = a.x - b.x,.y = a.y - b.y,.z = a.z - b.z}; }
-vec3_f32 mul_3f32(vec3_f32 a, f32 b)            { return (vec3_f32) {.x = a.x*b,.y = a.y*b,.z = a.z*b}; }
-vec3_f32 elmul_3f32(vec3_f32 a, vec3_f32 b)     { return (vec3_f32) {.x = a.x*b.x,.y = a.y*b.y,.z = a.z*b.z}; }
-f32      dot_3f32(vec3_f32 a, vec3_f32 b)       { return a.x*b.x + a.y*b.y + a.z*b.z; }
-f32      length_3f32(vec3_f32 a)                { return sqrt_f32(a.x*a.x + a.y*a.y + a.z*a.z); }
-vec3_f32 normalize_3f32(vec3_f32 a)             { f32 l = length_3f32(a); return (vec3_f32) {.x = a.x/l,.y = a.y/l,.z = a.z/l}; }
-vec3_f32 cross_3f32(vec3_f32 a, vec3_f32 b)     { return (vec3_f32) {.x = a.y*b.z - a.z*b.y,.y = -(a.x*b.z - a.z*b.x),.z = a.x*b.y - a.y*b.x}; }
-vec3_f32 reflect_3f32(vec3_f32 i, vec3_f32 n)   { return sub_3f32(i, mul_3f32(n, 2.0*dot_3f32(i, n))); }
+vec3_f32 make_3f32(f32 x, f32 y, f32 z)             { return (vec3_f32) {.x=x,.y=y,.z=z}; }
+vec3_f32 make_up_3f32()                             { return (vec3_f32) {.x=0,.y=1,.z=0}; }
+vec3_f32 add_3f32(vec3_f32 a, vec3_f32 b)           { return (vec3_f32) {.x = a.x + b.x,.y = a.y + b.y,.z = a.z + b.z}; }
+vec3_f32 sub_3f32(vec3_f32 a, vec3_f32 b)           { return (vec3_f32) {.x = a.x - b.x,.y = a.y - b.y,.z = a.z - b.z}; }
+vec3_f32 mul_3f32(vec3_f32 a, f32 b)                { return (vec3_f32) {.x = a.x*b,.y = a.y*b,.z = a.z*b}; }
+vec3_f32 elmul_3f32(vec3_f32 a, vec3_f32 b)         { return (vec3_f32) {.x = a.x*b.x,.y = a.y*b.y,.z = a.z*b.z}; }
+f32      dot_3f32(vec3_f32 a, vec3_f32 b)           { return a.x*b.x + a.y*b.y + a.z*b.z; }
+f32      length_3f32(vec3_f32 a)                    { return sqrt_f32(a.x*a.x + a.y*a.y + a.z*a.z); }
+vec3_f32 normalize_3f32(vec3_f32 a)                 { f32 l = length_3f32(a); return (vec3_f32) {.x = a.x/l,.y = a.y/l,.z = a.z/l}; }
+vec3_f32 cross_3f32(vec3_f32 a, vec3_f32 b)         { return (vec3_f32) {.x = a.y*b.z - a.z*b.y,.y = -(a.x*b.z - a.z*b.x),.z = a.x*b.y - a.y*b.x}; }
+vec3_f32 reflect_3f32(vec3_f32 i, vec3_f32 n)       { return sub_3f32(i, mul_3f32(n, 2.0*dot_3f32(i, n))); }
+vec3_f32 lerp_3f32(vec3_f32 x, vec3_f32 y, f32 a)   { return (vec3_f32) {.x = (1.f-a)*x.x + a*y.x,.y = (1.f-a)*x.y + a*y.y,.z = (1.f-a)*x.z + a*y.z}; }
 
-vec4_f32 make_axis_angle_quat(f64 t, vec3_f32 a){ f32 st = sin(t/2.), ct = cos(t/2.); return (vec4_f32) {.x = st*a.x,.y = st*a.y,.z = st*a.z,.w = ct};}
-vec4_f32 make_axis_quat(vec3_f32 a)             { return (vec4_f32) {.x = a.x,.y = a.y,.z = a.z,.w = 0.f};}
-vec4_f32 make_identity_quat()                   { return (vec4_f32) {.x = 0.f,.y = 0.f,.z = 0.f,.w = 1.f};}
-vec4_f32 inv_quat(vec4_f32 q)                   { return (vec4_f32) {.x =-q.x,.y =-q.y,.z =-q.z,.w = q.w};}
-vec3_f32 rot_quat(vec3_f32 p, vec4_f32 q)       { return add_3f32(add_3f32(mul_3f32(p, q.w*q.w - dot_3f32(q.xyz, q.xyz)), mul_3f32(q.xyz, 2.f*dot_3f32(q.xyz, p))), mul_3f32(cross_3f32(q.xyz, p), 2.f*q.w));}
-vec4_f32 mul_quat(vec4_f32 q1, vec4_f32 q2)     {
+vec4_f32 make_axis_angle_quat(f64 t, vec3_f32 a)    { f32 st = sin(t/2.), ct = cos(t/2.); return (vec4_f32) {.x = st*a.x,.y = st*a.y,.z = st*a.z,.w = ct};}
+vec4_f32 make_axis_quat(vec3_f32 a)                 { return (vec4_f32) {.x = a.x,.y = a.y,.z = a.z,.w = 0.f};}
+vec4_f32 make_identity_quat()                       { return (vec4_f32) {.x = 0.f,.y = 0.f,.z = 0.f,.w = 1.f};}
+vec4_f32 inv_quat(vec4_f32 q)                       { return (vec4_f32) {.x =-q.x,.y =-q.y,.z =-q.z,.w = q.w};}
+vec3_f32 rot_quat(vec3_f32 p, vec4_f32 q)           { return add_3f32(add_3f32(mul_3f32(p, q.w*q.w - dot_3f32(q.xyz, q.xyz)), mul_3f32(q.xyz, 2.f*dot_3f32(q.xyz, p))), mul_3f32(cross_3f32(q.xyz, p), 2.f*q.w));}
+vec4_f32 mul_quat(vec4_f32 q1, vec4_f32 q2)         {
     return (vec4_f32) {
         .x = q1.x*q2.w + q1.w*q2.x + q1.y*q2.z - q1.z*q2.y,
         .y = q1.y*q2.w + q1.w*q2.y + q1.z*q2.x - q1.x*q2.z,
@@ -33,14 +34,14 @@ vec4_f32 mul_quat(vec4_f32 q1, vec4_f32 q2)     {
     };
 }
 
-vec4_f32 make_4f32(f32 x, f32 y, f32 z, f32 w)  { return (vec4_f32) {.x=x,.y=y,.z=z,.w=w}; }
-vec4_f32 add_4f32(vec4_f32 a, vec4_f32 b)       { return (vec4_f32) {.x = a.x + b.x,.y = a.y + b.y,.z = a.z + b.z,.w = a.w + b.w}; }
-vec4_f32 sub_4f32(vec4_f32 a, vec4_f32 b)       { return (vec4_f32) {.x = a.x - b.x,.y = a.y - b.y,.z = a.z - b.z,.w = a.w - b.w}; }
-vec4_f32 mul_4f32(vec4_f32 a, f32 b)            { return (vec4_f32) {.x = a.x*b,.y = a.y*b,.z = a.z*b,.w = a.w*b}; }
-vec4_f32 elmul_4f32(vec4_f32 a, vec4_f32 b)     { return (vec4_f32) {.x = a.x*b.x,.y = a.y*b.y,.z = a.z*b.z,.w = a.w*b.w}; }
-f32      dot_4f32(vec4_f32 a, vec4_f32 b)       { return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w; }
-f32      length_4f32(vec4_f32 a)                { return sqrt_f32(a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w); }
-vec4_f32 normalize_4f32(vec4_f32 a)             { f32 l = length_4f32(a); return (vec4_f32) {.x = a.x/l,.y = a.y/l,.z = a.z/l,.w = a.w/l}; }
+vec4_f32 make_4f32(f32 x, f32 y, f32 z, f32 w)      { return (vec4_f32) {.x=x,.y=y,.z=z,.w=w}; }
+vec4_f32 add_4f32(vec4_f32 a, vec4_f32 b)           { return (vec4_f32) {.x = a.x + b.x,.y = a.y + b.y,.z = a.z + b.z,.w = a.w + b.w}; }
+vec4_f32 sub_4f32(vec4_f32 a, vec4_f32 b)           { return (vec4_f32) {.x = a.x - b.x,.y = a.y - b.y,.z = a.z - b.z,.w = a.w - b.w}; }
+vec4_f32 mul_4f32(vec4_f32 a, f32 b)                { return (vec4_f32) {.x = a.x*b,.y = a.y*b,.z = a.z*b,.w = a.w*b}; }
+vec4_f32 elmul_4f32(vec4_f32 a, vec4_f32 b)         { return (vec4_f32) {.x = a.x*b.x,.y = a.y*b.y,.z = a.z*b.z,.w = a.w*b.w}; }
+f32      dot_4f32(vec4_f32 a, vec4_f32 b)           { return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w; }
+f32      length_4f32(vec4_f32 a)                    { return sqrt_f32(a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w); }
+vec4_f32 normalize_4f32(vec4_f32 a)                 { f32 l = length_4f32(a); return (vec4_f32) {.x = a.x/l,.y = a.y/l,.z = a.z/l,.w = a.w/l}; }
 
 mat3x3_f32 make_diagonal_3x3f32(f32 d) {
     return (mat3x3_f32) {.v = {
@@ -173,12 +174,13 @@ mat4x4_f32 make_translate_4x4f32(vec3_f32 t) {
 }
 mat4x4_f32 make_rotate_4x4f32(vec4_f32 nq) {
     return (mat4x4_f32) {.v = {
-        {1.0f - 2.0f*nq.y*nq.y - 2.0f*nq.z*nq.z, 2.0f*nq.x*nq.y - 2.0f*nq.z*nq.w,        2.0f*nq.x*nq.z + 2.0f*nq.y*nq.w,           0.0f},
-        {2.0f*nq.x*nq.y + 2.0f*nq.z*nq.w,        1.0f - 2.0f*nq.x*nq.x - 2.0f*nq.z*nq.z, 2.0f*nq.y*nq.z - 2.0f*nq.x*nq.w,           0.0f},
-        {2.0f*nq.x*nq.z - 2.0f*nq.y*nq.w,        2.0f*nq.y*nq.z + 2.0f*nq.x*nq.w,        1.0f - 2.0f*nq.x*nq.x - 2.0f*nq.y*nq.y,    0.0f},
-        {0.0f,                                   0.0f,                                   0.0f,                                      1.0f},
+        {1.0f - 2.0f*nq.y*nq.y - 2.0f*nq.z*nq.z, 2.0f*nq.x*nq.y + 2.0f*nq.z*nq.w,        2.0f*nq.x*nq.z - 2.0f*nq.y*nq.w,         0.0f},
+        {2.0f*nq.x*nq.y - 2.0f*nq.z*nq.w,        1.0f - 2.0f*nq.x*nq.x - 2.0f*nq.z*nq.z, 2.0f*nq.y*nq.z + 2.0f*nq.x*nq.w,         0.0f},
+        {2.0f*nq.x*nq.z + 2.0f*nq.y*nq.w,        2.0f*nq.y*nq.z - 2.0f*nq.x*nq.w,        1.0f - 2.0f*nq.x*nq.x - 2.0f*nq.y*nq.y,  0.0f},
+        {0.0f,                                   0.0f,                                   0.0f,                                    1.0f},
     }};
 }
+
 mat4x4_f32 make_perspective_4x4f32(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z) {
     f32 tan_half_fov = tan_f32(fov / 2.f);
 
@@ -326,6 +328,11 @@ mat4x4_f32 transpose_4x4f32(mat4x4_f32 m) {
 
 rect_f32 make_rect_f32(vec2_f32 tl, vec2_f32 br) {
     return (rect_f32) { .tl = tl, .br = br };
+}
+
+f32 smoothstep_f32(f32 edge_0, f32 edge_1, f32 x) {
+    f32 t = Clamp((x - edge_0)/(edge_1 - edge_0), 0.f, 1.f);
+    return t*t*(3.f - 2.f*t);
 }
 
 u64 hash_u64(u8* buffer, u64 size) {

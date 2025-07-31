@@ -48,8 +48,8 @@ typedef enum VTK_PointCount {
 
 typedef struct VTK_EdgeMapHash VTK_EdgeMapHash;
 struct VTK_EdgeMapHash {
-    u32 i1;
-    u32 i2;
+    u32 i;
+    u32 j;
 };
 
 typedef struct VTK_EdgeMapNode VTK_EdgeMapNode;

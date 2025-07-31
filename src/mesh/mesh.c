@@ -222,7 +222,6 @@ MS_LoadResult ms_load_obj(Arena* arena, NTString8 path, MS_LoadSettings settings
 // @note assumes CCW winding order
 void ms_calculate_flat_normals(MS_Mesh* mesh, R_VertexTopology topology) {
     AssertAlways(topology == R_VertexTopology_Triangles); // @todo
-    Assert(mesh->vertices_count == mesh->indices_count);
     
     void* p = mesh->vertices + r_vertex_offset(mesh->flags, R_VertexFlag_P);
     void* n = mesh->vertices + r_vertex_offset(mesh->flags, R_VertexFlag_N);

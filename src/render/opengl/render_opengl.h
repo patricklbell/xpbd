@@ -36,7 +36,7 @@ struct R_OGL_State
     Arena *per_frame_arena;
     
     GLuint shared_vao;
-    GLuint program;
+    GLuint programs[R_Mesh3DMaterial_COUNT];
 
     GLuint shared_buffer;
     u64 shared_buffer_size;
@@ -105,7 +105,12 @@ struct R_OGL_InstanceAttribute {
     NTString8 name;
 };
 
-static const NTString8 r_ogl_vertex_shader_src = ntstr8_lit_init(
+// 
+// materials
+// 
+
+// lambertian
+static const NTString8 r_ogl_lambertian_vertex_shader_src = ntstr8_lit_init(
     #if R_OGL_USES_ES
     "#version 300 es\n"
     "precision mediump float;"
@@ -132,7 +137,7 @@ static const NTString8 r_ogl_vertex_shader_src = ntstr8_lit_init(
     "}"
 );
 
-static const NTString8 r_ogl_fragment_shader_src = ntstr8_lit_init(
+static const NTString8 r_ogl_lambertian_fragment_shader_src = ntstr8_lit_init(
     #if R_OGL_USES_ES
     "#version 300 es\n"
     "precision mediump float;"
@@ -151,21 +156,114 @@ static const NTString8 r_ogl_fragment_shader_src = ntstr8_lit_init(
     ""
     "   vec3 n = normalize(vs_normal);"
     "   float idotn = clamp(dot(i, n), 0., 1.);"
-    "   float ambient = 0.1;"
+    "   float ambient = 0.4;"
     "   vec3 Lr = ((1.-ambient)*idotn + ambient)*albedo;"
     "   out_color = vec4(Lr, 1.);"
     "}"
 );
 
-static const R_OGL_VertexAttribute r_ogl_shader_vertex_attributes[] = {
+static const R_OGL_VertexAttribute r_ogl_lambertian_shader_vertex_attributes[] = {
     { .location = 0, .size = sizeof(vec3_f32)/sizeof(f32), .flag = R_VertexFlag_P, .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_position") },
     { .location = 1, .size = sizeof(vec3_f32)/sizeof(f32), .flag = R_VertexFlag_N, .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_normal"  ) },
 };
 
-static const R_OGL_InstanceAttribute r_ogl_shader_instance_attributes[] = {
-    { .location = 10, .size = sizeof(Member(R_Mesh3DInstance, transform.c1))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c1), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_mvp"  ) },
-    { .location = 11, .size = sizeof(Member(R_Mesh3DInstance, transform.c2))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c2), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_mvp"  ) },
-    { .location = 12, .size = sizeof(Member(R_Mesh3DInstance, transform.c3))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c3), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_mvp"  ) },
-    { .location = 13, .size = sizeof(Member(R_Mesh3DInstance, transform.c4))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c4), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_mvp"  ) },
+static const R_OGL_InstanceAttribute r_ogl_lambertian_shader_instance_attributes[] = {
+    { .location = 10, .size = sizeof(Member(R_Mesh3DInstance, transform.c1))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c1), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
+    { .location = 11, .size = sizeof(Member(R_Mesh3DInstance, transform.c2))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c2), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
+    { .location = 12, .size = sizeof(Member(R_Mesh3DInstance, transform.c3))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c3), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
+    { .location = 13, .size = sizeof(Member(R_Mesh3DInstance, transform.c4))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c4), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
     { .location = 14, .size = sizeof(Member(R_Mesh3DInstance, color       ))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, color       ), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_color") },
+};
+
+// debug
+static const NTString8 r_ogl_debug_vertex_shader_src = ntstr8_lit_init(
+    #if R_OGL_USES_ES
+    "#version 300 es\n"
+    "precision mediump float;"
+    #else
+    "#version 330 core\n"
+    #endif
+    ""
+    "layout (location = 0) in vec3 in_position;"
+    "layout (location = 1) in vec3 in_color;"
+    "layout (location = 10) in mat4 in_model;"
+    ""
+    "out vec3 vs_color;"
+    ""
+    "uniform mat4 u_view;"
+    "uniform mat4 u_projection;"
+    ""
+    "void main() {"
+    "   vs_color = in_color;"
+    ""
+    "   gl_Position = u_projection*u_view*in_model*vec4(in_position, 1.);"
+    "}"
+);
+
+static const NTString8 r_ogl_debug_fragment_shader_src = ntstr8_lit_init(
+    #if R_OGL_USES_ES
+    "#version 300 es\n"
+    "precision mediump float;"
+    #else
+    "#version 330 core\n"
+    #endif
+    ""
+    "in vec3 vs_color;"
+    ""
+    "out vec4 out_color;"
+    ""
+    "void main() {"
+    "   out_color = vec4(vs_color, 1.);"
+    "}"
+);
+
+static const R_OGL_VertexAttribute r_ogl_debug_shader_vertex_attributes[] = {
+    { .location = 0, .size = sizeof(vec3_f32)/sizeof(f32), .flag = R_VertexFlag_P, .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_position") },
+    { .location = 1, .size = sizeof(vec3_f32)/sizeof(f32), .flag = R_VertexFlag_C, .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_color"   ) },
+};
+
+static const R_OGL_InstanceAttribute r_ogl_debug_shader_instance_attributes[] = {
+    { .location = 10, .size = sizeof(Member(R_Mesh3DInstance, transform.c1))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c1), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
+    { .location = 11, .size = sizeof(Member(R_Mesh3DInstance, transform.c2))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c2), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
+    { .location = 12, .size = sizeof(Member(R_Mesh3DInstance, transform.c3))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c3), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
+    { .location = 13, .size = sizeof(Member(R_Mesh3DInstance, transform.c4))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c4), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
+};
+
+typedef struct R_OGL_ProgramDefinition R_OGL_ProgramDefinition;
+struct R_OGL_ProgramDefinition {
+    R_Mesh3DMaterial material;
+
+    NTString8 vertex_shader_src;
+    NTString8 fragment_shader_src;
+
+    const R_OGL_VertexAttribute* vertex_attributes;
+    int vertex_attribute_count;
+
+    const R_OGL_InstanceAttribute* instance_attributes;
+    int instance_attribute_count;
+
+    b32 disable_depth_test;
+};
+
+static const R_OGL_ProgramDefinition r_ogl_programs_definitions[R_Mesh3DMaterial_COUNT] = {
+    {
+        .material = R_Mesh3DMaterial_Lambertian,
+        .vertex_shader_src = r_ogl_lambertian_vertex_shader_src,
+        .fragment_shader_src = r_ogl_lambertian_fragment_shader_src,
+        .vertex_attributes = r_ogl_lambertian_shader_vertex_attributes,
+        .vertex_attribute_count = ArrayLength(r_ogl_lambertian_shader_vertex_attributes),
+        .instance_attributes = r_ogl_lambertian_shader_instance_attributes,
+        .instance_attribute_count = ArrayLength(r_ogl_lambertian_shader_instance_attributes),
+        .disable_depth_test = 0,
+    },
+    {
+        .material = R_Mesh3DMaterial_Debug,
+        .vertex_shader_src = r_ogl_debug_vertex_shader_src,
+        .fragment_shader_src = r_ogl_debug_fragment_shader_src,
+        .vertex_attributes = r_ogl_debug_shader_vertex_attributes,
+        .vertex_attribute_count = ArrayLength(r_ogl_debug_shader_vertex_attributes),
+        .instance_attributes = r_ogl_debug_shader_instance_attributes,
+        .instance_attribute_count = ArrayLength(r_ogl_debug_shader_instance_attributes),
+        .disable_depth_test = 0,
+    },
 };

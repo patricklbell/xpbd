@@ -42,7 +42,8 @@ typedef enum R_VertexTopology {
 // mesh
 typedef enum R_Mesh3DMaterial {
     R_Mesh3DMaterial_Lambertian,
-    R_Mesh3DMaterial_Flat,
+    R_Mesh3DMaterial_Debug,
+    R_Mesh3DMaterial_COUNT ENUM_CASE_UNUSED,
 } R_Mesh3DMaterial;
 
 typedef struct R_Mesh3DInstance R_Mesh3DInstance;
@@ -57,6 +58,9 @@ union R_Handle {
     u64 v64[1];
     u32 v32[2];
 };
+
+b32 r_is_zero_handle(R_Handle handle);
+R_Handle r_zero_handle();
 
 typedef struct R_Batch R_Batch;
 struct R_Batch

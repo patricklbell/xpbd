@@ -2,4 +2,5 @@
 
 #include "physics_core.h"
 #include "physics_math.h"
-#include "physic_debug.h"
+#include "physics_debug.h"
+#include "physics_prebuilt.h"

@@ -6,6 +6,7 @@
 #include "mesh/mesh.c"
 #include "input/input.c"
 #include "vtk/vtk.c"
+#include "dbgdraw/dbgdraw.c"
 #include "demos_helpers.c"
 
 void window_event_loop(void* data);

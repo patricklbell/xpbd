@@ -57,7 +57,7 @@ static void vtk_load_cell_types(OS_Handle file, NTString8 line, VTK_CellType* ce
 // edge map
 // @todo common hash map with mesh library
 static b32 vtk_hash_is_eq(VTK_EdgeMapHash a, VTK_EdgeMapHash b) {
-    return (a.i1 == b.i1) && (a.i2 == b.i2);
+    return (a.i == b.i) && (a.j == b.j);
 }
 
 static VTK_EdgeMap vtk_make_edge_map(Arena* arena, u64 slots_count) {
@@ -93,8 +93,8 @@ static void vtk_extract_edges_from_edge_map(Arena* arena, VTK_EdgeMap* map, u32*
     u32 edge_offset = 0;
     for EachIndex(slot, map->slots_count) {
         for EachList(n_edge, VTK_EdgeMapNode, map->slots[slot]) {
-            (*edge_indices)[edge_offset] = n_edge->hash.i1; edge_offset++;
-            (*edge_indices)[edge_offset] = n_edge->hash.i2; edge_offset++;
+            (*edge_indices)[edge_offset] = n_edge->hash.i; edge_offset++;
+            (*edge_indices)[edge_offset] = n_edge->hash.j; edge_offset++;
         }
     }
 }
@@ -161,7 +161,6 @@ VTK_LoadResult vtk_load(Arena* arena, NTString8 path, VTK_LoadSettings settings)
                 case VTK_CellType_Tetrahedron: {
                     data.volume_indices_count+=vtk_cell_type_to_point_count(type);
                 }break;
-                default: Assert(0);
             }
         }
 
@@ -174,7 +173,6 @@ VTK_LoadResult vtk_load(Arena* arena, NTString8 path, VTK_LoadSettings settings)
 
             VTK_PointCount point_count = cells_data[data_offset];
             data_offset++;
-            Assert(point_count == vtk_cell_type_to_point_count(type));
 
             for (int point_i = 0; point_i < point_count; point_i++, data_offset++) {
                 switch (type) {
@@ -186,7 +184,6 @@ VTK_LoadResult vtk_load(Arena* arena, NTString8 path, VTK_LoadSettings settings)
                         data.volume_indices[volume_offset]=cells_data[data_offset];
                         volume_offset++;
                     }break;
-                    default: Assert(0);
                 }
             }
         }
@@ -198,11 +195,13 @@ VTK_LoadResult vtk_load(Arena* arena, NTString8 path, VTK_LoadSettings settings)
     
                 // add each edge of each triangle
                 for (int surface_i = 0; surface_i < data.surface_indices_count; surface_i+=VTK_PointCount_Triangle) {
-                    for (int edge_offset = 0; edge_offset < VTK_PointCount_Triangle; edge_offset++) {
-                        vtk_add_to_edge_map(temp.arena, &surface_edge_map, (VTK_EdgeMapHash){
-                            .i1 = data.surface_indices[surface_i + edge_offset],
-                            .i2 = data.surface_indices[surface_i + (edge_offset+1)%VTK_PointCount_Triangle],
-                        });
+                    for (int point_i = 0; point_i < VTK_PointCount_Triangle; point_i++) {
+                        for (int point_j = point_i+1; point_j < VTK_PointCount_Triangle; point_j++) {
+                            vtk_add_to_edge_map(temp.arena, &surface_edge_map, (VTK_EdgeMapHash){
+                                .i = data.surface_indices[surface_i + point_i],
+                                .j = data.surface_indices[surface_i + point_j],
+                            });
+                        }
                     }
                 }
     
@@ -216,11 +215,13 @@ VTK_LoadResult vtk_load(Arena* arena, NTString8 path, VTK_LoadSettings settings)
 
                 // add each edge of each triangle
                 for (int volume_i = 0; volume_i < data.volume_indices_count; volume_i+=VTK_PointCount_Tetrahedron) {
-                    for (int edge_offset = 0; edge_offset < VTK_PointCount_Tetrahedron; edge_offset++) {
-                        vtk_add_to_edge_map(temp.arena, &volume_edge_map, (VTK_EdgeMapHash){
-                            .i1 = data.volume_indices[volume_i + edge_offset],
-                            .i2 = data.volume_indices[volume_i + (edge_offset+1)%VTK_PointCount_Tetrahedron],
-                        });
+                    for (int point_i = 0; point_i < VTK_PointCount_Tetrahedron; point_i++) {
+                        for (int point_j = point_i+1; point_j < VTK_PointCount_Tetrahedron; point_j++) {
+                            vtk_add_to_edge_map(temp.arena, &volume_edge_map, (VTK_EdgeMapHash){
+                                .i = data.volume_indices[volume_i + point_i],
+                                .j = data.volume_indices[volume_i + point_j],
+                            });
+                        }
                     }
                 }
 
