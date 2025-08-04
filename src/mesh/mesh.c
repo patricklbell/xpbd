@@ -217,25 +217,3 @@ MS_LoadResult ms_load_obj(Arena* arena, NTString8 path, MS_LoadSettings settings
     os_close_file(file);
     return (MS_LoadResult) { .v = mesh, .error = ntstr8_lit_init("") };;
 }
-
-// helpers
-// @note assumes CCW winding order
-void ms_calculate_flat_normals(MS_Mesh* mesh, R_VertexTopology topology) {
-    AssertAlways(topology == R_VertexTopology_Triangles); // @todo
-    
-    void* p = mesh->vertices + r_vertex_offset(mesh->flags, R_VertexFlag_P);
-    void* n = mesh->vertices + r_vertex_offset(mesh->flags, R_VertexFlag_N);
-    u64 p_stride = r_vertex_stride(mesh->flags, R_VertexFlag_P);
-    u64 n_stride = r_vertex_stride(mesh->flags, R_VertexFlag_N);
-
-    for (u32 i = 0; i < mesh->vertices_count;) {
-        vec3_f32 u = sub_3f32(*(R_VertexType_P*)(p),              *(R_VertexType_P*)(p + p_stride));
-        vec3_f32 v = sub_3f32(*(R_VertexType_P*)(p + 2*p_stride), *(R_VertexType_P*)(p));
-
-        vec3_f32 tri_n = normalize_3f32(cross_3f32(v, u));
-
-        for (int tri_i = 0; tri_i < 3; tri_i++, i++, p+=p_stride, n+=n_stride) {
-            (*(R_VertexType_N*)n) = tri_n;
-        }
-    }
-}

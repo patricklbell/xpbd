@@ -64,7 +64,7 @@ build_demos() {
         [balls]="sphere.obj"
         [hanging_boxes]="cube.obj"
         [softbody]="bunny.vtk"
-        [cloth]="cloth.vtk"
+        [cloth]="cloth.vtk sphere.obj"
     )
 
     if [[ -n "$1" && -n "${dependencies[$1]}" ]]; then

@@ -18,6 +18,8 @@ struct PHYS_DBG_DrawContext {
     vec3_f32 min_force_color_hsl;
     vec3_f32 max_force_color_hsl;
     f32 max_force;
+
+    f32 body_radius;
 };
 
 PHYS_DBG_DrawContext phys_dbg_d_make_context(PHYS_World* w, PHYS_DBG_DrawEdgeBatch draw_edge_batch, PHYS_DBG_DrawPointBatch draw_point_batch);
@@ -27,7 +29,6 @@ void phys_dbg_d_constraint_volume(PHYS_DBG_DrawContext* ctx, PHYS_Constraint_Vol
 
 void phys_dbg_d_collider_sphere(PHYS_DBG_DrawContext* ctx, PHYS_Collider_Sphere* c);
 void phys_dbg_d_collider_plane(PHYS_DBG_DrawContext* ctx, PHYS_Collider_Plane* c);
-void phys_dbg_d_collider_triangle(PHYS_DBG_DrawContext* ctx, PHYS_Collider_Triangle* c);
 void phys_dbg_d_collider_rect_cuboid(PHYS_DBG_DrawContext* ctx, PHYS_Collider_RectCuboid* c);
 
 void phys_dbg_d_constraint(PHYS_DBG_DrawContext* ctx, PHYS_Constraint* c);

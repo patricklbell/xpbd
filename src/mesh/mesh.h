@@ -24,9 +24,6 @@ struct MS_LoadSettings {
 
 MS_LoadResult ms_load_obj(Arena* arena, NTString8 path, MS_LoadSettings settings);
 
-// helpers
-void ms_calculate_flat_normals(MS_Mesh* mesh, R_VertexTopology topology);
-
 // internal
 typedef struct MS_VertexMapHash MS_VertexMapHash;
 struct MS_VertexMapHash {

@@ -39,6 +39,7 @@ struct PHYS_BoxBoundary {
 typedef struct PHYS_BoxBoundary_Settings PHYS_BoxBoundary_Settings;
 struct PHYS_BoxBoundary_Settings {
     vec3_f32 center;
+    vec4_f32 rotation;
     vec3_f32 extents;
 };
 
@@ -51,8 +52,8 @@ struct PHYS_Softbody {
     u32 vertices_count;
     PHYS_body_id* vertices;
 
-    u32 triangle_colliders_count;
-    PHYS_collider_id* triangle_colliders;
+    u32 sphere_colliders_count;
+    PHYS_collider_id* sphere_colliders;
 
     u32 distance_constraints_count;
     PHYS_constraint_id* distance_constraints;
@@ -68,21 +69,22 @@ struct PHYS_TetTriSoftbody_Settings {
     f32 edge_compliance;
     f32 volume_compliance;
     vec3_f32 center;
+    vec4_f32 rotation;
     vec3_f32 linear_velocity;
 
     vec3_f32* vertices;
     u32 vertices_count;
 
-    u32* tet_edge_indices;
-    u32 tet_edge_indices_count;
-    u32* tet_indices;
-    u32 tet_indices_count;
+    u32* tetrahedron_edge_indices;
+    u32 tetrahedron_edge_indices_count;
+    u32* tetrahedron_indices;
+    u32 tetrahedron_indices_count;
 
-    u32* surface_indices;
-    u32 surface_indices_count;
+    u32* surface_point_indices;
+    u32 surface_point_indices_count;
 };
 
-PHYS_Softbody   phys_world_add_tet_tri_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Settings settings);
+PHYS_Softbody   phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Settings settings);
 void            phys_world_remove_softbody(PHYS_World* w, PHYS_Softbody object);
 
 // cloth
@@ -91,18 +93,25 @@ struct PHYS_Cloth {
     u32 vertices_count;
     PHYS_body_id* vertices;
 
-    u32 triangle_colliders_count;
-    PHYS_collider_id* triangle_colliders;
+    u32 sphere_colliders_count;
+    PHYS_collider_id* sphere_colliders;
 
     u32 distance_constraints_count;
     PHYS_constraint_id* distance_constraints;
+};
+typedef struct PHYS_ClothFiber_Settings PHYS_ClothFiber_Settings;
+struct PHYS_ClothFiber_Settings {
+    vec3_f32 direction;
+    f32 compliance;
 };
 typedef struct PHYS_Cloth_Settings PHYS_Cloth_Settings;
 struct PHYS_Cloth_Settings {
     Arena* arena;
     
+    f32 thickness;
     f32 mass;
     vec3_f32 center;
+    vec4_f32 rotation;
     vec3_f32 linear_velocity;
 
     vec3_f32* vertices;
@@ -111,8 +120,10 @@ struct PHYS_Cloth_Settings {
     u32* edge_indices;
     u32 edge_indices_count;
 
-    u32* surface_indices;
-    u32 surface_indices_count;
+    PHYS_ClothFiber_Settings** fibers;
+    int* fibers_counts;
+    int fiber_depth;
+    int fiber_ratio_hint;
 };
 
 PHYS_Cloth  phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings);

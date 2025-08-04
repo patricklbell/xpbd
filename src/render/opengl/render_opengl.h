@@ -156,7 +156,7 @@ static const NTString8 r_ogl_lambertian_fragment_shader_src = ntstr8_lit_init(
     ""
     "   vec3 n = normalize(vs_normal);"
     "   float idotn = clamp(dot(i, n), 0., 1.);"
-    "   float ambient = 0.4;"
+    "   float ambient = 0.3;"
     "   vec3 Lr = ((1.-ambient)*idotn + ambient)*albedo;"
     "   out_color = vec4(Lr, 1.);"
     "}"

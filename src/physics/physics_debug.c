@@ -43,6 +43,7 @@ PHYS_DBG_DrawContext phys_dbg_d_make_context(PHYS_World* w, PHYS_DBG_DrawEdgeBat
         .draw_edge_batch = draw_edge_batch,
         .draw_point_batch = draw_point_batch,
         .max_force = 100.,
+        .body_radius = 0.05,
     };
 
     vec3_f32 hsl_color = make_3f32(0, 1.0, 0.5);
@@ -120,9 +121,6 @@ void phys_dbg_d_collider_sphere(PHYS_DBG_DrawContext* ctx, PHYS_Collider_Sphere*
 void phys_dbg_d_collider_plane(PHYS_DBG_DrawContext* ctx, PHYS_Collider_Plane* c) {
     return; // @todo
 }
-void phys_dbg_d_collider_triangle(PHYS_DBG_DrawContext* ctx, PHYS_Collider_Triangle* c) {
-    return; // @todo
-}
 void phys_dbg_d_collider_rect_cuboid(PHYS_DBG_DrawContext* ctx, PHYS_Collider_RectCuboid* c) {
     return; // @todo
 }
@@ -147,9 +145,6 @@ void phys_dbg_d_collider(PHYS_DBG_DrawContext* ctx, PHYS_Collider* c) {
         case PHYS_ColliderType_Plane: {
             phys_dbg_d_collider_plane(ctx, &c->plane);
         }break;
-        case PHYS_ColliderType_Triangle: {
-            phys_dbg_d_collider_triangle(ctx, &c->triangle);
-        }break;
         case PHYS_ColliderType_RectCuboid: {
             phys_dbg_d_collider_rect_cuboid(ctx, &c->rect_cuboid);
         }break;
@@ -157,7 +152,7 @@ void phys_dbg_d_collider(PHYS_DBG_DrawContext* ctx, PHYS_Collider* c) {
 }
 void phys_dbg_d_body(PHYS_DBG_DrawContext* ctx, PHYS_Body* c) {
     vec3_f32 offsets[] = {{1, 1, 1},{-1,-1,1},{-1,1,-1},{1,-1,-1}};
-    f32 offset_scale = 0.05;
+    f32 offset_scale = ctx->body_radius;
 
     static const int points_count = ArrayLength(offsets)*(ArrayLength(offsets)-1); // 2*(n choose 2)
     vec3_f32 points[points_count], colors[points_count];

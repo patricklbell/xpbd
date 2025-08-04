@@ -7,6 +7,8 @@
 #include "input/input.c"
 #include "vtk/vtk.c"
 #include "dbgdraw/dbgdraw.c"
+#include "geo/geo.c"
+
 #include "demos_helpers.c"
 
 void window_event_loop(void* data);

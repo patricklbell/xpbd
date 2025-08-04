@@ -1,5 +1,5 @@
 // Parameters
-n = 10; // subdivisions
+n = 20; // subdivisions
 lc = 1.0 / n; // mesh size
 
 // Define the square domain (unit square)
@@ -20,6 +20,9 @@ Plane Surface(1) = {1};
 Transfinite Line {1, 3} = n + 1;
 Transfinite Line {2, 4} = n + 1;
 Transfinite Surface {1};
+Recombine Surface {1}; // This converts triangles to quads
 
-// Mesh using only triangles (no recombine)
+// Mesh settings
 Mesh.ElementOrder = 1; // Use linear elements
+Mesh.RecombinationAlgorithm = 1; // Use Blossom algorithm for recombination (optional)
+Mesh.RecombineAll = 1; // Optional: recombine all surfaces automatically

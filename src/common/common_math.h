@@ -170,6 +170,7 @@ union rect_f32 {
 rect_f32 make_rect_f32(vec2_f32 tl, vec2_f32 br);
 
 #define PI               (3.1415926535897f)
+#define EPSILON_F32      (1.1920929E-7f)
 #define DegreesToRad(v)  (v * (PI / 180.f))
 
 #define sqrt_f32(v)   sqrtf(v)
@@ -183,6 +184,11 @@ rect_f32 make_rect_f32(vec2_f32 tl, vec2_f32 br);
 #define sin_f32(v)    sinf(v)
 #define cos_f32(v)    cosf(v)
 #define tan_f32(v)    tanf(v)
+#define asin_f32(v)   asinf(v)
+#define acos_f32(v)   acosf(v)
+#define atan_f32(v)   atanf(v)
+#define log_f32(v)    logf(v)
+#define exp_f32(v)    expf(v)
 #define sgn_f32(v)    (((v) < 0.f) ? -1.f : 1.f)
 #define rand_f32()    ((f32)rand()/(f32)RAND_MAX)
 
@@ -199,6 +205,11 @@ f32 smoothstep_f32(f32 edge_0, f32 edge_1, f32 x);
 #define sin_f64(v)    sin(v)
 #define cos_f64(v)    cos(v)
 #define tan_f64(v)    tan(v)
+#define asin_f64(v)   asin(v)
+#define acos_f64(v)   acos(v)
+#define atan_f64(v)   atan(v)
+#define log_f64(v)    log(v)
+#define exp_f64(v)    exp(v)
 #define sgn_f64(v)    (((v) < 0.) ? -1. : 1.)
 #define rand_f64()    ((f64)rand()/(f64)RAND_MAX)
 

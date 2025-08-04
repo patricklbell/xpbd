@@ -100,7 +100,7 @@ void phys_constrain_volume(PHYS_Constraint_Volume* c, PHYS_ConstraintSolveSettin
     vec3_f32 dC3 = cross_3f32(d41, d21);
     vec3_f32 dC4 = cross_3f32(d21, d31);
 
-    f32 v = phys_tet_volume_axis(d21, d31, d41);
+    f32 v = phys_tetrahedron_volume_axis(d21, d31, d41);
     f32 C = v - c->v_rest;
     if (C == 0.f) return;
 
@@ -125,16 +125,22 @@ void phys_constrain_volume(PHYS_Constraint_Volume* c, PHYS_ConstraintSolveSettin
     c->force = abs_f32(l) * settings.inv_dt;
 }
 
-// colliders
+// colliders 
+// @todo physical correctness
 static void phys_collide_spheres(const PHYS_Collider_Sphere* c1, PHYS_Collider_Sphere* c2, PHYS_ConstraintSolveSettings settings) {
+    Assert(phys_world_valid_radius(settings.w, c1->r));
+    Assert(phys_world_valid_radius(settings.w, c2->r));
+
     PHYS_Body* b1 = phys_world_resolve_body(settings.w, c1->c);
     PHYS_Body* b2 = phys_world_resolve_body(settings.w, c2->c);
 
+    f32 r = c1->r + c2->r;
     vec3_f32 d = sub_3f32(b1->position, b2->position);
-    f32 d_length = length_3f32(d);
-    if (d_length >= c1->r + c2->r) return;
+    f32 d_length2 = dot_3f32(d, d);
+    if (d_length2 >= r*r) return;
+    f32 d_length = sqrt_f32(d_length2);
 
-    f32 C = d_length - (c1->r + c2->r);
+    f32 C = d_length - r;
     vec3_f32 dC = mul_3f32(d, 1.f/d_length);
     f32 compliance = c1->compliance + c2->compliance;
     f32 alpha = settings.inv_dt2*compliance;
@@ -148,6 +154,7 @@ static void phys_collide_spheres(const PHYS_Collider_Sphere* c1, PHYS_Collider_S
     }
 }
 
+// @todo physical correctness
 static void phys_collide_sphere_with_plane(const PHYS_Collider_Sphere* c1, PHYS_Collider_Plane* c2, PHYS_ConstraintSolveSettings settings) {
     PHYS_Body* b1 = phys_world_resolve_body(settings.w, c1->c);
     PHYS_Body* b2 = phys_world_resolve_body(settings.w, c2->p);
@@ -169,28 +176,6 @@ static void phys_collide_sphere_with_plane(const PHYS_Collider_Sphere* c1, PHYS_
     }
 }
 
-static void phys_collide_triangle_with_plane(const PHYS_Collider_Triangle* c1, PHYS_Collider_Plane* c2, PHYS_ConstraintSolveSettings settings) {
-    PHYS_Body* p = phys_world_resolve_body(settings.w, c2->p);
-    
-    vec3_f32 dC = c2->n;
-    f32 compliance = c1->compliance + c2->compliance;
-    f32 alpha = settings.inv_dt2*compliance;
-
-    for EachElement(i, c1->p) {
-        PHYS_Body* v = phys_world_resolve_body(settings.w, c1->p[i]);
-
-        f32 C = dot_3f32(sub_3f32(v->position, p->position), c2->n);
-        if (C >= 0.f) continue;
-
-        f32 l;
-        phys_2body_apply_correction_wo_offset(v, p, alpha, C, dC, &l);
-    
-        if (compliance == 0.f) {
-            v->prev_position = v->position;
-        }
-    }
-}
-
 // world
 PHYS_World* phys_world_make(PHYS_WorldSettings settings) {
     Arena* arena = arena_alloc();
@@ -200,7 +185,8 @@ PHYS_World* phys_world_make(PHYS_WorldSettings settings) {
         .arena = arena,
         .substeps = (!settings.substeps) ? 16 : settings.substeps,
         .little_g = (!settings.little_g) ? -10 : settings.little_g,
-        .damping  = settings.damping,
+        .linear_damping  = settings.linear_damping,
+        .min_r = settings.min_collision_distance,
         .colliders = (PHYS_ColliderMap){
             .slots = push_array(arena, PHYS_ColliderNode*, PHYS_COLLIDER_MAP_DEFAULT_SLOTS_COUNT),
             .slots_count = PHYS_COLLIDER_MAP_DEFAULT_SLOTS_COUNT,
@@ -295,13 +281,6 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
                         PHYS_Collider_Sphere* sphere_1 = &collideri->sphere;
                         PHYS_Collider_Sphere* sphere_2 = &colliderj->sphere;
                         phys_collide_spheres(sphere_1, sphere_2, settings);
-                    } else if (
-                        collideri->type == PHYS_ColliderType_Triangle &&
-                        colliderj->type == PHYS_ColliderType_Plane
-                    ) {
-                        PHYS_Collider_Triangle* triangle = &collideri->triangle;
-                        PHYS_Collider_Plane* plane = &colliderj->plane;
-                        phys_collide_triangle_with_plane(triangle, plane, settings);
                     }
                 }
             }
@@ -323,14 +302,24 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
     }
 
     // step 3: set linear & angular velocities to resultant velocity
+    f32 max_lin_v = w->min_r / dt;
+    f32 max_lin_v2 = max_lin_v*max_lin_v;
     for EachIndex(i, w->bodies.length) {
         PHYS_Body* b = &w->bodies.v[i];
 
         if (b->inv_mass != 0.f) {
             vec3_f32 dp = sub_3f32(b->position, b->prev_position);
             vec4_f32 dr = mul_quat(b->rotation, inv_quat(b->prev_rotation));
-            b->linear_velocity = mul_3f32(dp, inv_dt*Max(1.f - w->damping*dt, 0.f));
+            b->linear_velocity = mul_3f32(dp, inv_dt*Max(1.f - w->linear_damping*dt, 0.f));
             b->angular_velocity = mul_3f32(dr.xyz, 2.0*inv_dt*sgn_f32(dr.w));
+        }
+
+        // enforce maximum velocity to avoid skipping collisions
+        if (w->min_r) {
+            f32 lin_v2 = dot_3f32(b->linear_velocity, b->linear_velocity);
+            if (lin_v2 > max_lin_v2) {
+                b->linear_velocity = mul_3f32(b->linear_velocity, max_lin_v/sqrt_f32(lin_v2));
+            }
         }
     }
 }
@@ -352,7 +341,7 @@ PHYS_body_id phys_world_add_body(PHYS_World* w, PHYS_Body b) {
     }
 
     // initialise rotation if not set
-    if (dot_4f32(b.rotation, b.rotation) < FLT_EPSILON) {
+    if (dot_4f32(b.rotation, b.rotation) < EPSILON_F32) {
         b.rotation = make_identity_quat();
     }
     
@@ -470,4 +459,12 @@ PHYS_Constraint* phys_world_resolve_constraint(PHYS_World* w, PHYS_constraint_id
         return NULL;
     }
     return &n->v;
+}
+
+// asserts
+b32 phys_world_valid_radius(PHYS_World* w, f32 d) {
+    if (w->min_r) {
+        return d >= w->min_r;
+    }
+    return 1;
 }

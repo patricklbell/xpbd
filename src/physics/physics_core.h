@@ -79,7 +79,7 @@ struct PHYS_ConstraintSolveSettings {
 // helpers
 static void phys_body_apply_linear_correction(PHYS_Body* b, vec3_f32 corr);
 static void phys_body_apply_angular_correction(PHYS_Body* b, vec3_f32 corr, vec3_f32 r);
-static f32 phys_body_generalized_inverse_mass(PHYS_Body* b, vec3_f32 r, vec3_f32 dC);
+static f32  phys_body_generalized_inverse_mass(PHYS_Body* b, vec3_f32 r, vec3_f32 dC);
 static void phys_2body_apply_correction_wo_offset(PHYS_Body* b1, PHYS_Body* b2, f32 alpha, f32 C, vec3_f32 dC, f32* l_out);
 static void phys_2body_apply_correction_wt_offset(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, f32 alpha, f32 C, vec3_f32 dC, f32* l_out);
 
@@ -111,14 +111,6 @@ struct PHYS_Collider_Plane {
     vec3_f32 n;
 };
 
-typedef struct PHYS_Collider_Triangle PHYS_Collider_Triangle;
-struct PHYS_Collider_Triangle {
-    f32 compliance;
-    PHYS_body_id p[3];
-    // @todo option for two sided (eg. cloth) vs not two sided (eg. softbody)
-    b32 two_sided;
-};
-
 typedef struct PHYS_Collider_RectCuboid PHYS_Collider_RectCuboid;
 struct PHYS_Collider_RectCuboid {
     f32 compliance;
@@ -129,7 +121,6 @@ struct PHYS_Collider_RectCuboid {
 typedef enum PHYS_ColliderType {
     PHYS_ColliderType_Sphere,
     PHYS_ColliderType_Plane,
-    PHYS_ColliderType_Triangle,
     PHYS_ColliderType_RectCuboid,
     PHYS_ColliderType_COUNT ENUM_CASE_UNUSED,
 } PHYS_ColliderType;
@@ -141,14 +132,12 @@ struct PHYS_Collider {
     union {
         PHYS_Collider_Sphere         sphere;
         PHYS_Collider_Plane          plane;
-        PHYS_Collider_Triangle       triangle;
         PHYS_Collider_RectCuboid     rect_cuboid;
     };
 };
 
 static void phys_collide_spheres(const PHYS_Collider_Sphere* c1, PHYS_Collider_Sphere* c2, PHYS_ConstraintSolveSettings settings);
 static void phys_collide_sphere_with_plane(const PHYS_Collider_Sphere* c1, PHYS_Collider_Plane* c2, PHYS_ConstraintSolveSettings settings);
-static void phys_collide_triangle_with_plane(const PHYS_Collider_Triangle* c1, PHYS_Collider_Plane* c2, PHYS_ConstraintSolveSettings settings);
 
 // world
 typedef struct PHYS_ConstraintNode PHYS_ConstraintNode;
@@ -198,7 +187,8 @@ typedef struct PHYS_WorldSettings PHYS_WorldSettings;
 struct PHYS_WorldSettings {
     u64 substeps;    
     f32 little_g;
-    f32 damping;
+    f32 linear_damping;
+    f32 min_collision_distance;
 };
 
 typedef struct PHYS_World PHYS_World;
@@ -207,7 +197,10 @@ struct PHYS_World {
 
     u64 substeps;    
     f32 little_g;
-    f32 damping;
+    f32 linear_damping;
+
+    f32 min_r;
+
     PHYS_ColliderMap colliders;
     PHYS_ConstraintMap constraints;
     PHYS_BodyDynamicArray bodies;
@@ -229,3 +222,6 @@ PHYS_Collider*      phys_world_resolve_collider(PHYS_World* w, PHYS_collider_id 
 PHYS_constraint_id  phys_world_add_constraint(PHYS_World* w, PHYS_Constraint c);
 void                phys_world_remove_constraint(PHYS_World* w, PHYS_constraint_id col);
 PHYS_Constraint*    phys_world_resolve_constraint(PHYS_World* w, PHYS_constraint_id col);
+
+// asserts
+b32 phys_world_valid_radius(PHYS_World* w, f32 d);
