@@ -72,7 +72,7 @@ int demos_init_hook(DEMOS_CommonState* cs) {
             {/*bend-rr*/ .compliance=1.f, .direction=make_3f32(1,0,0)},
             {/*bend-uu*/ .compliance=1.f, .direction=make_3f32(0,1,0)},
         };
-        u32 fibers_counts[] = {ArrayLength(fibers_depth1), ArrayLength(fibers_depth2)};
+        int fibers_counts[] = {ArrayLength(fibers_depth1), ArrayLength(fibers_depth2)};
         PHYS_ClothFiber_Settings* fibers[] = {fibers_depth1, fibers_depth2};
         u32 fiber_depth = ArrayLength(fibers);
 
