@@ -51,10 +51,12 @@ typedef double   f64;
     #error Missing pointer-to-integer cast for this architecture.
 #endif
 
-#define Member(T,m)                 (((T*)0)->m)
-#define OffsetOf(T,m)               IntFromPtr(&Member(T,m))
-#define MemberFromOffset(T,ptr,off) (T)((((u8 *)ptr)+(off)))
-#define CastFromMember(T,m,ptr)     (T*)(((u8*)ptr) - OffsetOf(T,m))
+#define Member(T,m)                     (((T*)0)->m)
+#define OffsetOf(T,m)                   IntFromPtr(&Member(T,m))
+#define MemberFromOffset(T,ptr,off)     (T)((((u8 *)ptr)+(off)))
+#define CastFromMember(T,m,ptr)         (T*)(((u8*)ptr) - OffsetOf(T,m))
+
+#define OffsetPtr(base, offset, type)   ((type*)(((void*)base) + offset))
 
 #if LANG_CPP
     #define zero_struct {}

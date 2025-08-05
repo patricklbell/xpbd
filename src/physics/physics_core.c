@@ -127,12 +127,12 @@ void phys_constrain_volume(PHYS_Constraint_Volume* c, PHYS_ConstraintSolveSettin
 
 // colliders 
 // @todo physical correctness
-static void phys_collide_spheres(const PHYS_Collider_Sphere* c1, PHYS_Collider_Sphere* c2, PHYS_ConstraintSolveSettings settings) {
+static void phys_collide_spheres(PHYS_Collider* c1, PHYS_Collider* c2, PHYS_ConstraintSolveSettings settings) {
     Assert(phys_world_valid_radius(settings.w, c1->r));
     Assert(phys_world_valid_radius(settings.w, c2->r));
 
-    PHYS_Body* b1 = phys_world_resolve_body(settings.w, c1->c);
-    PHYS_Body* b2 = phys_world_resolve_body(settings.w, c2->c);
+    PHYS_Body* b1 = phys_world_resolve_body(settings.w, c1->p);
+    PHYS_Body* b2 = phys_world_resolve_body(settings.w, c2->p);
 
     f32 r = c1->r + c2->r;
     vec3_f32 d = sub_3f32(b1->position, b2->position);
@@ -155,15 +155,15 @@ static void phys_collide_spheres(const PHYS_Collider_Sphere* c1, PHYS_Collider_S
 }
 
 // @todo physical correctness
-static void phys_collide_sphere_with_plane(const PHYS_Collider_Sphere* c1, PHYS_Collider_Plane* c2, PHYS_ConstraintSolveSettings settings) {
-    PHYS_Body* b1 = phys_world_resolve_body(settings.w, c1->c);
+static void phys_collide_sphere_with_plane(PHYS_Collider* c1, PHYS_Collider* c2, PHYS_ConstraintSolveSettings settings) {
+    PHYS_Body* b1 = phys_world_resolve_body(settings.w, c1->p);
     PHYS_Body* b2 = phys_world_resolve_body(settings.w, c2->p);
 
-    f32 d_length = dot_3f32(sub_3f32(b1->position, b2->position), c2->n);
+    f32 d_length = dot_3f32(sub_3f32(b1->position, b2->position), c2->plane.n);
     if (d_length >= c1->r) return;
 
     f32 C = d_length - c1->r;
-    vec3_f32 dC = c2->n;
+    vec3_f32 dC = c2->plane.n;
     f32 compliance = c1->compliance + c2->compliance;
     f32 alpha = settings.inv_dt2*compliance;
 
@@ -176,17 +176,43 @@ static void phys_collide_sphere_with_plane(const PHYS_Collider_Sphere* c1, PHYS_
     }
 }
 
+static void phys_collide(PHYS_Collider* c1, PHYS_Collider* c2, PHYS_ConstraintSolveSettings settings) {
+    if (c1 == c2)
+        return;
+
+    for EachIndex(i,2) {
+        if (
+            c1->type == PHYS_ColliderType_Sphere &&
+            c2->type == PHYS_ColliderType_Plane
+        ) {
+            phys_collide_sphere_with_plane(c1, c2, settings);
+        } else if (
+            c1->type == PHYS_ColliderType_Sphere &&
+            c2->type == PHYS_ColliderType_Sphere
+        ) {
+            phys_collide_spheres(c1, c2, settings);
+        }
+
+        PHYS_Collider* temp = c1;
+        c1 = c2;
+        c2 = temp;
+    }
+}
+
 // world
-PHYS_World* phys_world_make(PHYS_WorldSettings settings) {
+PHYS_World* phys_make_world(PHYS_WorldSettings settings) {
     Arena* arena = arena_alloc();
     PHYS_World* w = push_array(arena, PHYS_World, 1);
 
     *w = (PHYS_World){
         .arena = arena,
+        .frame_arena = arena_alloc_ps(MB(1)),
         .substeps = (!settings.substeps) ? 16 : settings.substeps,
         .little_g = (!settings.little_g) ? -10 : settings.little_g,
         .linear_damping  = settings.linear_damping,
         .min_r = settings.min_collision_distance,
+        .hashgrid_cell_r = 0.03,
+        .hashgrid_obj_r = 0.01,
         .colliders = (PHYS_ColliderMap){
             .slots = push_array(arena, PHYS_ColliderNode*, PHYS_COLLIDER_MAP_DEFAULT_SLOTS_COUNT),
             .slots_count = PHYS_COLLIDER_MAP_DEFAULT_SLOTS_COUNT,
@@ -204,6 +230,14 @@ PHYS_World* phys_world_make(PHYS_WorldSettings settings) {
         }
     };
 
+    // @todo
+    if (settings.hashgrid_cell_size) {
+        w->hashgrid_cell_r = settings.hashgrid_cell_size;
+    }
+    if (settings.hashgrid_object_size) {
+        w->hashgrid_obj_r = settings.hashgrid_object_size;
+    }
+    
     return w;
 }
 
@@ -220,13 +254,85 @@ void phys_world_cleanup(PHYS_World* w) {
 //        have been applied.
 void phys_world_step(PHYS_World* w, f64 dt) {
     f64 sdt = dt / (f64)w->substeps;
-    for (u64 i = 0; i < w->substeps; ++i) {
+    f32 max_lin_v = w->min_r / sdt;
+
+    // build cached queries
+    // use previous frame's count for allocating or just split evenly
+    if (!w->hashgrid_info_count)
+        w->hashgrid_info_count = w->colliders.length/2;
+    if (!w->brute_info_count)
+        w->brute_info_count = w->colliders.length/2;
+    u32 hashgrid_info_capacity = w->hashgrid_info_count;
+    u32 brute_info_capacity = w->brute_info_count;
+    w->hashgrid_info = push_array(w->frame_arena, PHYS_CachedHashgridInfo, hashgrid_info_capacity);
+    w->brute_info = push_array(w->frame_arena, PHYS_CachedBruteInfo, brute_info_capacity);
+
+    // fill in data
+    w->hashgrid_info_count = 0;
+    w->brute_info_count = 0;
+
+    for EachIndex(slot, w->colliders.slots_count) {
+        for EachList(collider_n, PHYS_ColliderNode, w->colliders.slots[slot]) {
+            PHYS_Collider* collider = &collider_n->v;
+
+            // if sphere is small enough, put it in the hashgrid
+            if (collider->r <= w->hashgrid_obj_r && collider->type == PHYS_ColliderType_Sphere) {
+                if (w->hashgrid_info_count >= hashgrid_info_capacity) {
+                    hashgrid_info_capacity *= PHYS_PER_FRAME_DYNAMIC_ARRAY_GROWTH_RATE;
+                    PHYS_CachedHashgridInfo* tmp = push_array(w->frame_arena, PHYS_CachedHashgridInfo, hashgrid_info_capacity);
+                    memcpy(tmp, w->hashgrid_info, sizeof(*tmp)*w->hashgrid_info_count);
+                    w->hashgrid_info = tmp;
+                }
+                w->hashgrid_info[w->hashgrid_info_count] = (PHYS_CachedHashgridInfo){
+                    .position = phys_world_resolve_body(w, collider->p)->position,
+                    .collider = collider,
+                };
+                w->hashgrid_info_count++;
+            // otherwise put it in brute
+            } else {
+                if (w->brute_info_count >= brute_info_capacity) {
+                    brute_info_capacity *= PHYS_PER_FRAME_DYNAMIC_ARRAY_GROWTH_RATE;
+                    PHYS_CachedBruteInfo* tmp = push_array(w->frame_arena, PHYS_CachedBruteInfo, brute_info_capacity);
+                    memcpy(tmp, w->brute_info, sizeof(*tmp)*w->brute_info_count);
+                    w->brute_info = tmp;
+                }
+                w->brute_info[w->brute_info_count] = (PHYS_CachedBruteInfo){
+                    .collider = collider,
+                };
+                w->brute_info_count++;
+            }
+        }
+    }
+
+    // build hashgrid and query self collisions (broadphase)
+    if (w->hashgrid_info_count) {
+        w->hashgrid = hg_build_hashgrid(
+            w->frame_arena, w->hashgrid_cell_r,
+            &w->hashgrid_info->position, sizeof(*w->hashgrid_info),
+            w->hashgrid_info_count
+        );
+        w->hashgrid_self_collisions = hg_hashgrid_batch_query(
+            &w->hashgrid, w->frame_arena, Max(w->hashgrid_self_collisions.hits_count, 64),
+            max_lin_v*dt,
+            &w->hashgrid_info->position, sizeof(*w->hashgrid_info),
+            &w->hashgrid_info->collider, sizeof(*w->hashgrid_info),
+            w->hashgrid_info_count
+        );
+    } else {
+        w->hashgrid_self_collisions.object_count = 0;
+    }
+
+    for EachIndex(i, w->substeps) {
         phys_world_substep(w, sdt);
     }
+
+    arena_clear(w->frame_arena);
 }
 
 static void phys_world_substep(PHYS_World* w, f64 dt) {
     f64 inv_dt = 1.f / dt;
+    f32 max_lin_v = w->min_r / dt;
+    f32 max_lin_v2 = max_lin_v*max_lin_v;
 
     // step 1: apply external forces
     const vec3_f32 a_gravity = {.x = 0, .y = w->little_g, .z = 0};
@@ -257,35 +363,34 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
         .inv_dt = inv_dt,
         .inv_dt2 = inv_dt*inv_dt,
     };
-    // @todo collision query acceleration structure
-    for EachIndex(sloti, w->colliders.slots_count) {
-        for EachList(collideri_n, PHYS_ColliderNode, w->colliders.slots[sloti]) {
-            PHYS_Collider* collideri = &collideri_n->v;
-            for EachIndex(slotj, w->colliders.slots_count) {
-                for EachList(colliderj_n, PHYS_ColliderNode, w->colliders.slots[slotj]) {
-                    PHYS_Collider* colliderj = &colliderj_n->v;
-                    if (collideri == colliderj)
-                        continue;
 
-                    if (
-                        collideri->type == PHYS_ColliderType_Sphere &&
-                        colliderj->type == PHYS_ColliderType_Plane
-                    ) {
-                        PHYS_Collider_Sphere* sphere = &collideri->sphere;
-                        PHYS_Collider_Plane* plane = &colliderj->plane;
-                        phys_collide_sphere_with_plane(sphere, plane, settings);
-                    } else if (
-                        collideri->type == PHYS_ColliderType_Sphere &&
-                        colliderj->type == PHYS_ColliderType_Sphere
-                    ) {
-                        PHYS_Collider_Sphere* sphere_1 = &collideri->sphere;
-                        PHYS_Collider_Sphere* sphere_2 = &colliderj->sphere;
-                        phys_collide_spheres(sphere_1, sphere_2, settings);
-                    }
-                }
-            }
+    // brute x brute
+    // @todo bvh
+    for EachIndex(i, w->brute_info_count) {
+        for (int j = i+1; j < w->brute_info_count; j++) {
+            phys_collide(w->brute_info[i].collider, w->brute_info[j].collider, settings);
         }
     }
+    // hashgrid x brute
+    // @todo efficiency from colliding "particle" with object
+    for EachIndex(i, w->hashgrid_info_count) {
+        for EachIndex(j, w->brute_info_count) {
+            phys_collide(w->hashgrid_info[i].collider, w->brute_info[j].collider, settings);
+        }
+    }
+    // hashgrid x hashgrid
+    {
+    HG_BatchQueryResult* q = &w->hashgrid_self_collisions;
+    for EachIndex(object_i, q->object_count) {
+        u32 hits_beg = q->object_hits_start[object_i  ];
+        u32 hits_end = q->object_hits_start[object_i+1];
+
+        for (u32 hit_j = hits_beg; hit_j < hits_end; hit_j++) {
+            phys_collide(w->hashgrid_info[object_i].collider, q->hits_data[hit_j], settings);
+        }
+    }
+    }
+    
     for EachIndex(slot, w->constraints.slots_count) {
         for EachList(constraint_n, PHYS_ConstraintNode, w->constraints.slots[slot]) {
             PHYS_Constraint* constraint = &constraint_n->v;
@@ -302,8 +407,6 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
     }
 
     // step 3: set linear & angular velocities to resultant velocity
-    f32 max_lin_v = w->min_r / dt;
-    f32 max_lin_v2 = max_lin_v*max_lin_v;
     for EachIndex(i, w->bodies.length) {
         PHYS_Body* b = &w->bodies.v[i];
 
@@ -380,6 +483,8 @@ PHYS_collider_id phys_world_add_collider(PHYS_World* w, PHYS_Collider c) {
     Assert(new_node != NULL);
 
     new_node->v = c;
+    
+    w->colliders.length++;
     return (PHYS_collider_id){
         .id = new_node->id,
         .version = new_node->version,
@@ -402,6 +507,8 @@ void phys_world_remove_collider(PHYS_World* w, PHYS_collider_id col) {
     n->version++;
     // add node to free chain for reuse
     stack_push(w->colliders.free_chain, n);
+
+    w->colliders.length--;
 }
 PHYS_Collider* phys_world_resolve_collider(PHYS_World* w, PHYS_collider_id col) {
     PHYS_ColliderNode* n = phys_world_resolve_collider_node(w, col.id);

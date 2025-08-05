@@ -97,24 +97,13 @@ typedef union PHYS_collider_id {
     u64 v;
 } PHYS_collider_id;
 
-typedef struct PHYS_Collider_Sphere PHYS_Collider_Sphere;
-struct PHYS_Collider_Sphere {
-    f32 compliance;
-    PHYS_body_id c;
-    f32 r;
-};
-
 typedef struct PHYS_Collider_Plane PHYS_Collider_Plane;
 struct PHYS_Collider_Plane {
-    f32 compliance;
-    PHYS_body_id p;
     vec3_f32 n;
 };
 
 typedef struct PHYS_Collider_RectCuboid PHYS_Collider_RectCuboid;
 struct PHYS_Collider_RectCuboid {
-    f32 compliance;
-    PHYS_body_id c;
     vec3_f32 r;
 };
 
@@ -128,16 +117,19 @@ typedef enum PHYS_ColliderType {
 typedef struct PHYS_Collider PHYS_Collider;
 struct PHYS_Collider {
     PHYS_ColliderType type;
+    PHYS_body_id p;
+    f32 r;
+    f32 compliance;
 
     union {
-        PHYS_Collider_Sphere         sphere;
         PHYS_Collider_Plane          plane;
         PHYS_Collider_RectCuboid     rect_cuboid;
     };
 };
 
-static void phys_collide_spheres(const PHYS_Collider_Sphere* c1, PHYS_Collider_Sphere* c2, PHYS_ConstraintSolveSettings settings);
-static void phys_collide_sphere_with_plane(const PHYS_Collider_Sphere* c1, PHYS_Collider_Plane* c2, PHYS_ConstraintSolveSettings settings);
+static void phys_collide_spheres(PHYS_Collider* c1, PHYS_Collider* c2, PHYS_ConstraintSolveSettings settings);
+static void phys_collide_sphere_with_plane(PHYS_Collider* c1, PHYS_Collider* c2, PHYS_ConstraintSolveSettings settings);
+static void phys_collide(PHYS_Collider* c1, PHYS_Collider* c2, PHYS_ConstraintSolveSettings settings);
 
 // world
 typedef struct PHYS_ConstraintNode PHYS_ConstraintNode;
@@ -172,6 +164,7 @@ struct PHYS_ColliderMap {
     u32 slots_count;
     u32 max_id;
     PHYS_ColliderNode* free_chain;
+    u32 length;
 };
 
 #define PHYS_BODY_DYNAMIC_ARRAY_INITIAL_CAPACITY 16
@@ -189,24 +182,52 @@ struct PHYS_WorldSettings {
     f32 little_g;
     f32 linear_damping;
     f32 min_collision_distance;
+    f32 hashgrid_cell_size;
+    f32 hashgrid_object_size;
 };
+
+typedef struct PHYS_CachedHashgridInfo PHYS_CachedHashgridInfo;
+struct PHYS_CachedHashgridInfo {
+    vec3_f32 position;
+    PHYS_Collider* collider;
+};
+
+typedef struct PHYS_CachedBruteInfo PHYS_CachedBruteInfo;
+struct PHYS_CachedBruteInfo {
+    PHYS_Collider* collider;
+};
+
 
 typedef struct PHYS_World PHYS_World;
 struct PHYS_World {
     Arena* arena;
+    Arena* frame_arena;
 
     u64 substeps;    
     f32 little_g;
     f32 linear_damping;
 
     f32 min_r;
+    f32 hashgrid_cell_r;
+    f32 hashgrid_obj_r;
 
     PHYS_ColliderMap colliders;
     PHYS_ConstraintMap constraints;
     PHYS_BodyDynamicArray bodies;
+
+    // per frame
+    HG_Hashgrid hashgrid;
+    HG_BatchQueryResult hashgrid_self_collisions;
+    u32 hashgrid_info_count;
+    PHYS_CachedHashgridInfo* hashgrid_info;
+    u32 brute_info_count;
+    PHYS_CachedBruteInfo* brute_info;
 };
 
-PHYS_World*         phys_world_make(PHYS_WorldSettings settings);
+#define PHYS_PER_FRAME_DYNAMIC_ARRAY_GROWTH_RATE 2
+#define PHYS_HG_TO_QUERY_R_RATIO 1.f
+
+PHYS_World*         phys_make_world(PHYS_WorldSettings settings);
 void                phys_world_cleanup(PHYS_World* w);
 void                phys_world_step(PHYS_World* w, f64 dt);
 static void         phys_world_substep(PHYS_World* w, f64 dt);

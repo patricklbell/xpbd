@@ -60,6 +60,9 @@ vec3_f32 normalize_3f32(vec3_f32 a);
 vec3_f32 cross_3f32(vec3_f32 a, vec3_f32 b);
 vec3_f32 reflect_3f32(vec3_f32 i, vec3_f32 n);
 vec3_f32 lerp_3f32(vec3_f32 x, vec3_f32 y, f32 a);
+vec3_f32 max_3f32(vec3_f32 a, vec3_f32 b);
+vec3_f32 min_3f32(vec3_f32 a, vec3_f32 b);
+vec3_f32 addscl_3f32(vec3_f32 a, f32 b);
 
 typedef union vec4_f32 vec4_f32;
 union vec4_f32 {
@@ -171,6 +174,8 @@ rect_f32 make_rect_f32(vec2_f32 tl, vec2_f32 br);
 
 #define PI               (3.1415926535897f)
 #define EPSILON_F32      (1.1920929E-7f)
+#define MAX_F32          (FLT_MAX)
+#define MAX_F64          (DBL_MAX)
 #define DegreesToRad(v)  (v * (PI / 180.f))
 
 #define sqrt_f32(v)   sqrtf(v)

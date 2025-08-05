@@ -27,9 +27,9 @@ PHYS_DBG_DrawContext phys_dbg_d_make_context(PHYS_World* w, PHYS_DBG_DrawEdgeBat
 void phys_dbg_d_constraint_distance(PHYS_DBG_DrawContext* ctx, PHYS_Constraint_Distance* c);
 void phys_dbg_d_constraint_volume(PHYS_DBG_DrawContext* ctx, PHYS_Constraint_Volume* c);
 
-void phys_dbg_d_collider_sphere(PHYS_DBG_DrawContext* ctx, PHYS_Collider_Sphere* c);
-void phys_dbg_d_collider_plane(PHYS_DBG_DrawContext* ctx, PHYS_Collider_Plane* c);
-void phys_dbg_d_collider_rect_cuboid(PHYS_DBG_DrawContext* ctx, PHYS_Collider_RectCuboid* c);
+void phys_dbg_d_collider_sphere(PHYS_DBG_DrawContext* ctx, PHYS_Collider* c);
+void phys_dbg_d_collider_plane(PHYS_DBG_DrawContext* ctx, PHYS_Collider* c);
+void phys_dbg_d_collider_rect_cuboid(PHYS_DBG_DrawContext* ctx, PHYS_Collider* c);
 
 void phys_dbg_d_constraint(PHYS_DBG_DrawContext* ctx, PHYS_Constraint* c);
 void phys_dbg_d_collider(PHYS_DBG_DrawContext* ctx, PHYS_Collider* c);

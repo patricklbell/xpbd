@@ -19,6 +19,9 @@ vec3_f32 normalize_3f32(vec3_f32 a)                 { f32 l = length_3f32(a); re
 vec3_f32 cross_3f32(vec3_f32 a, vec3_f32 b)         { return (vec3_f32) {.x = a.y*b.z - a.z*b.y,.y = -(a.x*b.z - a.z*b.x),.z = a.x*b.y - a.y*b.x}; }
 vec3_f32 reflect_3f32(vec3_f32 i, vec3_f32 n)       { return sub_3f32(i, mul_3f32(n, 2.0*dot_3f32(i, n))); }
 vec3_f32 lerp_3f32(vec3_f32 x, vec3_f32 y, f32 a)   { return (vec3_f32) {.x = (1.f-a)*x.x + a*y.x,.y = (1.f-a)*x.y + a*y.y,.z = (1.f-a)*x.z + a*y.z}; }
+vec3_f32 max_3f32(vec3_f32 a, vec3_f32 b)           { return (vec3_f32) {.x = Max(a.x,b.x),.y = Max(a.y,b.y),.z = Max(a.z,b.z)}; }
+vec3_f32 min_3f32(vec3_f32 a, vec3_f32 b)           { return (vec3_f32) {.x = Min(a.x,b.x),.y = Min(a.y,b.y),.z = Min(a.z,b.z)}; }
+vec3_f32 addscl_3f32(vec3_f32 a, f32 b)             { return (vec3_f32) {.x = a.x + b,.y = a.y + b,.z = a.z + b}; }
 
 vec4_f32 make_axis_angle_quat(f64 t, vec3_f32 a)    { f32 st = sin(t/2.), ct = cos(t/2.); return (vec4_f32) {.x = st*a.x,.y = st*a.y,.z = st*a.z,.w = ct};}
 vec4_f32 make_axis_quat(vec3_f32 a)                 { return (vec4_f32) {.x = a.x,.y = a.y,.z = a.z,.w = 0.f};}

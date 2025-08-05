@@ -1,5 +1,6 @@
 #include "common/common_inc.c"
 #include "os/os_inc.c"
+#include "hashgrid/hashgrid.c"
 #include "physics/physics_inc.c"
 #include "render/render_inc.c"
 #include "draw/draw.c"

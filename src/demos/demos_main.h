@@ -2,6 +2,7 @@
 
 #include "common/common_inc.h"
 #include "os/os_inc.h"
+#include "hashgrid/hashgrid.h"
 #include "physics/physics_inc.h"
 #include "render/render_inc.h"
 #include "draw/draw.h"

@@ -15,11 +15,9 @@ PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings){
     });
     PHYS_collider_id sphere = phys_world_add_collider(w, (PHYS_Collider){
         .type = PHYS_ColliderType_Sphere,
-        .sphere = {
-            .compliance = settings.compliance,
-            .c = center,
-            .r = settings.radius,
-        }
+        .p = center,
+        .r = settings.radius,
+        .compliance = settings.compliance,
     });
 
     return (PHYS_RigidBody){
@@ -40,9 +38,10 @@ PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings){
     });
     PHYS_collider_id rect_cuboid = phys_world_add_collider(w, (PHYS_Collider){
         .type = PHYS_ColliderType_RectCuboid,
+        .p = center,
+        .r = length_3f32(settings.extents),
+        .compliance = settings.compliance,
         .rect_cuboid = {
-            .compliance = settings.compliance,
-            .c = center,
             .r = settings.extents,
         }
     });
@@ -78,9 +77,9 @@ PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Set
             });
             result.areas[i] = phys_world_add_collider(w, (PHYS_Collider){
                 .type = PHYS_ColliderType_Plane,
+                .p = result.positions[i],
+                .compliance = 0.f,
                 .plane = {
-                    .compliance = 0.f,
-                    .p = result.positions[i],
                     .n = rot_quat(normal, settings.rotation),
                 }
             });
@@ -126,11 +125,9 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
 
         result.sphere_colliders[surf_i] = phys_world_add_collider(w, (PHYS_Collider){
             .type = PHYS_ColliderType_Sphere,
-            .sphere = {
-                .compliance = 0.f,
-                .c = result.vertices[v],
-                .r = w->min_r,
-            }
+            .p = result.vertices[v],
+            .r = w->min_r,
+            .compliance = 0.f,
         });
     }
 
@@ -293,11 +290,9 @@ PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
 
         result.sphere_colliders[vert_i] = phys_world_add_collider(w, (PHYS_Collider){
             .type = PHYS_ColliderType_Sphere,
-            .sphere = {
-                .compliance = 0.f,
-                .c = result.vertices[vert_i],
-                .r = settings.thickness,
-            }
+            .p = result.vertices[vert_i],
+            .r = settings.thickness,
+            .compliance = 0.f,
         });
     }
 

@@ -40,13 +40,15 @@ int demos_init_hook(DEMOS_CommonState* cs) {
         return 1;
     }
     
-    s.camera.eye    = (vec3_f32){.x = 0,.y =-2,.z =5};
+    s.camera.eye    = (vec3_f32){.x = 0,.y = 0,.z = 2};
     s.camera.target = (vec3_f32){.x = 0,.y =-2,.z = 0};
 
     {DeferResource(Temp scratch = scratch_begin_a(cs->arena), scratch_end(scratch)) {
-        s.world = phys_world_make((PHYS_WorldSettings){
-            .substeps=2,
-            .min_collision_distance = 0.001,
+        s.world = phys_make_world((PHYS_WorldSettings){
+            .substeps=4,
+            .min_collision_distance = 0.01,
+            .hashgrid_cell_size = 0.04,
+            .hashgrid_object_size = 0.01,
         }); 
         s.phys_dbg_draw_ctx = phys_dbg_d_make_context(s.world, dbgdraw_edge_batch, dbgdraw_point_batch);
         s.phys_dbg_draw_ctx.draw_forces = 1;
@@ -80,7 +82,7 @@ int demos_init_hook(DEMOS_CommonState* cs) {
             .arena = cs->arena,
             .thickness = 0.01,
             .mass = 0.2f,
-            .center = make_3f32(-0.5,0,-0.5),
+            .center = make_3f32(-0.5,-1,-0.5),
             .rotation = make_axis_angle_quat(PI/2.f, normalize_3f32(make_3f32(1,0,0))),
             .vertices               = cloth.v.points,
             .vertices_count         = cloth.v.points_count,
@@ -93,7 +95,7 @@ int demos_init_hook(DEMOS_CommonState* cs) {
         });
 
         s.ball_phys = phys_world_add_ball(s.world, (PHYS_Ball_Settings){
-            .center = make_3f32(0,-1,0),
+            .center = make_3f32(0,-1.5,0),
             .mass=0.2f,
             .radius = 0.2f,
         });
@@ -110,7 +112,7 @@ int demos_init_hook(DEMOS_CommonState* cs) {
 static void d_ball(PHYS_RigidBody* ball) {
     PHYS_Body* center = phys_world_resolve_body(s.world, ball->body_id);
     PHYS_Collider* collider = phys_world_resolve_collider(s.world, ball->collider_id);
-    f32 radius = collider->sphere.r;
+    f32 radius = collider->r;
 
     mat4x4_f32 t = matmul_4x4f32(
         make_translate_4x4f32(center->position),

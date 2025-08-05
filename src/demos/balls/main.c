@@ -40,7 +40,7 @@ int demos_init_hook(DEMOS_CommonState* cs) {
     s.camera.target = (vec3_f32){.x = 0,.y = 0,.z = 0};
 
     {
-        s.world = phys_world_make((PHYS_WorldSettings){});    
+        s.world = phys_make_world((PHYS_WorldSettings){});    
         
         phys_world_add_box_boundary(s.world, (PHYS_BoxBoundary_Settings){
             .extents=make_3f32(6,6,6)

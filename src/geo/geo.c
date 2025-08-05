@@ -158,10 +158,6 @@ void geo_calculate_points(
     }}
 }
 
-static vec3_f32* geo_off_vec3_f32(vec3_f32* ptr, u64 stride) {
-    return (vec3_f32*)(((void*)ptr) + stride);
-}
-
 // @note assume CCW winding order
 void geo_calculate_flat_normals(
     vec3_f32* in_p, u64 in_p_stride, u64 in_p_count,
@@ -170,14 +166,14 @@ void geo_calculate_flat_normals(
     vec3_f32* p = in_p;
     vec3_f32* n = out_n;
     for (u32 i = 0; i < in_p_count;) {
-        vec3_f32 u = sub_3f32(*p, *geo_off_vec3_f32(p, in_p_stride));
-        vec3_f32 v = sub_3f32(*geo_off_vec3_f32(p, 2*in_p_stride), *p);
+        vec3_f32 u = sub_3f32(*p, *OffsetPtr(p, in_p_stride, vec3_f32));
+        vec3_f32 v = sub_3f32(*OffsetPtr(p, 2*in_p_stride, vec3_f32), *p);
 
         vec3_f32 tri_n = normalize_3f32(cross_3f32(v, u)); // CCW
 
         for (
             int tri_i = 0; tri_i < 3; tri_i++, i++,
-            p=geo_off_vec3_f32(p, in_p_stride), n=geo_off_vec3_f32(n, in_n_stride)
+            p=OffsetPtr(p, in_p_stride, vec3_f32), n=OffsetPtr(n, in_n_stride, vec3_f32)
         ) {
             *n = tri_n;
         }
@@ -193,9 +189,9 @@ void geo_calculate_smooth_normals(
     for (u32 i = 0; i < in_indices_count; i+=3) {
         u32 i1 = in_indices[i], i2 = in_indices[i+1], i3 = in_indices[i+2];
 
-        vec3_f32* p1 = geo_off_vec3_f32(in_p, i1*in_p_stride);
-        vec3_f32* p2 = geo_off_vec3_f32(in_p, i2*in_p_stride);
-        vec3_f32* p3 = geo_off_vec3_f32(in_p, i3*in_p_stride);
+        vec3_f32* p1 = OffsetPtr(in_p, i1*in_p_stride, vec3_f32);
+        vec3_f32* p2 = OffsetPtr(in_p, i2*in_p_stride, vec3_f32);
+        vec3_f32* p3 = OffsetPtr(in_p, i3*in_p_stride, vec3_f32);
 
         vec3_f32 u = normalize_3f32(sub_3f32(*p2, *p1));
         vec3_f32 v = normalize_3f32(sub_3f32(*p3, *p1));
@@ -209,9 +205,9 @@ void geo_calculate_smooth_normals(
         f32 a2 = PI - acos_f32(dot_3f32(u, x));
         f32 a3 = acos_f32(dot_3f32(v, x));
 
-        vec3_f32* n1 = geo_off_vec3_f32(out_n, i1*in_n_stride);
-        vec3_f32* n2 = geo_off_vec3_f32(out_n, i2*in_n_stride);
-        vec3_f32* n3 = geo_off_vec3_f32(out_n, i3*in_n_stride);
+        vec3_f32* n1 = OffsetPtr(out_n, i1*in_n_stride, vec3_f32);
+        vec3_f32* n2 = OffsetPtr(out_n, i2*in_n_stride, vec3_f32);
+        vec3_f32* n3 = OffsetPtr(out_n, i3*in_n_stride, vec3_f32);
 
         *n1 = add_3f32(*n1, mul_3f32(tri_n, a1));
         *n2 = add_3f32(*n2, mul_3f32(tri_n, a2));
@@ -220,7 +216,7 @@ void geo_calculate_smooth_normals(
 
     // renormalized
     for (u32 i = 0; i < in_p_count; i++) {
-        vec3_f32* ni = geo_off_vec3_f32(out_n, i*in_n_stride);
+        vec3_f32* ni = OffsetPtr(out_n, i*in_n_stride, vec3_f32);
         *ni = normalize_3f32(*ni);
     }
 }

@@ -115,13 +115,13 @@ void phys_dbg_d_constraint_volume(PHYS_DBG_DrawContext* ctx, PHYS_Constraint_Vol
     ctx->draw_edge_batch(points, colors, points_count);
 }
 
-void phys_dbg_d_collider_sphere(PHYS_DBG_DrawContext* ctx, PHYS_Collider_Sphere* c) {
+void phys_dbg_d_collider_sphere(PHYS_DBG_DrawContext* ctx, PHYS_Collider* c) {
     return; // @todo
 }
-void phys_dbg_d_collider_plane(PHYS_DBG_DrawContext* ctx, PHYS_Collider_Plane* c) {
+void phys_dbg_d_collider_plane(PHYS_DBG_DrawContext* ctx, PHYS_Collider* c) {
     return; // @todo
 }
-void phys_dbg_d_collider_rect_cuboid(PHYS_DBG_DrawContext* ctx, PHYS_Collider_RectCuboid* c) {
+void phys_dbg_d_collider_rect_cuboid(PHYS_DBG_DrawContext* ctx, PHYS_Collider* c) {
     return; // @todo
 }
 
@@ -140,13 +140,13 @@ void phys_dbg_d_collider(PHYS_DBG_DrawContext* ctx, PHYS_Collider* c) {
     phys_dbg_use_color(ctx, ctx->collider_colors[c->type]);
     switch (c->type) {
         case PHYS_ColliderType_Sphere: {
-            phys_dbg_d_collider_sphere(ctx, &c->sphere);
+            phys_dbg_d_collider_sphere(ctx, c);
         }break;
         case PHYS_ColliderType_Plane: {
-            phys_dbg_d_collider_plane(ctx, &c->plane);
+            phys_dbg_d_collider_plane(ctx, c);
         }break;
         case PHYS_ColliderType_RectCuboid: {
-            phys_dbg_d_collider_rect_cuboid(ctx, &c->rect_cuboid);
+            phys_dbg_d_collider_rect_cuboid(ctx, c);
         }break;
     }
 }
