@@ -33,7 +33,7 @@ static vec3_f32 hsl_to_rgb(vec3_f32 hsl) {
         case 3:  return make_3f32(p, q, l);
         case 4:  return make_3f32(t, p, l);
         case 5:  return make_3f32(l, p, q);
-        default: Assert(0);
+        default: return make_3f32(1,1,1);
     }
 }
 

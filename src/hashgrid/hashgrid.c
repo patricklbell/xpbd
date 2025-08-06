@@ -46,13 +46,16 @@ HG_Hashgrid hg_build_hashgrid(
     grid.cells[grid.cells_count].object_index = count;
 
     // fill in object entries and change end to start index
-    for EachIndex(position_i, positions_count) {
-        vec3_f32* p = OffsetPtr(positions, positions_stride*position_i, vec3_f32);
+    for EachIndex(id, positions_count) {
+        vec3_f32* p = OffsetPtr(positions, positions_stride*id, vec3_f32);
         u32 hash = hg_hash_3f32(*p, grid.cell_length, grid.cells_count);
-        grid.cells[hash].object_index--;
+
+        // @note avoids floating point errors in hashing causing underflow
+        if (grid.cells[hash].object_index != 0)
+            grid.cells[hash].object_index--;
 
         u32 object_index = grid.cells[hash].object_index;
-        grid.objects[object_index] = position_i;
+        grid.objects[object_index] = id;
     }
 
     return grid;

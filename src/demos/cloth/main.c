@@ -45,7 +45,7 @@ int demos_init_hook(DEMOS_CommonState* cs) {
 
     {DeferResource(Temp scratch = scratch_begin_a(cs->arena), scratch_end(scratch)) {
         s.world = phys_make_world((PHYS_WorldSettings){
-            .substeps=4,
+            .substeps = 4,
             .min_collision_distance = 0.01,
             .hashgrid_cell_size = 0.04,
             .hashgrid_object_size = 0.01,
@@ -96,8 +96,8 @@ int demos_init_hook(DEMOS_CommonState* cs) {
 
         s.ball_phys = phys_world_add_ball(s.world, (PHYS_Ball_Settings){
             .center = make_3f32(0,-1.5,0),
-            .mass=0.2f,
-            .radius = 0.2f,
+            .mass = 10.f,
+            .radius = 0.25f,
         });
 
         phys_world_add_box_boundary(s.world, (PHYS_BoxBoundary_Settings){

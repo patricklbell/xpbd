@@ -30,7 +30,9 @@ int demos_init_hook(DEMOS_CommonState* cs) {
     s.camera.target = (vec3_f32){.x = 0,.y =-2,.z = 0};
     
     {DeferResource(Temp scratch = scratch_begin_a(cs->arena), scratch_end(scratch)) {
-        s.world = phys_make_world((PHYS_WorldSettings){.substeps=8,.linear_damping=0.1}); 
+        s.world = phys_make_world((PHYS_WorldSettings){
+            .substeps = 8,
+        }); 
         s.phys_dbg_draw_ctx = phys_dbg_d_make_context(s.world, dbgdraw_edge_batch, dbgdraw_point_batch);
         s.phys_dbg_draw_ctx.draw_forces = 1;
         s.phys_dbg_draw_ctx.min_force_color_hsl = make_3f32(240.f/360.f, 1.0, 0.5);

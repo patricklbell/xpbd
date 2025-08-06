@@ -5,13 +5,12 @@ void phys_world_remove_rigid_body(PHYS_World* w, PHYS_RigidBody* object) {
 }
 
 PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings){
-    Assert(settings.mass > 0.f);
     Assert(phys_world_valid_radius(w, settings.radius));
 
     PHYS_body_id center = phys_world_add_body(w, (PHYS_Body){
         .position = settings.center,
         .linear_velocity = settings.linear_velocity,
-        .inv_mass = 1.f / settings.mass,
+        .inv_mass = (settings.mass > 0.f) ? 1.f / settings.mass : 0.f,
     });
     PHYS_collider_id sphere = phys_world_add_collider(w, (PHYS_Collider){
         .type = PHYS_ColliderType_Sphere,
@@ -27,13 +26,11 @@ PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings){
 }
 
 PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings){
-    Assert(settings.mass > 0.f);
-
     PHYS_body_id center = phys_world_add_body(w, (PHYS_Body){
         .position = settings.center,
         .linear_velocity = settings.linear_velocity,
         .angular_velocity = settings.angular_velocity,
-        .inv_mass = 1.f / settings.mass,
+        .inv_mass = (settings.mass > 0.f) ? 1.f / settings.mass : 0.f,
         .inv_inertia = phys_inv_moment_rect_cuboid(mul_3f32(settings.extents, 2.0), settings.mass),
     });
     PHYS_collider_id rect_cuboid = phys_world_add_collider(w, (PHYS_Collider){
@@ -105,6 +102,7 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
     if (length_4f32(settings.rotation) == 0.f) {
         settings.rotation = make_identity_quat();
     }
+    Assert(settings.mass > 0.f);
 
     // vertices
     result.vertices_count = settings.vertices_count;
@@ -275,6 +273,10 @@ PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
     }
     settings.fiber_ratio_hint = Max(settings.fiber_ratio_hint, 1);
     Assert(phys_world_valid_radius(w, settings.thickness));
+    Assert(settings.mass > 0.f);
+
+    // introduces small instabilities to avoid unphysical behaviour
+    f32 jitter = 2.f*EPSILON_F32;
 
     // vertices + colliders
     result.vertices_count = settings.vertices_count;
@@ -283,7 +285,10 @@ PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
     result.sphere_colliders = push_array(settings.arena, PHYS_collider_id, result.sphere_colliders_count);
     for EachIndex(vert_i, result.vertices_count) {
         result.vertices[vert_i] = phys_world_add_body(w, (PHYS_Body){
-            .position = add_3f32(rot_quat(settings.vertices[vert_i], settings.rotation), settings.center),
+            .position = add_3f32(
+                add_3f32(rot_quat(settings.vertices[vert_i], settings.rotation), settings.center),
+                mul_3f32(make_3f32(rand_f32(),rand_f32(),rand_f32()), jitter)
+            ),
             .linear_velocity = settings.linear_velocity,
             .inv_mass = 1.f/(settings.mass / (f32)settings.vertices_count), // @todo area
         });
