@@ -26,10 +26,10 @@ Arena* thread_get_scratch(Arena** conflicts, u64 count) {
     ThreadCtx* ctx = thread_get_context();
 
     for EachElement(i, ctx->arenas) {
-        b32 is_conflicting = 0;
+        b32 is_conflicting = false;
         for EachIndex(j, count) {
             if (ctx->arenas[i] == conflicts[j]) {
-                is_conflicting = 1;
+                is_conflicting = true;
                 break;
             }
         }

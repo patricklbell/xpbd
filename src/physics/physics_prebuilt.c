@@ -11,12 +11,14 @@ PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings){
         .position = settings.center,
         .linear_velocity = settings.linear_velocity,
         .inv_mass = (settings.mass > 0.f) ? 1.f / settings.mass : 0.f,
+        .restitution = settings.resitution,
     });
     PHYS_collider_id sphere = phys_world_add_collider(w, (PHYS_Collider){
         .type = PHYS_ColliderType_Sphere,
         .p = center,
         .r = settings.radius,
-        .compliance = settings.compliance,
+        .static_friction = settings.coefficient_of_static_friction,
+        .dynamic_friction = settings.coefficient_of_dynamic_friction,
     });
 
     return (PHYS_RigidBody){
@@ -31,13 +33,14 @@ PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings){
         .linear_velocity = settings.linear_velocity,
         .angular_velocity = settings.angular_velocity,
         .inv_mass = (settings.mass > 0.f) ? 1.f / settings.mass : 0.f,
+        .has_inertia = true,
         .inv_inertia = phys_inv_moment_rect_cuboid(mul_3f32(settings.extents, 2.0), settings.mass),
+        .restitution = settings.resitution,
     });
     PHYS_collider_id rect_cuboid = phys_world_add_collider(w, (PHYS_Collider){
         .type = PHYS_ColliderType_RectCuboid,
         .p = center,
         .r = length_3f32(settings.extents),
-        .compliance = settings.compliance,
         .rect_cuboid = {
             .r = settings.extents,
         }
@@ -69,13 +72,14 @@ PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Set
 
             result.positions[i] = phys_world_add_body(w, (PHYS_Body){
                 .position = position,
-                .no_gravity = 1,
+                .no_gravity = true,
                 .inv_mass = 0.f,
+                .restitution = settings.resitution,
             });
             result.areas[i] = phys_world_add_collider(w, (PHYS_Collider){
                 .type = PHYS_ColliderType_Plane,
                 .p = result.positions[i],
-                .compliance = 0.f,
+                .r = MAX_F32,
                 .plane = {
                     .n = rot_quat(normal, settings.rotation),
                 }
@@ -99,8 +103,11 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
     PHYS_Softbody result;
 
     // @todo angular velocity
-    if (length_4f32(settings.rotation) == 0.f) {
+    if (dot_4f32(settings.rotation, settings.rotation) == 0.f) {
         settings.rotation = make_identity_quat();
+    }
+    if (dot_3f32(settings.scale, settings.scale) == 0.f) {
+        settings.scale = make_3f32(1,1,1);
     }
     Assert(settings.mass > 0.f);
 
@@ -109,8 +116,9 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
     result.vertices = push_array(settings.arena, PHYS_body_id, result.vertices_count);
     for EachIndex(vert_i, result.vertices_count) {
         result.vertices[vert_i] = phys_world_add_body(w, (PHYS_Body){
-            .position = add_3f32(rot_quat(settings.vertices[vert_i], settings.rotation), settings.center),
+            .position = phys_scale_rotate_translate(settings.vertices[vert_i], settings.scale, settings.rotation, settings.center),
             .linear_velocity = settings.linear_velocity,
+            .is_particle = true,
             .inv_mass = 0.0f, // will be filled when constructing tets
         });
     }
@@ -125,7 +133,7 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
             .type = PHYS_ColliderType_Sphere,
             .p = result.vertices[v],
             .r = w->min_r,
-            .compliance = 0.f,
+            .dynamic_friction = 1.f,
         });
     }
 
@@ -137,13 +145,19 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
         u32 v1 = settings.tetrahedron_edge_indices[edge_i*edge_size + 0];
         u32 v2 = settings.tetrahedron_edge_indices[edge_i*edge_size + 1];
 
+        f32 d = length_3f32(elmul_3f32(sub_3f32(settings.vertices[v1], settings.vertices[v2]), settings.scale));
+
+        if (d < 2.f*w->min_r) {
+            fprintf(stderr, "degenerate edge in softbody, moving points apart\n");
+            d = 2.f*w->min_r;
+        }
         result.distance_constraints[edge_i] = phys_world_add_constraint(w, (PHYS_Constraint){
+            .compliance = settings.edge_compliance,
             .type = PHYS_ConstraintType_Distance,
             .distance = {
-                .compliance = settings.edge_compliance,
                 .b1 = result.vertices[v1],
                 .b2 = result.vertices[v2],
-                .d = length_3f32(sub_3f32(settings.vertices[v1], settings.vertices[v2]))
+                .d = d,
             }
         });
     }
@@ -161,10 +175,10 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
         u32 v4 = settings.tetrahedron_indices[tetrahedron_i*tetrahedron_size + 3];
 
         f32 v_rest = phys_tetrahedron_volume(
-            settings.vertices[v1],
-            settings.vertices[v2],
-            settings.vertices[v3],
-            settings.vertices[v4]
+            elmul_3f32(settings.vertices[v1], settings.scale),
+            elmul_3f32(settings.vertices[v2], settings.scale),
+            elmul_3f32(settings.vertices[v3], settings.scale),
+            elmul_3f32(settings.vertices[v4], settings.scale)
         );
 
         // distribute mass among vertices (normalize and inverse after)
@@ -176,9 +190,9 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
         }
 
         result.volume_constraints[tetrahedron_i] = phys_world_add_constraint(w, (PHYS_Constraint){
+            .compliance = settings.volume_compliance,
             .type = PHYS_ConstraintType_Volume,
             .volume = {
-                .compliance = settings.volume_compliance,
                 .p = {
                     result.vertices[v1],
                     result.vertices[v2],
@@ -234,24 +248,17 @@ static void phys_world_add_cloth_build_fiber_constraints(PHYS_World* w, PHYS_Clo
         vec3_f32 dn = normalize_3f32(d);
 
         f32 compliance = 0.f;
-        b32 active = 0;
+        b32 active = false;
         for EachIndex(fiber_i, settings.fibers_counts[depth]) {
             f32 align = dot_3f32(dn, settings.fibers[depth][fiber_i].direction);
             if (abs_f32(1.f - align) > EPSILON_F32)
                 continue;
 
-            active = 1;
+            active = true;
             compliance+=settings.fibers[depth][fiber_i].compliance;
         }
 
         if (active) {
-            // ensure order indepedence
-            if (hash.i > hash.j) {
-                u32 temp = hash.i;
-                hash.i = hash.j;
-                hash.j = temp;
-            }
-            
             GEO_EdgeMapNode* edge = geo_edge_map_add_edge(edges, hash);
             edge->data += compliance;
         }
@@ -265,8 +272,11 @@ PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
     PHYS_Cloth result;
 
     // solve settings
-    if (length_4f32(settings.rotation) == 0.f) {
+    if (dot_4f32(settings.rotation, settings.rotation) == 0.f) {
         settings.rotation = make_identity_quat();
+    }
+    if (dot_3f32(settings.scale, settings.scale) == 0.f) {
+        settings.scale = make_3f32(1,1,1);
     }
     if (settings.thickness == 0.f) {
         settings.thickness = w->min_r;
@@ -276,7 +286,7 @@ PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
     Assert(settings.mass > 0.f);
 
     // introduces small instabilities to avoid unphysical behaviour
-    f32 jitter = 2.f*EPSILON_F32;
+    f32 jitter = settings.thickness*0.01f;
 
     // vertices + colliders
     result.vertices_count = settings.vertices_count;
@@ -286,9 +296,10 @@ PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
     for EachIndex(vert_i, result.vertices_count) {
         result.vertices[vert_i] = phys_world_add_body(w, (PHYS_Body){
             .position = add_3f32(
-                add_3f32(rot_quat(settings.vertices[vert_i], settings.rotation), settings.center),
+                phys_scale_rotate_translate(settings.vertices[vert_i], settings.scale, settings.rotation, settings.center),
                 mul_3f32(make_3f32(rand_f32(),rand_f32(),rand_f32()), jitter)
             ),
+            .is_particle = true,
             .linear_velocity = settings.linear_velocity,
             .inv_mass = 1.f/(settings.mass / (f32)settings.vertices_count), // @todo area
         });
@@ -297,7 +308,7 @@ PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
             .type = PHYS_ColliderType_Sphere,
             .p = result.vertices[vert_i],
             .r = settings.thickness,
-            .compliance = 0.f,
+            .dynamic_friction = 1.f,
         });
     }
 
@@ -328,13 +339,18 @@ PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
                 vec3_f32 pi = settings.vertices[n_edge->hash.i];
                 vec3_f32 pj = settings.vertices[n_edge->hash.j];
 
+                f32 d = length_3f32(elmul_3f32(sub_3f32(pj, pi), settings.scale));
+                if (d < 2.f*settings.thickness) {
+                    fprintf(stderr, "self collision at rest in cloth, skipping constraint\n");
+                    continue;
+                }
                 result.distance_constraints[distance_constraint_offset] = phys_world_add_constraint(w, (PHYS_Constraint){
+                    .compliance = n_edge->data,
                     .type = PHYS_ConstraintType_Distance,
                     .distance = {
-                        .compliance = n_edge->data,
                         .b1 = result.vertices[n_edge->hash.i],
                         .b2 = result.vertices[n_edge->hash.j],
-                        .d = length_3f32(sub_3f32(pj, pi)),
+                        .d = d,
                     }
                 });
                 distance_constraint_offset++;

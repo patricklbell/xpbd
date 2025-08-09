@@ -11,9 +11,11 @@ typedef struct PHYS_Ball_Settings PHYS_Ball_Settings;
 struct PHYS_Ball_Settings {
     f32 radius;
     f32 mass;
-    f32 compliance;
+    f32 resitution;
     vec3_f32 center;
     vec3_f32 linear_velocity;
+    f32 coefficient_of_dynamic_friction;
+    f32 coefficient_of_static_friction;
 };
 
 PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings);
@@ -21,7 +23,7 @@ PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings);
 typedef struct PHYS_Box_Settings PHYS_Box_Settings;
 struct PHYS_Box_Settings {
     f32 mass;
-    f32 compliance;
+    f32 resitution;
     vec3_f32 center;
     vec3_f32 extents;
     vec3_f32 linear_velocity;
@@ -41,6 +43,7 @@ struct PHYS_BoxBoundary_Settings {
     vec3_f32 center;
     vec4_f32 rotation;
     vec3_f32 extents;
+    f32 resitution;
 };
 
 PHYS_BoxBoundary    phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Settings settings);
@@ -70,6 +73,7 @@ struct PHYS_TetTriSoftbody_Settings {
     f32 volume_compliance;
     vec3_f32 center;
     vec4_f32 rotation;
+    vec3_f32 scale;
     vec3_f32 linear_velocity;
 
     vec3_f32* vertices;
@@ -112,6 +116,7 @@ struct PHYS_Cloth_Settings {
     f32 mass;
     vec3_f32 center;
     vec4_f32 rotation;
+    vec3_f32 scale;
     vec3_f32 linear_velocity;
 
     vec3_f32* vertices;

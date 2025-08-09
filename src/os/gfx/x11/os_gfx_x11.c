@@ -105,7 +105,7 @@ static b32 os_gfx_x11_button_to_event(OS_Handle window, OS_Event* event, XButton
         // @todo why are these missing?
         // case Button6: wheel_x = -1; break;
         // case Button7: wheel_x = +1; break;
-        default:      return 0;
+        default:      return false;
     }
 
     // x11 generates a press & release event for every frame for scrolling,
@@ -113,12 +113,12 @@ static b32 os_gfx_x11_button_to_event(OS_Handle window, OS_Event* event, XButton
     if (wheel_x || wheel_y) {
         // ignore release
         if (xbutton->type != ButtonPress) {
-            return 0;
+            return false;
         }
 
         event->type         = OS_EventType_Wheel;
         event->wheel_delta  = mul_2f32(make_2f32((f32)wheel_x, (f32)wheel_y), OS_GFX_X11_WHEEL_UNIT_TO_PX);
-        return 1;
+        return true;
     }
 
     event->mouse_position = os_gfx_x11_transform_mouse(window, xbutton->x, xbutton->y);
@@ -130,23 +130,23 @@ static b32 os_gfx_x11_button_to_event(OS_Handle window, OS_Event* event, XButton
         default: InvalidPath;
     }
 
-    return 1;
+    return true;
 }
 
 static b32 os_gfx_x11_client_message_to_event(OS_Handle window, OS_Event* event, XClientMessageEvent* xclient) {
     if (xclient->data.l[0] == os_gfx_x11_state.atom_wm_close) {
         event->type = OS_EventType_Quit;
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 static b32 os_gfx_x11_motion_notify_to_event(OS_Handle window, OS_Event* event, XMotionEvent* xmotion) {
     event->type = OS_EventType_MouseMove;
     event->mouse_position = os_gfx_x11_transform_mouse(window, xmotion->x, xmotion->y);
 
-    return 1;
+    return true;
 
 }
 
@@ -158,7 +158,7 @@ OS_Events os_gfx_window_poll_events(Arena* arena, OS_Handle window) {
         XNextEvent(os_gfx_x11_state.display, &xevent);
         
         // build os event from xevent
-        b32 handled = 0;
+        b32 handled = false;
         OS_Event os_event = zero_struct;
         switch (xevent.type) {
             case ButtonPress:
@@ -174,7 +174,7 @@ OS_Events os_gfx_window_poll_events(Arena* arena, OS_Handle window) {
                 handled |= os_gfx_x11_client_message_to_event(window, &os_event, &xevent.xclient);
 
                 if (os_event.type == OS_EventType_Quit) {
-                    events.quit = 1;
+                    events.quit = true;
                 }
                 break;
             }

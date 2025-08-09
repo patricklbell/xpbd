@@ -3,7 +3,7 @@ set -e
 
 # Default configuration
 CC=${CC:-gcc}
-CFLAGS="${CFLAGS} -g -I src"
+CFLAGS="${CFLAGS} -I src"
 LDFLAGS="${LDFLAGS} -lm"
 LDFLAGS_GFX="-lX11 -lXext"
 
@@ -80,24 +80,46 @@ build_demos() {
 build_emcc() {
     CC="emcc"
     LDFLAGS="${LDFLAGS}"
-    LDFLAGS_GFX="-sFETCH -sEXPORTED_FUNCTIONS=['_main','_os_gfx_wasm_resize_callback'] -sALLOW_BLOCKING_ON_MAIN_THREAD=1 -sFULL_ES3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sGL_SUPPORT_SIMPLE_ENABLE_EXTENSIONS"
+    LDFLAGS_GFX="-sFETCH -sEXPORTED_FUNCTIONS=['_main','_os_gfx_wasm_resize_callback'] -sFULL_ES3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sGL_SUPPORT_SIMPLE_ENABLE_EXTENSIONS"
     BUILD_DIR="docs/demos"
     BUILD_EXT=".html"
-    CFLAGS="${CFLAGS} --shell-file docs/emcc-template.html --pre-js docs/emcc-pre.js -pthread -sINITIAL_MEMORY=1024mb -sALLOW_MEMORY_GROWTH=1 -sTOTAL_STACK=512mb"
+    CFLAGS="${CFLAGS} --shell-file docs/emcc-template.html --pre-js docs/emcc-pre.js -pthread -sINITIAL_MEMORY=1024mb -sTOTAL_STACK=512mb"
     
     mkdir -p "${BUILD_DIR}"
     build_demos $1
 }
 
 # Main command handling
-case "$1" in
+# Filter flags
+filtered_main_args=()
+
+RELEASE=0
+for arg in "$@"; do
+    case "$arg" in
+        --release)
+            RELEASE=1
+            ;;
+        *)
+            filtered_main_args+=("$arg")
+            ;;
+    esac
+done
+
+# handle flags
+if [[ $RELEASE -eq 1 ]]; then
+    CFLAGS="${CFLAGS} -O3"
+else
+    CFLAGS="${CFLAGS} -g -O0"
+fi
+
+case "${filtered_main_args[0]}" in
     clean)
         clean
         ;;
     emcc)
-        build_emcc $2
+        build_emcc "${filtered_main_args[@]:1}"
         ;;
     *)
-        build_demos $1
+        build_demos "${filtered_main_args[@]}"
         ;;
 esac

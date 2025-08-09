@@ -304,7 +304,7 @@ mat4x4_f32 inv_4x4f32(mat4x4_f32 m) {
     vec4_f32 sign_b = { -1, +1, -1, +1 };
 
     mat4x4_f32 inv;
-    for(int i = 0; i < 4; i += 1) {
+    for(int i = 0; i < 4; i++) {
         inv.v[0][i] = inv0.v[i] * sign_a.v[i];
         inv.v[1][i] = inv1.v[i] * sign_b.v[i];
         inv.v[2][i] = inv2.v[i] * sign_a.v[i];

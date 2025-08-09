@@ -36,6 +36,7 @@ typedef enum R_VertexTopology {
     R_VertexTopology_LineStrip,
     R_VertexTopology_Triangles,
     R_VertexTopology_TriangleStrip,
+    R_VertexTopology_Quads,
     R_VertexTopology_COUNT ENUM_CASE_UNUSED,
 } R_VertexTopology;
 

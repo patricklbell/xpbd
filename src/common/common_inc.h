@@ -6,3 +6,4 @@
 #include "common_arena.h"
 #include "common_str.h"
 #include "common_thread.h"
+#include "common_colors.h"

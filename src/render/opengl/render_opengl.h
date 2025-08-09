@@ -59,6 +59,8 @@ static const GLenum r_ogl_topology_mode[] = {
     GL_TRIANGLES,
     // R_VertexTopology_TriangleStrip
     GL_TRIANGLE_STRIP,
+    // R_VertexTopology_Quads
+    GL_QUADS,
 };
 
 typedef struct OGL_ResourceKindMetadata OGL_ResourceKindMetadata;
@@ -155,9 +157,10 @@ static const NTString8 r_ogl_lambertian_fragment_shader_src = ntstr8_lit_init(
     "   vec3 i = -normalize(vec3(1., -1., -1.));"
     ""
     "   vec3 n = normalize(vs_normal);"
-    "   float idotn = clamp(dot(i, n), 0., 1.);"
+    "   float idotn = max(dot(i, n), 0.);"
     "   float ambient = 0.3;"
-    "   vec3 Lr = ((1.-ambient)*idotn + ambient)*albedo;"
+    "   float subsurface = 0.1 * (1.0 - idotn) * 0.5;"
+    "   vec3 Lr = ((1.-ambient)*idotn + subsurface + ambient)*albedo;"
     "   out_color = vec4(Lr, 1.);"
     "}"
 );

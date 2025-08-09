@@ -93,7 +93,7 @@ HG_QueryResult hg_hashgrid_query(
 
 HG_BatchQueryResult hg_hashgrid_batch_query(
     HG_Hashgrid* grid, Arena* arena, u32 expected_hits,
-    f32 radius, vec3_f32* positions, u64 positions_stride, void* data, u64 data_stride, u32 object_count
+    f32 radius, vec3_f32* positions, u64 positions_stride, u64* data, u64 data_stride, u32 object_count
 ) {
     f32 radius2 = radius*radius;
 
@@ -105,13 +105,12 @@ HG_BatchQueryResult hg_hashgrid_batch_query(
         .hits_count = 0,
     };
 
-    result.hits_data = push_array(arena, void*, result.hits_capacity);
+    result.hits_data = push_array(arena, u64, result.hits_capacity);
 
     for EachIndex(id0, object_count) {
         result.object_hits_start[id0] = result.hits_count;
 
         vec3_f32* p0 = OffsetPtr(positions, positions_stride*id0, vec3_f32);
-        void* d0 = OffsetPtr(data, data_stride*id0, void);
 
         {DeferResource(Temp scratch = scratch_begin_a(arena), scratch_end(scratch)) {
             HG_QueryResult query = hg_hashgrid_query(grid, scratch.arena, radius, *p0);
@@ -123,7 +122,6 @@ HG_BatchQueryResult hg_hashgrid_batch_query(
                 if (id1 >= id0) continue;
 
                 vec3_f32* p1 = OffsetPtr(positions, positions_stride*id1, vec3_f32);
-                void* d1 = OffsetPtr(data, data_stride*id1, void);
 
                 vec3_f32 d = sub_3f32(*p1, *p0);
                 if (dot_3f32(d, d) > radius2) continue;
@@ -132,12 +130,13 @@ HG_BatchQueryResult hg_hashgrid_batch_query(
                 // resize dynamic array if needed
                 if (result.hits_count >= result.hits_capacity) {
                     result.hits_capacity *= HG_BATCH_QUERY_DYNAMIC_ARRAY_GROW_RATE;
-                    void** tmp = push_array(arena, void*, result.hits_capacity);
+                    u64* tmp = push_array(arena, u64, result.hits_capacity);
                     memcpy(tmp, result.hits_data, sizeof(*tmp)*result.hits_count);
                     result.hits_data = tmp;
                 }
 
-                result.hits_data[result.hits_count] = d1;
+                u64* d1 = OffsetPtr(data, data_stride*id1, u64);
+                result.hits_data[result.hits_count] = *d1;
                 result.hits_count++;
             }
         }}

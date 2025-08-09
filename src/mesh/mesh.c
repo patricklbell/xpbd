@@ -2,10 +2,10 @@
 static b32 ms_hash_is_eq(MS_VertexMapHash a, MS_VertexMapHash b) {
     for EachElement(i, a.indices) {
         if (a.indices[i] != b.indices[i]) {
-            return 0;
+            return false;
         }
     }
-    return 1;
+    return true;
 }
 
 static MS_VertexMap ms_make_vertex_map(Arena* arena, u64 slots_count) {

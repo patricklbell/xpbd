@@ -7,13 +7,13 @@ NTString8 make_ntstr8(u8* data, u64 length) {
 
 b8 ntstr8_begins_with(NTString8 str, const char* prefix) {
     if (strlen(prefix) > str.length) {
-        return 0;
+        return false;
     }
 
     for EachIndex(i, strlen(prefix)) {
         if (str.data[i] != prefix[i]) {
-            return 0;
+            return false;
         }
     }
-    return 1;
+    return true;
 }

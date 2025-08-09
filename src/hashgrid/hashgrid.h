@@ -64,7 +64,7 @@ struct HG_BatchQueryResult {
     u32* object_hits_start;
     u32 object_count;
 
-    void** hits_data;
+    u64* hits_data;
     u32 hits_capacity;
     u32 hits_count;
 };
@@ -73,5 +73,5 @@ struct HG_BatchQueryResult {
 
 HG_BatchQueryResult hg_hashgrid_batch_query(
     HG_Hashgrid* grid, Arena* arena, u32 expected_hits,
-    f32 radius, vec3_f32* positions, u64 positions_stride, void* data, u64 data_stride, u32 object_count
+    f32 radius, vec3_f32* positions, u64 positions_stride, u64* data, u64 data_stride, u32 object_count
 );

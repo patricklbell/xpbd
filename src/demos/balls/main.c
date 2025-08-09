@@ -1,7 +1,7 @@
 #include "../demos_main.h"
 #include "../demos_main.c"
 
-#define BALLS_COUNT 10
+#define BALLS_COUNT 9
 
 typedef struct Ball Ball;
 struct Ball {
@@ -36,34 +36,40 @@ int demos_init_hook(DEMOS_CommonState* cs) {
     s.sphere_flags = sphere.v.flags;
     s.sphere_topology = sphere.v.topology;
 
-    s.camera.eye    = (vec3_f32){.x = 0,.y = 0,.z =30};
-    s.camera.target = (vec3_f32){.x = 0,.y = 0,.z = 0};
+    s.camera.eye    = (vec3_f32){.x = 0,.y =-2,.z = 10};
+    s.camera.target = (vec3_f32){.x = 0,.y =-2,.z = 0};
 
     {
-        s.world = phys_make_world((PHYS_WorldSettings){});    
+        s.world = phys_make_world((PHYS_WorldSettings){
+            .restitution_calculation = PHYS_CoefficientCalculation_Max,
+            .dynamic_friction_calculation = PHYS_CoefficientCalculation_Max,
+        });    
         
-        phys_world_add_box_boundary(s.world, (PHYS_BoxBoundary_Settings){
-            .extents=make_3f32(6,6,6)
-        });
+        srand(31415);
         for EachElement(i, s.balls) {
-            f32 radius = rand_f32()*1.0f + 0.5f;
+            f32 radius = rand_f32()*0.4f + 0.1f;
             f32 density = 1.0f;
-            vec3_f32 linear_velocity = make_3f32(rand_f32()*10, rand_f32()*10, rand_f32()*10);
+            f32 resitution = rand_f32();
             PHYS_Ball_Settings settings = {
                 .radius=radius,
                 .mass=radius*radius*radius*(3.f/4.f)*PI*density,
-                .compliance = 0.0001f,
-                .center=make_3f32(rand_f32()*6-3, 0, rand_f32()*6-3),
-                .linear_velocity=linear_velocity,
+                .resitution = resitution,
+                .center=make_3f32((i - BALLS_COUNT/2)*1.f, 0, 0),
+                .linear_velocity=make_3f32(0, rand_f32()*5, rand_f32()*5.0),
+                .coefficient_of_dynamic_friction = 0.02,
             };
             PHYS_body_id center_id = phys_world_add_ball(s.world, settings).body_id;
 
             s.balls[i] = (Ball){
                 .center_id = center_id,
-                .color = normalize_3f32(linear_velocity),
+                .color = hsl_to_rgb(make_3f32(resitution,1.0,1.0)),
                 .radius = radius,
             };
         }
+
+        phys_world_add_box_boundary(s.world, (PHYS_BoxBoundary_Settings){
+            .extents=make_3f32(BALLS_COUNT,4,4),
+        });
     }
 
     s.time = os_now_seconds();

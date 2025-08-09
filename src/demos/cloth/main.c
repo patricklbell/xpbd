@@ -8,14 +8,13 @@ struct SoftbodyState {
     R_VertexFlag sphere_flags;
     R_VertexTopology sphere_topology;
 
-    R_Handle cloth_vertices;
-
-    MS_Mesh cloth_mesh;
+    R_Handle cloth_indices[2];
+    R_Handle cloth_vertices[2];
+    MS_Mesh cloth_mesh[2];
 
     DEMOS_Camera camera;
 
     PHYS_World* world;
-    PHYS_DBG_DrawContext phys_dbg_draw_ctx;
     PHYS_Cloth cloth_phys;
     PHYS_RigidBody ball_phys;
     
@@ -40,21 +39,19 @@ int demos_init_hook(DEMOS_CommonState* cs) {
         return 1;
     }
     
-    s.camera.eye    = (vec3_f32){.x = 0,.y = 0,.z = 2};
-    s.camera.target = (vec3_f32){.x = 0,.y =-2,.z = 0};
+    s.camera.eye    = (vec3_f32){.x = 0,.y =-1.3,.z = 1};
+    s.camera.target = (vec3_f32){.x = 0,.y =-1.8,.z = 0};
 
     {DeferResource(Temp scratch = scratch_begin_a(cs->arena), scratch_end(scratch)) {
+        f32 thickness = 0.01;
         s.world = phys_make_world((PHYS_WorldSettings){
-            .substeps = 4,
-            .min_collision_distance = 0.01,
-            .hashgrid_cell_size = 0.04,
-            .hashgrid_object_size = 0.01,
-        }); 
-        s.phys_dbg_draw_ctx = phys_dbg_d_make_context(s.world, dbgdraw_edge_batch, dbgdraw_point_batch);
-        s.phys_dbg_draw_ctx.draw_forces = 1;
-        s.phys_dbg_draw_ctx.min_force_color_hsl = make_3f32(240.f/360.f, 1.0, 0.5);
-        s.phys_dbg_draw_ctx.max_force_color_hsl = make_3f32(000.f/360.f, 1.0, 0.5);
-        s.phys_dbg_draw_ctx.body_radius = 0.01;
+            .substeps = 10,
+            .linear_damping = 0.5,
+            .min_collision_distance = thickness,
+            .hashgrid_cell_size = 0.2,
+            .hashgrid_object_size = thickness,
+            .dynamic_friction_calculation = PHYS_CoefficientCalculation_Max,
+        });
 
         u32 edge_indices_count;
         u32* edge_indices;
@@ -69,10 +66,10 @@ int demos_init_hook(DEMOS_CommonState* cs) {
             {/*stretch-u*/ .compliance=0.f, .direction=make_3f32(0,1,0)},
         };
         PHYS_ClothFiber_Settings fibers_depth2[] = {
-            {/*shear-ur*/ .compliance=0.0001f, .direction=normalize_3f32(make_3f32(1,1,0))},
-            {/*shear-dr*/ .compliance=0.0001f, .direction=normalize_3f32(make_3f32(1,-1,0))},
-            {/*bend-rr*/ .compliance=1.f, .direction=make_3f32(1,0,0)},
-            {/*bend-uu*/ .compliance=1.f, .direction=make_3f32(0,1,0)},
+            {/*shear-ur*/ .compliance=1.0f, .direction=normalize_3f32(make_3f32(1,1,0))},
+            {/*shear-dr*/ .compliance=1.0f, .direction=normalize_3f32(make_3f32(1,-1,0))},
+            {/*bend-rr*/ .compliance=3.f, .direction=make_3f32(1,0,0)},
+            {/*bend-uu*/ .compliance=3.f, .direction=make_3f32(0,1,0)},
         };
         int fibers_counts[] = {ArrayLength(fibers_depth1), ArrayLength(fibers_depth2)};
         PHYS_ClothFiber_Settings* fibers[] = {fibers_depth1, fibers_depth2};
@@ -80,10 +77,11 @@ int demos_init_hook(DEMOS_CommonState* cs) {
 
         s.cloth_phys = phys_world_add_cloth(s.world, (PHYS_Cloth_Settings){
             .arena = cs->arena,
-            .thickness = 0.01,
-            .mass = 0.2f,
-            .center = make_3f32(-0.5,-1,-0.5),
+            .thickness = thickness,
+            .mass = 1.2f,
+            .center = make_3f32(-0.2,-1,-0.2),
             .rotation = make_axis_angle_quat(PI/2.f, normalize_3f32(make_3f32(1,0,0))),
+            .scale = mul_3f32(make_3f32(1.f,1.f,1.f), 1.f/2.4f),
             .vertices               = cloth.v.points,
             .vertices_count         = cloth.v.points_count,
             .edge_indices           = edge_indices,
@@ -97,13 +95,30 @@ int demos_init_hook(DEMOS_CommonState* cs) {
         s.ball_phys = phys_world_add_ball(s.world, (PHYS_Ball_Settings){
             .center = make_3f32(0,-1.5,0),
             .mass = 10.f,
-            .radius = 0.25f,
+            .radius = 0.1f,
         });
 
         phys_world_add_box_boundary(s.world, (PHYS_BoxBoundary_Settings){
             .extents=make_3f32(2,2,2),
         });
     }}
+
+    // setup visual mesh
+    for EachElement(i, s.cloth_mesh) {
+        s.cloth_mesh[i].flags = R_VertexFlag_PN;
+        s.cloth_mesh[i].topology = R_VertexTopology_Triangles;
+        geo_triangulate(
+            cs->arena, GEO_Topology_Quad, /*cw*/ i,
+            /*in*/ cloth.v.indices[VTK_CellType_Quad], cloth.v.indices_counts[VTK_CellType_Quad],
+            /*out*/ &s.cloth_mesh[i].indices, &s.cloth_mesh[i].indices_count
+        );
+        s.cloth_mesh[i].vertices_count = cloth.v.points_count;
+        Assert(s.cloth_phys.vertices_count == s.cloth_mesh[i].vertices_count);
+        s.cloth_mesh[i].vertices = arena_push(cs->arena, s.cloth_mesh[i].vertices_count*r_vertex_size(s.cloth_mesh[i].flags), r_vertex_align(s.cloth_mesh[i].flags));
+    
+        s.cloth_indices[i] = r_buffer_alloc(R_ResourceKind_Stream, R_ResourceHint_Indices, s.cloth_mesh[i].indices_count*sizeof(*s.cloth_mesh[i].indices), s.cloth_mesh[i].indices);
+        s.cloth_vertices[i] = r_buffer_alloc(R_ResourceKind_Stream, R_ResourceHint_Array, s.cloth_mesh[i].vertices_count*r_vertex_size(s.cloth_mesh[i].flags), NULL);
+    }
 
     s.time = os_now_seconds();
     return 0;
@@ -118,7 +133,36 @@ static void d_ball(PHYS_RigidBody* ball) {
         make_translate_4x4f32(center->position),
         make_scale_4x4f32(make_3f32(radius, radius, radius))
     );
-    d_mesh(s.sphere_vertices, s.sphere_flags, s.sphere_indices, s.sphere_topology, R_Mesh3DMaterial_Lambertian, t, make_3f32(1,0,0));
+    d_mesh(s.sphere_vertices, s.sphere_flags, s.sphere_indices, s.sphere_topology, R_Mesh3DMaterial_Lambertian, t, make_3f32(0.7,0.7,0.7));
+}
+
+static void d_cloth(PHYS_Cloth* cloth) {
+    for EachElement(i, s.cloth_mesh) {
+        MS_Mesh* m = &s.cloth_mesh[i];
+
+        vec3_f32* p_start = OffsetPtr(m->vertices, r_vertex_offset(m->flags, R_VertexFlag_P), vec3_f32);
+        vec3_f32* n_start = OffsetPtr(m->vertices, r_vertex_offset(m->flags, R_VertexFlag_N), vec3_f32);
+        u64 p_stride = r_vertex_stride(m->flags, R_VertexFlag_P);
+        u64 n_stride = r_vertex_stride(m->flags, R_VertexFlag_N);
+        
+        for EachIndex(i, cloth->vertices_count) {
+            vec3_f32 body_p = phys_world_resolve_body(s.world, cloth->vertices[i])->position;
+            *OffsetPtr(p_start, i*p_stride, R_VertexType_P) = body_p;
+            *OffsetPtr(n_start, i*n_stride, R_VertexType_N) = make_3f32(0,0,0);
+        }
+    
+        geo_calculate_smooth_normals(
+            GEO_Topology_Triangle,
+            p_start, p_stride, m->vertices_count,
+            m->indices, m->indices_count,
+            n_start, n_stride
+        );
+    
+        r_buffer_load(s.cloth_vertices[i], 0, m->vertices_count*r_vertex_size(m->flags), m->vertices);
+    
+        vec3_f32 color = mul_3f32(normalize_3f32(make_3f32(0.5+0.5*i,0.5*i,0)), 2.f);
+        d_mesh(s.cloth_vertices[i], m->flags, s.cloth_indices[i], m->topology, R_Mesh3DMaterial_Lambertian, make_diagonal_4x4f32(1.f), color);
+    }
 }
 
 void demos_frame_hook(DEMOS_CommonState* cs) {
@@ -137,17 +181,7 @@ void demos_frame_hook(DEMOS_CommonState* cs) {
     demos_d_begin_3d_pass_camera(cs->window, &s.camera);
     {
         d_ball(&s.ball_phys);
-    }
-    d_submit_pipeline(cs->window, cs->rwindow);
-
-    // @todo draw buckets
-    d_begin_pipeline();
-    demos_d_begin_3d_pass_camera(cs->window, &s.camera);
-    {
-        dbgdraw_begin();
-        phys_dbg_d_constraints(&s.phys_dbg_draw_ctx, NULL, 0);
-        phys_dbg_d_bodies(&s.phys_dbg_draw_ctx);
-        dbgdraw_submit(cs->window, cs->rwindow);
+        d_cloth(&s.cloth_phys);
     }
     d_submit_pipeline(cs->window, cs->rwindow);
 

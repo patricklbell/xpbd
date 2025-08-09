@@ -11,8 +11,8 @@ void input_update(OS_Events* events) {
     Temp scratch = scratch_begin(NULL, 0);
 
     // reset state
-    input_state->is_mouse_moving = 0;
-    input_state->is_wheel_moving = 0;
+    input_state->is_mouse_moving = false;
+    input_state->is_wheel_moving = false;
     input_state->mouse_delta = (vec2_f32){};
     input_state->wheel_delta = (vec2_f32){};
 
@@ -30,15 +30,15 @@ void input_update(OS_Events* events) {
             }
 
             input_state->mouse_position = event->mouse_position;
-            input_state->is_mouse_position_accurate = 1;
-            input_state->is_mouse_moving = 1;
+            input_state->is_mouse_position_accurate = true;
+            input_state->is_mouse_moving = true;
         } else if (event->type == OS_EventType_Press) {
-            input_state->held[event->key] = 1;
+            input_state->held[event->key] = true;
         } else if (event->type == OS_EventType_Release) {
-            input_state->held[event->key] = 0;
+            input_state->held[event->key] = false;
         } else if (event->type == OS_EventType_Wheel) {
             input_state->wheel_delta = add_2f32(input_state->wheel_delta, event->wheel_delta);
-            input_state->is_wheel_moving = 1;
+            input_state->is_wheel_moving = true;
         }
     }
     

@@ -45,14 +45,12 @@ int demos_init_hook(DEMOS_CommonState* cs) {
     {
         s.world = phys_make_world((PHYS_WorldSettings){});
         s.phys_dbg_draw_ctx = phys_dbg_d_make_context(s.world, dbgdraw_edge_batch, dbgdraw_point_batch);
-        s.phys_dbg_draw_ctx.draw_forces = 1;
-        s.phys_dbg_draw_ctx.min_force_color_hsl = make_3f32(240.f/360.f, 1.0, 0.5);
-        s.phys_dbg_draw_ctx.max_force_color_hsl = make_3f32(000.f/360.f, 1.0, 0.5);
+        s.phys_dbg_draw_ctx.color_mode = PHYS_DBG_DrawColorMode_Force;
 
         s.anchor_id = phys_world_add_body(s.world, (PHYS_Body){
             .position = make_3f32(0,0,0),
             .inv_mass = 0.f,
-            .no_gravity = 1,
+            .no_gravity = true,
         });
 
         {
@@ -66,14 +64,14 @@ int demos_init_hook(DEMOS_CommonState* cs) {
         }
 
         s.anchor_to_box1 = phys_world_add_constraint(s.world, (PHYS_Constraint){
+            .compliance = 0.005f,
             .type = PHYS_ConstraintType_Distance,
             .distance = {
-                .compliance = 0.1f,
                 .b1 = s.anchor_id,
                 .b2 = s.box1.rigid_body.body_id,
                 .d = 5.f,
 
-                .is_offset = 1,
+                .is_offset = true,
                 .offset2 = make_3f32(0,1,0),
             }
         });
@@ -90,14 +88,14 @@ int demos_init_hook(DEMOS_CommonState* cs) {
         }
 
         s.box1_to_box2 = phys_world_add_constraint(s.world, (PHYS_Constraint){
+            .compliance = 0.005f,
             .type = PHYS_ConstraintType_Distance,
             .distance = {
-                .compliance = 0.1f,
                 .b1 = s.box1.rigid_body.body_id,
                 .b2 = s.box2.rigid_body.body_id,
                 .d = 9.f,
 
-                .is_offset = 1,
+                .is_offset = true,
                 .offset1 = make_3f32(0,-1,0),
                 .offset2 = make_3f32(1,1,1),
             }

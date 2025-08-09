@@ -81,6 +81,13 @@ void geo_calculate_flat_normals(
 // @note assumes normals are zeroed
 // @note assume CCW winding order
 void geo_calculate_smooth_normals(
+    GEO_Topology topology,
     vec3_f32* in_p, u64 in_p_stride, u64 in_p_count, u32* in_indices, u32 in_indices_count,
     vec3_f32* out_n, u64 in_n_stride
+);
+
+void geo_triangulate(
+    Arena* arena, GEO_Topology topology, b32 double_sided,
+    u32* in_indices, u32 in_indices_count,
+    u32** out_indices, u32* out_indices_count
 );
