@@ -80,11 +80,12 @@ Module = {
         new ResizeObserver(entries => {
             const {x, y, width, height} = entries[0].contentRect
 
-            // Set drawing buffer size (internal resolution)
-            canvas.width = width * window.devicePixelRatio
-            canvas.height = height * window.devicePixelRatio
-            
-            Module._os_gfx_wasm_resize_callback(Math.floor(x), Math.floor(y), Math.floor(width), Math.floor(height))
+            const pxWidth = Math.floor(width * window.devicePixelRatio)
+            const pxHeight = Math.floor(height * window.devicePixelRatio)
+
+            canvas.width = pxWidth
+            canvas.height = pxHeight
+            Module._os_gfx_wasm_resize_callback(Math.floor(x), Math.floor(y), pxWidth, pxHeight)
         }).observe(document.getElementById('canvas'))
 
         const updateControlsCallbackPtr = Module.addFunction(updateControls, 'v')
