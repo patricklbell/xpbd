@@ -358,6 +358,8 @@ PHYS_World* phys_make_world(PHYS_WorldSettings settings) {
 void phys_world_cleanup(PHYS_World* w) {
     os_deallocate(w->bodies.v);
     arena_release(w->arena);
+    arena_release(w->step_arena);
+    arena_release(w->substep_arena);
 }
 
 // xpbd with substepping splits physics step into substeps which solve constraints

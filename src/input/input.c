@@ -15,6 +15,7 @@ void input_update(OS_Events* events) {
     input_state->is_wheel_moving = false;
     input_state->mouse_delta = (vec2_f32){};
     input_state->wheel_delta = (vec2_f32){};
+    memset(input_state->pressed, 0, sizeof(input_state->pressed));
 
     // apply effect of each event on input state from oldest to newest
     for EachList_N(n, OS_EventNode, events->last, prev) {
@@ -33,9 +34,12 @@ void input_update(OS_Events* events) {
             input_state->is_mouse_position_accurate = true;
             input_state->is_mouse_moving = true;
         } else if (event->type == OS_EventType_Press) {
+            if (!input_state->held[event->key])
+                input_state->pressed[event->key] = true;
             input_state->held[event->key] = true;
         } else if (event->type == OS_EventType_Release) {
             input_state->held[event->key] = false;
+            input_state->pressed[event->key] = false;
         } else if (event->type == OS_EventType_Wheel) {
             input_state->wheel_delta = add_2f32(input_state->wheel_delta, event->wheel_delta);
             input_state->is_wheel_moving = true;
@@ -62,4 +66,11 @@ b32 input_left_mouse_held() {
 
 b32 input_right_mouse_held() {
     return input_state->held[OS_Key_RightMouseButton];
+}
+
+b32 input_is_key_held(OS_Key key) {
+    return input_state->held[key];
+}
+b32 input_is_key_pressed(OS_Key key) {
+    return input_state->pressed[key];
 }

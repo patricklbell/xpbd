@@ -79,11 +79,14 @@ build_demos() {
 # Emscripten configuration
 build_emcc() {
     CC="emcc"
-    LDFLAGS="${LDFLAGS}"
-    LDFLAGS_GFX="-sFETCH -sEXPORTED_FUNCTIONS=['_main','_os_gfx_wasm_resize_callback'] -sFULL_ES3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sGL_SUPPORT_SIMPLE_ENABLE_EXTENSIONS"
+    LDFLAGS="${LDFLAGS} -sINITIAL_MEMORY=1024mb -sALLOW_MEMORY_GROWTH -sTOTAL_STACK=512mb"
+    LDFLAGS="${LDFLAGS} -sFETCH"
+    LDFLAGS="${LDFLAGS} -sALLOW_TABLE_GROWTH -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','UTF8ToString','addFunction','removeFunction']"
+    LDFLAGS="${LDFLAGS} -sEXPORT_ALL=1"
+    LDFLAGS_GFX="-sFULL_ES3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sGL_SUPPORT_SIMPLE_ENABLE_EXTENSIONS"
     BUILD_DIR="docs/demos"
     BUILD_EXT=".html"
-    CFLAGS="${CFLAGS} --shell-file docs/emcc-template.html --pre-js docs/emcc-pre.js -pthread -sINITIAL_MEMORY=1024mb -sTOTAL_STACK=512mb"
+    CFLAGS="${CFLAGS} --shell-file docs/emcc-template.html --pre-js docs/emcc-pre.js"
     
     mkdir -p "${BUILD_DIR}"
     build_demos $1

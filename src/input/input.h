@@ -13,6 +13,7 @@ struct INPUT_State {
     vec2_f32 wheel_delta;
 
     b32 held[OS_Key_COUNT];
+    b32 pressed[OS_Key_COUNT];
 };
 INPUT_State* input_state = NULL;
 
@@ -25,3 +26,6 @@ b32 input_mouse_delta(vec2_f32* delta);
 b32 input_wheel_delta(vec2_f32* delta);
 b32 input_left_mouse_held();
 b32 input_right_mouse_held();
+
+b32 input_is_key_held(OS_Key key);
+b32 input_is_key_pressed(OS_Key key);

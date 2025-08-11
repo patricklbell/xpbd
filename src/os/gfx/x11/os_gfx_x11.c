@@ -99,6 +99,7 @@ static b32 os_gfx_x11_button_to_event(OS_Handle window, OS_Event* event, XButton
     s32 wheel_x = 0, wheel_y = 0;
     switch (xbutton->button) {
         case Button1: event->key = OS_Key_LeftMouseButton; break;
+        case Button2: event->key = OS_Key_MiddleMouseButton; break;
         case Button3: event->key = OS_Key_RightMouseButton; break;
         case Button4: wheel_y = +1; break;
         case Button5: wheel_y = -1; break;
@@ -133,6 +134,20 @@ static b32 os_gfx_x11_button_to_event(OS_Handle window, OS_Event* event, XButton
     return true;
 }
 
+static b32 os_gfx_x11_key_pressed_to_event(OS_Handle window, OS_Event* event, XKeyPressedEvent* xkey) {
+    event->type = OS_EventType_Press;
+    
+    KeySym keysym = XLookupKeysym(xkey, 0);
+    return os_gfx_x11_keysym_to_os_key(keysym, &event->key);
+}
+
+static b32 os_gfx_x11_key_released_to_event(OS_Handle window, OS_Event* event, XKeyReleasedEvent* xkey) {
+    event->type = OS_EventType_Release;
+    
+    KeySym keysym = XLookupKeysym(xkey, 0);
+    return os_gfx_x11_keysym_to_os_key(keysym, &event->key);
+}
+
 static b32 os_gfx_x11_client_message_to_event(OS_Handle window, OS_Event* event, XClientMessageEvent* xclient) {
     if (xclient->data.l[0] == os_gfx_x11_state.atom_wm_close) {
         event->type = OS_EventType_Quit;
@@ -147,7 +162,6 @@ static b32 os_gfx_x11_motion_notify_to_event(OS_Handle window, OS_Event* event, 
     event->mouse_position = os_gfx_x11_transform_mouse(window, xmotion->x, xmotion->y);
 
     return true;
-
 }
 
 OS_Events os_gfx_window_poll_events(Arena* arena, OS_Handle window) {
@@ -164,20 +178,23 @@ OS_Events os_gfx_window_poll_events(Arena* arena, OS_Handle window) {
             case ButtonPress:
             case ButtonRelease: {
                 handled |= os_gfx_x11_button_to_event(window, &os_event, &xevent.xbutton);
-                break;
-            }
+            }break;
+            case KeyPress:{
+                handled |= os_gfx_x11_key_pressed_to_event(window, &os_event, &xevent.xkey);
+            }break;
+            case KeyRelease:{
+                handled |= os_gfx_x11_key_released_to_event(window, &os_event, &xevent.xkey);
+            }break;
             case MotionNotify: {
                 handled |= os_gfx_x11_motion_notify_to_event(window, &os_event, &xevent.xmotion);
-                break;
-            }
+            }break;
             case ClientMessage: {
                 handled |= os_gfx_x11_client_message_to_event(window, &os_event, &xevent.xclient);
 
                 if (os_event.type == OS_EventType_Quit) {
                     events.quit = true;
                 }
-                break;
-            }
+            }break;
         }
 
         // add our event if the xevent was handled
@@ -198,4 +215,92 @@ void os_gfx_start_window_event_loop(OS_Handle window, OS_LoopFunction callback, 
         
         (*callback)(data);
     }
+}
+
+// generated functions @todo
+b32 os_gfx_x11_keysym_to_os_key(KeySym k, OS_Key* key) {
+    // Alphabet
+    if (k >= XK_a && k <= XK_z) {
+        *key = (OS_Key)(OS_Key_a + (k - XK_a));
+        return true;
+    } else if (k >= XK_A && k <= XK_Z) {
+        *key = (OS_Key)(OS_Key_a + (k - XK_A));
+        return true;
+    }
+
+    // Numbers
+    if (k >= XK_0 && k <= XK_9) {
+        *key = (OS_Key)(OS_Key_0 + (k - XK_0));
+        return true;
+    }
+
+    // Function keys
+    if (k >= XK_F1 && k <= XK_F12) {
+        *key = (OS_Key)(OS_Key_F1 + (k - XK_F1));
+        return true;
+    }
+
+    // Modifiers
+    switch (k) {
+        case XK_Shift_L:
+        case XK_Shift_R:
+            *key = OS_Key_Shift;
+            return true;
+        case XK_Control_L:
+        case XK_Control_R:
+            *key = OS_Key_Control;
+            return true;
+        case XK_Alt_L:
+        case XK_Alt_R:
+        case XK_Meta_L:
+        case XK_Meta_R:
+            *key = OS_Key_Alt;
+            return true;
+        case XK_Super_L:
+        case XK_Super_R:
+        case XK_Hyper_L:
+        case XK_Hyper_R:
+            *key = OS_Key_Super;
+            return true;
+    }
+
+    // Navigation
+    switch (k) {
+        case XK_Up:        *key = OS_Key_Up; return true;
+        case XK_Down:      *key = OS_Key_Down; return true;
+        case XK_Left:      *key = OS_Key_Left; return true;
+        case XK_Right:     *key = OS_Key_Right; return true;
+        case XK_Home:      *key = OS_Key_Home; return true;
+        case XK_End:       *key = OS_Key_End; return true;
+        case XK_Page_Up:   *key = OS_Key_PageUp; return true;
+        case XK_Page_Down: *key = OS_Key_PageDown; return true;
+    }
+
+    // Special keys
+    switch (k) {
+        case XK_space:      *key = OS_Key_Space; return true;
+        case XK_Return:     *key = OS_Key_Enter; return true;
+        case XK_Escape:     *key = OS_Key_Escape; return true;
+        case XK_BackSpace:  *key = OS_Key_Backspace; return true;
+        case XK_Tab:        *key = OS_Key_Tab; return true;
+        case XK_Delete:     *key = OS_Key_Delete; return true;
+        case XK_Insert:     *key = OS_Key_Insert; return true;
+    }
+
+    // Punctuation
+    switch (k) {
+        case XK_comma:        *key = OS_Key_Comma; return true;
+        case XK_period:       *key = OS_Key_Period; return true;
+        case XK_semicolon:    *key = OS_Key_Semicolon; return true;
+        case XK_apostrophe:   *key = OS_Key_Apostrophe; return true;
+        case XK_grave:        *key = OS_Key_Backtick; return true;
+        case XK_minus:        *key = OS_Key_Minus; return true;
+        case XK_equal:        *key = OS_Key_Equal; return true;
+        case XK_slash:        *key = OS_Key_Slash; return true;
+        case XK_backslash:    *key = OS_Key_Backslash; return true;
+        case XK_bracketleft:  *key = OS_Key_LeftBracket; return true;
+        case XK_bracketright: *key = OS_Key_RightBracket; return true;
+    }
+
+    return false;
 }

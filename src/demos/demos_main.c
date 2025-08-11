@@ -9,10 +9,14 @@
 #include "vtk/vtk.c"
 #include "dbgdraw/dbgdraw.c"
 #include "geo/geo.c"
+#if OS_WEB
+    #include "emcontrols/emcontrols.c"
+#endif
 
 #include "demos_helpers.c"
 
-void window_event_loop(void* data);
+static void window_event_loop(void* data);
+static void reset_demo_callback(void* data);
 
 int main() {
     ThreadCtx main_ctx;
@@ -40,10 +44,22 @@ int main() {
 
     input_init();
 
+    #if OS_WEB
+        emcontrols_init(cs->arena);
+        emcontrols_add((EMCONTROLS_Control){
+            .type = EMCONTROLS_ControlType_Button,
+            .label = ntstr8_lit("reset"),
+            .on_press = &reset_demo_callback,
+            .data = cs,
+        });
+    #endif
+
     // demo hooks section
-    if (!demos_init_hook(cs)) {
+    if (!demos_persistent_init_hook(cs)) {
+        demos_state_init_hook();
         os_gfx_start_window_event_loop(cs->window, window_event_loop, cs, &cs->events);
-        demos_shutdown_hook(cs);
+        demos_state_cleanup_hook();
+        demos_persistent_cleanup_hook(cs);
     }
 
     os_gfx_close_window(cs->window);
@@ -54,9 +70,19 @@ int main() {
     os_gfx_cleanup();
 }
 
-void window_event_loop(void* data) {
+static void window_event_loop(void* data) {
     DEMOS_CommonState* cs = (DEMOS_CommonState*)data;
 
-    input_update(&cs->events);
+    if (cs->should_reset || input_is_key_pressed(OS_Key_r)) {
+        demos_state_cleanup_hook();
+        demos_state_init_hook();
+        cs->should_reset = false;
+    }
+
     demos_frame_hook(cs);
+}
+
+static void reset_demo_callback(void* data) {
+    DEMOS_CommonState* cs = (DEMOS_CommonState*)data;
+    cs->should_reset = true;
 }

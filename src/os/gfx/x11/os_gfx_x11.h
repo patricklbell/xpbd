@@ -4,6 +4,10 @@
 
 #include <X11/Xlib.h>
 
+#define XK_MISCELLANY
+#define XK_LATIN1
+#include <X11/keysymdef.h>
+
 typedef struct OS_GFX_X11State OS_GFX_X11State;
 struct OS_GFX_X11State {
     Display* display;
@@ -15,3 +19,5 @@ static OS_GFX_X11State os_gfx_x11_state = zero_struct;
 
 // @todo
 #define OS_GFX_X11_WHEEL_UNIT_TO_PX 100.f
+
+b32 os_gfx_x11_keysym_to_os_key(KeySym k, OS_Key* key);

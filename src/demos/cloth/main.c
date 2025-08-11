@@ -12,8 +12,11 @@ struct SoftbodyState {
     R_Handle cloth_vertices[2];
     MS_Mesh cloth_mesh[2];
 
+    VTK_Data cloth_vtk;
+
     DEMOS_Camera camera;
 
+    Arena* state_arena;
     PHYS_World* world;
     PHYS_Cloth cloth_phys;
     PHYS_RigidBody ball_phys;
@@ -22,7 +25,7 @@ struct SoftbodyState {
 };
 static SoftbodyState s;
 
-int demos_init_hook(DEMOS_CommonState* cs) {
+int demos_persistent_init_hook(DEMOS_CommonState* cs) {
     MS_LoadResult sphere = ms_load_obj(cs->arena, ntstr8_lit("./data/sphere.obj"), (MS_LoadSettings){});
     if (sphere.error.length != 0) {
         fprintf(stderr, "%s\n", sphere.error.data);
@@ -38,11 +41,42 @@ int demos_init_hook(DEMOS_CommonState* cs) {
         fprintf(stderr, "%s\n", cloth.error.data);
         return 1;
     }
+    s.cloth_vtk = cloth.v;
     
     s.camera.eye    = (vec3_f32){.x = 0,.y =-1.3,.z = 1};
     s.camera.target = (vec3_f32){.x = 0,.y =-1.8,.z = 0};
 
-    {DeferResource(Temp scratch = scratch_begin_a(cs->arena), scratch_end(scratch)) {
+    // setup visual mesh
+    for EachElement(i, s.cloth_mesh) {
+        s.cloth_mesh[i].flags = R_VertexFlag_PN;
+        s.cloth_mesh[i].topology = R_VertexTopology_Triangles;
+        geo_triangulate(
+            cs->arena, GEO_Topology_Quad, /*cw*/ i,
+            /*in*/ cloth.v.indices[VTK_CellType_Quad], cloth.v.indices_counts[VTK_CellType_Quad],
+            /*out*/ &s.cloth_mesh[i].indices, &s.cloth_mesh[i].indices_count
+        );
+        s.cloth_mesh[i].vertices_count = cloth.v.points_count;
+        s.cloth_mesh[i].vertices = arena_push(cs->arena, s.cloth_mesh[i].vertices_count*r_vertex_size(s.cloth_mesh[i].flags), r_vertex_align(s.cloth_mesh[i].flags));
+    
+        s.cloth_indices[i] = r_buffer_alloc(R_ResourceKind_Stream, R_ResourceHint_Indices, s.cloth_mesh[i].indices_count*sizeof(*s.cloth_mesh[i].indices), s.cloth_mesh[i].indices);
+        s.cloth_vertices[i] = r_buffer_alloc(R_ResourceKind_Stream, R_ResourceHint_Array, s.cloth_mesh[i].vertices_count*r_vertex_size(s.cloth_mesh[i].flags), NULL);
+    }
+
+    // allocate state arena
+    s.state_arena = arena_alloc();
+    return 0;
+}
+
+void demos_state_init_hook() {
+    {DeferResource(Temp scratch = scratch_begin_a(s.state_arena), scratch_end(scratch)) {
+        u32* edge_indices;
+        u32 edge_indices_count;
+        geo_calculate_edges(scratch.arena,
+            s.cloth_vtk.points_count*2, GEO_Topology_Quad, GEO_Connected_Ring,
+            /*in*/ s.cloth_vtk.indices[VTK_CellType_Quad], s.cloth_vtk.indices_counts[VTK_CellType_Quad],
+            /*out*/ &edge_indices, &edge_indices_count
+        );
+        
         f32 thickness = 0.01;
         s.world = phys_make_world((PHYS_WorldSettings){
             .substeps = 10,
@@ -52,14 +86,6 @@ int demos_init_hook(DEMOS_CommonState* cs) {
             .hashgrid_object_size = thickness,
             .dynamic_friction_calculation = PHYS_CoefficientCalculation_Max,
         });
-
-        u32 edge_indices_count;
-        u32* edge_indices;
-        geo_calculate_edges(scratch.arena,
-            cloth.v.points_count*2, GEO_Topology_Quad, GEO_Connected_Ring,
-            /*in*/ cloth.v.indices[VTK_CellType_Quad], cloth.v.indices_counts[VTK_CellType_Quad],
-            /*out*/ &edge_indices, &edge_indices_count
-        );
 
         PHYS_ClothFiber_Settings fibers_depth1[] = {
             {/*stretch-r*/ .compliance=0.f, .direction=make_3f32(1,0,0)},
@@ -76,14 +102,14 @@ int demos_init_hook(DEMOS_CommonState* cs) {
         u32 fiber_depth = ArrayLength(fibers);
 
         s.cloth_phys = phys_world_add_cloth(s.world, (PHYS_Cloth_Settings){
-            .arena = cs->arena,
+            .arena = s.state_arena,
             .thickness = thickness,
             .mass = 1.2f,
             .center = make_3f32(-0.2,-1,-0.2),
             .rotation = make_axis_angle_quat(PI/2.f, normalize_3f32(make_3f32(1,0,0))),
             .scale = mul_3f32(make_3f32(1.f,1.f,1.f), 1.f/2.4f),
-            .vertices               = cloth.v.points,
-            .vertices_count         = cloth.v.points_count,
+            .vertices               = s.cloth_vtk.points,
+            .vertices_count         = s.cloth_vtk.points_count,
             .edge_indices           = edge_indices,
             .edge_indices_count     = edge_indices_count,
             .fibers                 = fibers,
@@ -103,27 +129,46 @@ int demos_init_hook(DEMOS_CommonState* cs) {
         });
     }}
 
-    // setup visual mesh
-    for EachElement(i, s.cloth_mesh) {
-        s.cloth_mesh[i].flags = R_VertexFlag_PN;
-        s.cloth_mesh[i].topology = R_VertexTopology_Triangles;
-        geo_triangulate(
-            cs->arena, GEO_Topology_Quad, /*cw*/ i,
-            /*in*/ cloth.v.indices[VTK_CellType_Quad], cloth.v.indices_counts[VTK_CellType_Quad],
-            /*out*/ &s.cloth_mesh[i].indices, &s.cloth_mesh[i].indices_count
-        );
-        s.cloth_mesh[i].vertices_count = cloth.v.points_count;
-        Assert(s.cloth_phys.vertices_count == s.cloth_mesh[i].vertices_count);
-        s.cloth_mesh[i].vertices = arena_push(cs->arena, s.cloth_mesh[i].vertices_count*r_vertex_size(s.cloth_mesh[i].flags), r_vertex_align(s.cloth_mesh[i].flags));
-    
-        s.cloth_indices[i] = r_buffer_alloc(R_ResourceKind_Stream, R_ResourceHint_Indices, s.cloth_mesh[i].indices_count*sizeof(*s.cloth_mesh[i].indices), s.cloth_mesh[i].indices);
-        s.cloth_vertices[i] = r_buffer_alloc(R_ResourceKind_Stream, R_ResourceHint_Array, s.cloth_mesh[i].vertices_count*r_vertex_size(s.cloth_mesh[i].flags), NULL);
-    }
-
     s.time = os_now_seconds();
-    return 0;
 }
 
+static void d_ball(PHYS_RigidBody* ball);
+static void d_cloth(PHYS_Cloth* cloth);
+
+void demos_frame_hook(DEMOS_CommonState* cs) {
+    f64 ntime = os_now_seconds();
+    f64 dt = ntime - s.time;
+    f64 pdt = 1.f/60.f;
+    s.time = ntime;
+
+    input_update(&cs->events);
+    demos_camera_controls_orbit(cs->window, dt, &s.camera);
+
+    phys_world_step(s.world, pdt);
+
+    r_window_begin_frame(cs->window, cs->rwindow);
+    
+    d_begin_pipeline();
+    demos_d_begin_3d_pass_camera(cs->window, &s.camera);
+    {
+        d_ball(&s.ball_phys);
+        d_cloth(&s.cloth_phys);
+    }
+    d_submit_pipeline(cs->window, cs->rwindow);
+
+    r_window_end_frame(cs->window, cs->rwindow);
+}
+
+void demos_state_cleanup_hook() {
+    phys_world_cleanup(s.world);
+    arena_clear(s.state_arena);
+}
+
+void demos_persistent_cleanup_hook(DEMOS_CommonState* cs) {
+    return;
+}
+
+// helpers
 static void d_ball(PHYS_RigidBody* ball) {
     PHYS_Body* center = phys_world_resolve_body(s.world, ball->body_id);
     PHYS_Collider* collider = phys_world_resolve_collider(s.world, ball->collider_id);
@@ -163,31 +208,4 @@ static void d_cloth(PHYS_Cloth* cloth) {
         vec3_f32 color = mul_3f32(normalize_3f32(make_3f32(0.5+0.5*i,0.5*i,0)), 2.f);
         d_mesh(s.cloth_vertices[i], m->flags, s.cloth_indices[i], m->topology, R_Mesh3DMaterial_Lambertian, make_diagonal_4x4f32(1.f), color);
     }
-}
-
-void demos_frame_hook(DEMOS_CommonState* cs) {
-    f64 ntime = os_now_seconds();
-    f64 dt = ntime - s.time;
-    f64 pdt = 1.f/60.f;
-    s.time = ntime;
-
-    demos_camera_controls_orbit(cs->window, dt, &s.camera);
-
-    phys_world_step(s.world, pdt);
-
-    r_window_begin_frame(cs->window, cs->rwindow);
-    
-    d_begin_pipeline();
-    demos_d_begin_3d_pass_camera(cs->window, &s.camera);
-    {
-        d_ball(&s.ball_phys);
-        d_cloth(&s.cloth_phys);
-    }
-    d_submit_pipeline(cs->window, cs->rwindow);
-
-    r_window_end_frame(cs->window, cs->rwindow);
-}
-
-void demos_shutdown_hook(DEMOS_CommonState* cs) {
-    phys_world_cleanup(s.world);
 }

@@ -16,7 +16,8 @@ static vec2_f32 os_gfx_wasm_transform_screen_xy(int x, int y) {
 }
 
 // callbacks
-EMSCRIPTEN_KEEPALIVE void os_gfx_wasm_resize_callback(int x, int y, int width, int height) {
+EMSCRIPTEN_KEEPALIVE
+void os_gfx_wasm_resize_callback(int x, int y, int width, int height) {
     os_gfx_wasm_state.window_position = make_2f32((f32)x,(f32)y);
     os_gfx_wasm_state.window_size = make_2f32((f32)width,(f32)height);
 }

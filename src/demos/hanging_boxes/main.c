@@ -28,7 +28,7 @@ struct HangingBoxesState {
 };
 static HangingBoxesState s;
 
-int demos_init_hook(DEMOS_CommonState* cs) {
+int demos_persistent_init_hook(DEMOS_CommonState* cs) {
     MS_LoadResult cube = ms_load_obj(cs->arena, ntstr8_lit("./data/cube.obj"), (MS_LoadSettings){});
     if (cube.error.length != 0) {
         fprintf(stderr, "%s\n", cube.error.data);
@@ -41,81 +41,68 @@ int demos_init_hook(DEMOS_CommonState* cs) {
 
     s.camera.eye    = (vec3_f32){.x = 0,.y =-10,.z =40};
     s.camera.target = (vec3_f32){.x = 0,.y =-10,.z = 0};
-
-    {
-        s.world = phys_make_world((PHYS_WorldSettings){});
-        s.phys_dbg_draw_ctx = phys_dbg_d_make_context(s.world, dbgdraw_edge_batch, dbgdraw_point_batch);
-        s.phys_dbg_draw_ctx.color_mode = PHYS_DBG_DrawColorMode_Force;
-
-        s.anchor_id = phys_world_add_body(s.world, (PHYS_Body){
-            .position = make_3f32(0,0,0),
-            .inv_mass = 0.f,
-            .no_gravity = true,
-        });
-
-        {
-            s.box1.extents = make_3f32(1,1,1);
-            PHYS_Box_Settings box_settings = {
-                .mass = 1,
-                .center = make_3f32(0,-5,0),
-                .extents = s.box1.extents,
-            };
-            s.box1.rigid_body = phys_world_add_box(s.world, box_settings);
-        }
-
-        s.anchor_to_box1 = phys_world_add_constraint(s.world, (PHYS_Constraint){
-            .compliance = 0.005f,
-            .type = PHYS_ConstraintType_Distance,
-            .distance = {
-                .b1 = s.anchor_id,
-                .b2 = s.box1.rigid_body.body_id,
-                .d = 5.f,
-
-                .is_offset = true,
-                .offset2 = make_3f32(0,1,0),
-            }
-        });
-
-        {
-            s.box2.extents = make_3f32(1,1,1);
-            PHYS_Box_Settings box_settings = {
-                .mass = 1,
-                .center = make_3f32(0,-15,0),
-                .linear_velocity = make_3f32(10,0,0),
-                .extents = s.box2.extents,
-            };
-            s.box2.rigid_body = phys_world_add_box(s.world, box_settings);
-        }
-
-        s.box1_to_box2 = phys_world_add_constraint(s.world, (PHYS_Constraint){
-            .compliance = 0.005f,
-            .type = PHYS_ConstraintType_Distance,
-            .distance = {
-                .b1 = s.box1.rigid_body.body_id,
-                .b2 = s.box2.rigid_body.body_id,
-                .d = 9.f,
-
-                .is_offset = true,
-                .offset1 = make_3f32(0,-1,0),
-                .offset2 = make_3f32(1,1,1),
-            }
-        });
-    }
-
-    s.time = os_now_seconds();
     return 0;
 }
 
-static void d_hanging_box(HangingBox* hanging_box) {
-    PHYS_Body* body = phys_world_resolve_body(s.world, hanging_box->rigid_body.body_id);
+void demos_state_init_hook() {
+    s.world = phys_make_world((PHYS_WorldSettings){});
+    s.phys_dbg_draw_ctx = phys_dbg_d_make_context(s.world, dbgdraw_edge_batch, dbgdraw_point_batch);
+    s.phys_dbg_draw_ctx.color_mode = PHYS_DBG_DrawColorMode_Force;
 
-    mat4x4_f32 t = matmul_4x4f32(matmul_4x4f32(
-        make_translate_4x4f32(body->position),
-        make_rotate_4x4f32(normalize_4f32(body->rotation))),
-        make_scale_4x4f32(hanging_box->extents)
-    );
-    d_mesh(s.cube_vertices, s.cube_flags, s.cube_indices, s.cube_topology, R_Mesh3DMaterial_Lambertian, t, make_3f32(0,1,0));
+    s.anchor_id = phys_world_add_body(s.world, (PHYS_Body){
+        .position = make_3f32(0,0,0),
+        .inv_mass = 0.f,
+        .no_gravity = true,
+    });
+
+    s.box1.extents = make_3f32(1,1,1);
+    PHYS_Box_Settings box1_settings = {
+        .mass = 1,
+        .center = make_3f32(0,-5,0),
+        .extents = s.box1.extents,
+    };
+    s.box1.rigid_body = phys_world_add_box(s.world, box1_settings);
+
+    s.anchor_to_box1 = phys_world_add_constraint(s.world, (PHYS_Constraint){
+        .compliance = 0.005f,
+        .type = PHYS_ConstraintType_Distance,
+        .distance = {
+            .b1 = s.anchor_id,
+            .b2 = s.box1.rigid_body.body_id,
+            .d = 5.f,
+
+            .is_offset = true,
+            .offset2 = make_3f32(0,1,0),
+        }
+    });
+
+    s.box2.extents = make_3f32(1,1,1);
+    PHYS_Box_Settings box2_settings = {
+        .mass = 1,
+        .center = make_3f32(0,-15,0),
+        .linear_velocity = make_3f32(10,0,0),
+        .extents = s.box2.extents,
+    };
+    s.box2.rigid_body = phys_world_add_box(s.world, box2_settings);
+
+    s.box1_to_box2 = phys_world_add_constraint(s.world, (PHYS_Constraint){
+        .compliance = 0.005f,
+        .type = PHYS_ConstraintType_Distance,
+        .distance = {
+            .b1 = s.box1.rigid_body.body_id,
+            .b2 = s.box2.rigid_body.body_id,
+            .d = 9.f,
+
+            .is_offset = true,
+            .offset1 = make_3f32(0,-1,0),
+            .offset2 = make_3f32(1,1,1),
+        }
+    });
+
+    s.time = os_now_seconds();
 }
+
+static void d_hanging_box(HangingBox* hanging_box);
 
 void demos_frame_hook(DEMOS_CommonState* cs) {
     f64 ntime = os_now_seconds();
@@ -123,6 +110,7 @@ void demos_frame_hook(DEMOS_CommonState* cs) {
     f64 pdt = 1.f/60.f;
     s.time = ntime;
 
+    input_update(&cs->events);
     demos_camera_controls_orbit(cs->window, dt, &s.camera);
 
     phys_world_step(s.world, pdt);
@@ -151,6 +139,22 @@ void demos_frame_hook(DEMOS_CommonState* cs) {
     r_window_end_frame(cs->window, cs->rwindow);
 }
 
-void demos_shutdown_hook(DEMOS_CommonState* cs) {
+void demos_state_cleanup_hook() {
     phys_world_cleanup(s.world);
+}
+
+void demos_persistent_cleanup_hook(DEMOS_CommonState* cs) {
+    return;
+}
+
+// helpers
+static void d_hanging_box(HangingBox* hanging_box) {
+    PHYS_Body* body = phys_world_resolve_body(s.world, hanging_box->rigid_body.body_id);
+
+    mat4x4_f32 t = matmul_4x4f32(matmul_4x4f32(
+        make_translate_4x4f32(body->position),
+        make_rotate_4x4f32(normalize_4f32(body->rotation))),
+        make_scale_4x4f32(hanging_box->extents)
+    );
+    d_mesh(s.cube_vertices, s.cube_flags, s.cube_indices, s.cube_topology, R_Mesh3DMaterial_Lambertian, t, make_3f32(0,1,0));
 }
