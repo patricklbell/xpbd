@@ -2,7 +2,7 @@
 
 vec3_f32 phys_scale_rotate_translate(vec3_f32 x, vec3_f32 scale, vec4_f32 rotation, vec3_f32 translation);
 
-mat3x3_f32 phys_inv_moment_rect_cuboid(vec3_f32 dimensions, f32 m);
+vec3_f32 phys_inv_moment_rect_cuboid(vec3_f32 dimensions, f32 m);
 
 // @todo
 f32 phys_triangle_area(vec3_f32 x1, vec3_f32 x2, vec3_f32 x3);

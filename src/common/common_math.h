@@ -54,6 +54,7 @@ vec3_f32 add_3f32(vec3_f32 a, vec3_f32 b);
 vec3_f32 sub_3f32(vec3_f32 a, vec3_f32 b);
 vec3_f32 mul_3f32(vec3_f32 a, f32 b);
 vec3_f32 elmul_3f32(vec3_f32 a, vec3_f32 b);
+vec3_f32 eldiv_3f32(vec3_f32 a, vec3_f32 b);
 f32 dot_3f32(vec3_f32 a, vec3_f32 b);
 f32 length_3f32(vec3_f32 a);
 vec3_f32 normalize_3f32(vec3_f32 a);
@@ -94,7 +95,7 @@ union vec4_f32 {
     f32 v[4];
 };
 
-vec4_f32 make_axis_angle_quat(f64 t, vec3_f32 a);
+vec4_f32 make_angle_axis_quat(f64 t, vec3_f32 a);
 vec4_f32 make_axis_quat(vec3_f32 a);
 vec4_f32 make_identity_quat();
 vec4_f32 inv_quat(vec4_f32 q);
@@ -106,6 +107,7 @@ vec4_f32 add_4f32(vec4_f32 a, vec4_f32 b);
 vec4_f32 sub_4f32(vec4_f32 a, vec4_f32 b);
 vec4_f32 mul_4f32(vec4_f32 a, f32 b);
 vec4_f32 elmul_4f32(vec4_f32 a, vec4_f32 b);
+vec4_f32 eldiv_4f32(vec4_f32 a, vec4_f32 b);
 f32 dot_4f32(vec4_f32 a, vec4_f32 b);
 f32 length_4f32(vec4_f32 a);
 vec4_f32 normalize_4f32(vec4_f32 a);

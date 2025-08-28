@@ -77,12 +77,13 @@ void demos_state_init_hook() {
             /*out*/ &edge_indices, &edge_indices_count
         );
         
-        f32 thickness = 0.01;
+        f32 l = 0.5;
+        f32 subdivisions = 20;
+        f32 thickness = l/subdivisions/(2.0f + 0.5);
         s.world = phys_make_world((PHYS_WorldSettings){
-            .substeps = 10,
-            .linear_damping = 0.5,
+            .substeps = 8,
             .min_collision_distance = thickness,
-            .hashgrid_cell_size = 0.2,
+            .hashgrid_cell_size = 10.f*thickness,
             .hashgrid_object_size = thickness,
             .dynamic_friction_calculation = PHYS_CoefficientCalculation_Max,
         });
@@ -105,9 +106,9 @@ void demos_state_init_hook() {
             .arena = s.state_arena,
             .thickness = thickness,
             .mass = 1.2f,
-            .center = make_3f32(-0.2,-1,-0.2),
-            .rotation = make_axis_angle_quat(PI/2.f, normalize_3f32(make_3f32(1,0,0))),
-            .scale = mul_3f32(make_3f32(1.f,1.f,1.f), 1.f/2.4f),
+            .center = make_3f32(-l/2.f,-1,-l/2.f),
+            .rotation = make_angle_axis_quat(PI/2.f, normalize_3f32(make_3f32(1,0,0))),
+            .scale = mul_3f32(make_3f32(1.f,1.f,1.f), l),
             .vertices               = s.cloth_vtk.points,
             .vertices_count         = s.cloth_vtk.points_count,
             .edge_indices           = edge_indices,

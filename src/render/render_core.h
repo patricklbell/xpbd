@@ -13,7 +13,10 @@ typedef enum R_VertexFlag {
     R_VertexFlag_NT     = R_VertexFlag_N   | R_VertexFlag_T,
     R_VertexFlag_NC     = R_VertexFlag_N   | R_VertexFlag_C,
     R_VertexFlag_TC     = R_VertexFlag_T   | R_VertexFlag_C,
+    R_VertexFlag_PTC    = R_VertexFlag_PT  | R_VertexFlag_C,
+    R_VertexFlag_PNC    = R_VertexFlag_PN  | R_VertexFlag_C,
     R_VertexFlag_PNT    = R_VertexFlag_PN  | R_VertexFlag_T,
+    R_VertexFlag_NTC    = R_VertexFlag_NT  | R_VertexFlag_C,
     R_VertexFlag_PNTC   = R_VertexFlag_PNT | R_VertexFlag_C,
     R_VertexFlag_COUNT,
 } R_VertexFlag;
@@ -44,6 +47,7 @@ typedef enum R_VertexTopology {
 typedef enum R_Mesh3DMaterial {
     R_Mesh3DMaterial_Lambertian,
     R_Mesh3DMaterial_Debug,
+    R_Mesh3DMaterial_Splat,
     R_Mesh3DMaterial_COUNT ENUM_CASE_UNUSED,
 } R_Mesh3DMaterial;
 

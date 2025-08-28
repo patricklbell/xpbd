@@ -7,8 +7,8 @@ struct DEMOS_Camera {
     vec3_f32 target;
 };
 
-#define DEMOS_CONTOLS_ORBIT_ZOOM_MULT 0.05f
-#define DEMOS_CONTOLS_ORBIT_ZOOM_RATE 0.05f
+#define DEMOS_CONTOLS_ORBIT_ZOOM_MULT 0.1f
+#define DEMOS_CONTOLS_ORBIT_ZOOM_RATE 0.06f
 #define DEMOS_CONTOLS_ORBIT_ZOOM_MAX 100.f
 void demos_camera_controls_orbit(OS_Handle window, f32 dt, DEMOS_Camera* camera);
 

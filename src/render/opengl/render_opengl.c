@@ -78,6 +78,21 @@ void r_init() {
             fprintf(stderr, "[Fragment shader %d] %s\n", program_i, log);
         }
 
+        // geometry shader
+        GLuint geometry_id = 0;
+        if (program_def->geometry_shader_src.length > 0) {
+            const char* geometry_src[] = { program_def->geometry_shader_src.cstr };
+            GLint geometry_src_lens[] = { (GLint)program_def->geometry_shader_src.length };
+            geometry_id = glCreateShader(GL_GEOMETRY_SHADER);
+            glShaderSource(geometry_id, 1, geometry_src, geometry_src_lens);
+            glCompileShader(geometry_id);
+            glGetShaderiv(geometry_id, GL_COMPILE_STATUS, &success);
+            glGetShaderInfoLog(geometry_id, ArrayLength(log), NULL, log); // @todo debug
+            if (!success) {
+                fprintf(stderr, "[Geometry shader %d] %s\n", program_i, log);
+            }
+        }
+
         // enable attributes
         for EachIndex(attribute_i, program_def->vertex_attribute_count) {
             const R_OGL_VertexAttribute* attribute = &program_def->vertex_attributes[attribute_i];
@@ -92,6 +107,7 @@ void r_init() {
         GLuint program = glCreateProgram();
         glAttachShader(program, vertex_id);
         glAttachShader(program, fragment_id);
+        if (geometry_id) glAttachShader(program, geometry_id);
         glLinkProgram(program);
         glGetProgramiv(program, GL_LINK_STATUS, &success);
         glGetProgramInfoLog(program, ArrayLength(log), NULL, log); // @todo debug
@@ -100,6 +116,7 @@ void r_init() {
         }
         glDeleteShader(vertex_id);
         glDeleteShader(fragment_id);
+        if (geometry_id) glDeleteShader(geometry_id);
 
         r_ogl_state.programs[program_i] = program;
     }
@@ -128,7 +145,7 @@ void r_window_begin_frame(OS_Handle window, R_Handle rwindow) {
     r_os_select_window(window, rwindow);
     vec2_f32 window_size = os_gfx_window_size(window);
 
-    glClearColor(0, 0, 0, 0);
+    glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, (GLsizei)window_size.x, (GLsizei)window_size.y);
 }

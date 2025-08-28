@@ -26,6 +26,7 @@ struct PHYS_Box_Settings {
     f32 resitution;
     vec3_f32 center;
     vec3_f32 extents;
+    vec4_f32 rotation;
     vec3_f32 linear_velocity;
     vec3_f32 angular_velocity;
 };
@@ -41,8 +42,8 @@ struct PHYS_BoxBoundary {
 typedef struct PHYS_BoxBoundary_Settings PHYS_BoxBoundary_Settings;
 struct PHYS_BoxBoundary_Settings {
     vec3_f32 center;
-    vec4_f32 rotation;
     vec3_f32 extents;
+    vec4_f32 rotation;
     f32 resitution;
 };
 

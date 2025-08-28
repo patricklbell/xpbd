@@ -5,13 +5,13 @@ vec3_f32 phys_scale_rotate_translate(vec3_f32 x, vec3_f32 scale, vec4_f32 rotati
     );
 }
 
-mat3x3_f32 phys_inv_moment_rect_cuboid(vec3_f32 dimensions, f32 m) {
+vec3_f32 phys_inv_moment_rect_cuboid(vec3_f32 dimensions, f32 m) {
     vec3_f32 d2 = elmul_3f32(dimensions,dimensions);
     vec3_f32 inv_D = mul_3f32(
         make_3f32(1.f/(d2.y + d2.z), 1.f/(d2.x + d2.z), 1.f/(d2.x + d2.y)),
         12.f/m
     );
-    return make_scale_3x3f32(inv_D);
+    return inv_D;
 }
 
 f32 phys_tetrahedron_volume(vec3_f32 v1, vec3_f32 v2, vec3_f32 v3, vec3_f32 v4) {

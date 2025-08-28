@@ -1,7 +1,7 @@
 #pragma once
 
 typedef void(*PHYS_DBG_DrawEdgeBatch)(vec3_f32* points, vec3_f32* colors, u32 count);
-typedef void(*PHYS_DBG_DrawPointBatch)(vec3_f32* points, vec4_f32* colors, f32* radii, u32 count);
+typedef void(*PHYS_DBG_DrawPointBatch)(vec3_f32* points, vec3_f32* colors, vec2_f32* radii, u32 count);
 
 typedef enum PHYS_DBG_DrawColorMode {
     PHYS_DBG_DrawColorMode_Manual,
@@ -17,6 +17,7 @@ struct PHYS_DBG_DrawContext {
     PHYS_DBG_DrawPointBatch draw_point_batch;
 
     f32 body_radius;
+    f32 attachment_radius;
     f32 max_force;
 
     PHYS_DBG_DrawColorMode color_mode;
@@ -37,6 +38,7 @@ static vec3_f32 phys_dbg_d_get_body_color(PHYS_DBG_DrawContext* ctx, PHYS_Body* 
 
 void phys_dbg_d_constraint_distance(PHYS_DBG_DrawContext* ctx, PHYS_Constraint* c);
 void phys_dbg_d_constraint_volume(PHYS_DBG_DrawContext* ctx, PHYS_Constraint* c);
+void phys_dbg_d_constraint_hinge(PHYS_DBG_DrawContext* ctx, PHYS_Constraint* c);
 
 void phys_dbg_d_collider_sphere(PHYS_DBG_DrawContext* ctx, PHYS_Collider* c);
 void phys_dbg_d_collider_plane(PHYS_DBG_DrawContext* ctx, PHYS_Collider* c);
@@ -51,3 +53,6 @@ void phys_dbg_d_colliders(PHYS_DBG_DrawContext* ctx, PHYS_ColliderType* blacklis
 void phys_dbg_d_bodies(PHYS_DBG_DrawContext* ctx);
 
 void phys_dbg_d_world(PHYS_DBG_DrawContext* ctx);
+
+// helpers
+#define PHYS_DBG_D_DRAW_POINT(f,p,c,r) {vec3_f32 x = p; vec3_f32 y = c; vec2_f32 z = r; f(&x,&y,&z,1);}

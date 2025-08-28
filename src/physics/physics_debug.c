@@ -4,14 +4,14 @@ PHYS_DBG_DrawContext phys_dbg_d_make_context(PHYS_World* w, PHYS_DBG_DrawEdgeBat
         .draw_edge_batch = draw_edge_batch,
         .draw_point_batch = draw_point_batch,
         .body_radius = 0.05,
+        .attachment_radius = 0.01,
         .max_force = 10.f,
         .min_force_color_hsl = make_3f32(240.f/360.f,1,1),
         .max_force_color_hsl = make_3f32(000.f/360.f,1,1),
-        .body_color = make_3f32(0,1,0),
     };
 
     vec3_f32 hsl_color = make_3f32(0,1,1);
-    int hue_length = ArrayLength(ctx.collider_colors) + ArrayLength(ctx.constraint_colors) + 1;
+    int hue_length = ArrayLength(ctx.collider_colors) + ArrayLength(ctx.constraint_colors) + 2;
     int hue_i = 0;
     for EachElement(i, ctx.collider_colors) {
         hue_i++;
@@ -23,6 +23,10 @@ PHYS_DBG_DrawContext phys_dbg_d_make_context(PHYS_World* w, PHYS_DBG_DrawEdgeBat
         hsl_color.x = hue_i / (f32)hue_length;
         ctx.constraint_colors[i] = hsl_to_rgb(hsl_color);
     }
+    
+    hue_i++;
+    hsl_color.x = hue_i / (f32)hue_length;
+    ctx.body_color = hsl_to_rgb(hsl_color);
 
     return ctx;
 }
@@ -74,7 +78,13 @@ void phys_dbg_d_constraint_distance(PHYS_DBG_DrawContext* ctx, PHYS_Constraint* 
     vec3_f32 color = phys_dbg_d_get_constraint_color(ctx, c);
     vec3_f32 colors[] = { color, color };
 
-    ctx->draw_edge_batch(edges, colors, 2);
+    ctx->draw_edge_batch(edges, colors, ArrayLength(edges));
+
+    vec2_f32 radii[] = {
+        make_2f32(ctx->attachment_radius, ctx->attachment_radius),
+        make_2f32(ctx->attachment_radius, ctx->attachment_radius),
+    };
+    ctx->draw_point_batch(edges, colors, radii, ArrayLength(edges));
 }
 void phys_dbg_d_constraint_volume(PHYS_DBG_DrawContext* ctx, PHYS_Constraint* c) {
     static const int points_count = ArrayLength(c->volume.p)*(ArrayLength(c->volume.p)-1); // 2*(n choose 2)
@@ -97,6 +107,9 @@ void phys_dbg_d_constraint_volume(PHYS_DBG_DrawContext* ctx, PHYS_Constraint* c)
 
     ctx->draw_edge_batch(points, colors, points_count);
 }
+void phys_dbg_d_constraint_hinge(PHYS_DBG_DrawContext* ctx, PHYS_Constraint* c) {
+    return; // @todo
+}
 
 void phys_dbg_d_collider_sphere(PHYS_DBG_DrawContext* ctx, PHYS_Collider* c) {
     return; // @todo
@@ -105,7 +118,34 @@ void phys_dbg_d_collider_plane(PHYS_DBG_DrawContext* ctx, PHYS_Collider* c) {
     return; // @todo
 }
 void phys_dbg_d_collider_rect_cuboid(PHYS_DBG_DrawContext* ctx, PHYS_Collider* c) {
-    return; // @todo
+    vec3_f32 points[] = {
+        {+1,+1,+1},{-1,+1,+1},
+        {+1,+1,+1},{+1,-1,+1},
+        {+1,+1,+1},{+1,+1,-1},
+
+        {+1,-1,-1},{-1,-1,-1},
+        {+1,-1,-1},{+1,+1,-1},
+        {+1,-1,-1},{+1,-1,+1},
+
+        {-1,+1,-1},{+1,+1,-1},
+        {-1,+1,-1},{-1,-1,-1},
+        {-1,+1,-1},{-1,+1,+1},
+
+        {-1,-1,+1},{+1,-1,+1},
+        {-1,-1,+1},{-1,+1,+1},
+        {-1,-1,+1},{-1,-1,-1},
+    };
+
+    vec3_f32 color = phys_dbg_d_get_collider_color(ctx, c);
+    vec3_f32 colors[ArrayLength(points)];
+    for EachElement(offset, points) {
+        PHYS_Body* b = phys_world_resolve_body(ctx->w, c->p);
+
+        colors[offset] = color;
+        points[offset] = phys_scale_rotate_translate(points[offset], c->rect_cuboid.r, b->rotation, b->position);
+    }
+
+    ctx->draw_edge_batch(points, colors, ArrayLength(points));
 }
 
 void phys_dbg_d_constraint(PHYS_DBG_DrawContext* ctx, PHYS_Constraint* c) {
@@ -115,6 +155,9 @@ void phys_dbg_d_constraint(PHYS_DBG_DrawContext* ctx, PHYS_Constraint* c) {
         }break;
         case PHYS_ConstraintType_Volume: {
             phys_dbg_d_constraint_volume(ctx, c);
+        }break;
+        case PHYS_ConstraintType_Hinge: {
+            phys_dbg_d_constraint_hinge(ctx, c);
         }break;
     }
 }
@@ -132,28 +175,29 @@ void phys_dbg_d_collider(PHYS_DBG_DrawContext* ctx, PHYS_Collider* c) {
     }
 }
 void phys_dbg_d_body(PHYS_DBG_DrawContext* ctx, PHYS_Body* b) {
-    vec3_f32 offsets[] = {{1, 1, 1},{-1,-1,1},{-1,1,-1},{1,-1,-1}};
-    f32 offset_scale = ctx->body_radius;
+    // draw a tetrahedron at body position
+    // vec3_f32 offsets[] = {{1, 1, 1},{-1,-1,1},{-1,1,-1},{1,-1,-1}};
+    // f32 offset_scale = ctx->body_radius;
 
-    static const int points_count = ArrayLength(offsets)*(ArrayLength(offsets)-1); // 2*(n choose 2)
-    vec3_f32 points[points_count], colors[points_count];
+    // static const int points_count = ArrayLength(offsets)*(ArrayLength(offsets)-1); // 2*(n choose 2)
+    // vec3_f32 points[points_count], colors[points_count];
 
-    vec3_f32 color = phys_dbg_d_get_body_color(ctx, b);
+    // vec3_f32 color = phys_dbg_d_get_body_color(ctx, b);
 
-    int offset = 0;
-    for (int i = 0; i < ArrayLength(offsets); i++) {
-        for (int j = i+1; j < ArrayLength(offsets); j++) {
-            points[offset] = add_3f32(b->position, mul_3f32(offsets[i], offset_scale));
-            colors[offset] = color;
-            offset++;
+    // int offset = 0;
+    // for (int i = 0; i < ArrayLength(offsets); i++) {
+    //     for (int j = i+1; j < ArrayLength(offsets); j++) {
+    //         points[offset] = add_3f32(b->position, mul_3f32(offsets[i], offset_scale));
+    //         colors[offset] = color;
+    //         offset++;
 
-            points[offset] = add_3f32(b->position, mul_3f32(offsets[j], offset_scale));
-            colors[offset] = color;
-            offset++;
-        }
-    }
+    //         points[offset] = add_3f32(b->position, mul_3f32(offsets[j], offset_scale));
+    //         colors[offset] = color;
+    //         offset++;
+    //     }
+    // }
 
-    ctx->draw_edge_batch(points, colors, points_count);
+    PHYS_DBG_D_DRAW_POINT(ctx->draw_point_batch, b->position, phys_dbg_d_get_body_color(ctx, b), make_2f32(ctx->body_radius, ctx->body_radius));
 }
 
 static b32 phys_dbg_d_is_blacklisted(int value, int* blacklist, int blacklist_count) {

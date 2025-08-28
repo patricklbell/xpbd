@@ -1,28 +1,29 @@
-// helpers
-static f32 phys_body_generalized_inverse_mass(PHYS_Body* b, vec3_f32 r, vec3_f32 dC) {
-    if (!b->has_inertia) return b->inv_mass;
+// corrections helpers
+static f32 phys_body_inverse_inertia(PHYS_Body* b, vec3_f32 t_world) {
+    if (!b->has_inertia) return b->inv_mass*dot_3f32(t_world, t_world);
     // direction of torque
-    vec3_f32 nt = rot_quat(cross_3f32(r, dC), inv_quat(b->rotation));
-    return b->inv_mass + dot_3f32(nt, mul_3x3f32(b->inv_inertia, nt));
+    vec3_f32 nt = rot_quat(t_world, inv_quat(b->rotation));
+    return dot_3f32(nt, elmul_3f32(b->inv_inertia, nt));
 }
-
-static void phys_body_apply_linear_correction(PHYS_Body* b, vec3_f32 corr) {
+static void phys_body_apply_linear_correction(PHYS_Body* b, vec3_f32 dp_world) {
     if (b->inv_mass <= 0.f) return;
     // apply position correction
-    vec3_f32 dp = mul_3f32(corr, b->inv_mass);
+    vec3_f32 dp = mul_3f32(dp_world, b->inv_mass);
     b->position = add_3f32(b->position, dp);
 }
-static void phys_body_apply_angular_correction(PHYS_Body* b, vec3_f32 corr, vec3_f32 r) {
+static void phys_body_apply_angular_correction(PHYS_Body* b, vec3_f32 dt_world) {
     if (!b->has_inertia) return;
+
     // torque in inertial frame
-    vec3_f32 t = rot_quat(cross_3f32(r, corr), inv_quat(b->rotation));
+    vec3_f32 t = rot_quat(dt_world, inv_quat(b->rotation));
     // delta angle in world frame
-    vec3_f32 dw = rot_quat(mul_3x3f32(b->inv_inertia, t), b->rotation);
+    vec3_f32 dw = rot_quat(elmul_3f32(b->inv_inertia, t), b->rotation);
     // apply rotation correction (linearized approximation)
     vec4_f32 dr = mul_quat(make_axis_quat(dw), b->rotation);
     b->rotation = normalize_4f32(add_4f32(b->rotation, mul_4f32(dr, 0.5f)));
 }
 
+// velocity correct helpers
 static void phys_body_apply_linear_velocity_correction(PHYS_Body* b, vec3_f32 corr) {
     if (b->inv_mass <= 0.f) return;
     // apply position correction
@@ -32,7 +33,7 @@ static void phys_body_apply_linear_velocity_correction(PHYS_Body* b, vec3_f32 co
 static void phys_body_apply_angular_velocity_correction(PHYS_Body* b, vec3_f32 corr, vec3_f32 r) {
     if (!b->has_inertia) return;
     vec3_f32 t = rot_quat(cross_3f32(r, corr), inv_quat(b->rotation));
-    vec3_f32 dw = rot_quat(mul_3x3f32(b->inv_inertia, t), b->rotation);
+    vec3_f32 dw = rot_quat(elmul_3f32(b->inv_inertia, t), b->rotation);
     b->angular_velocity = add_3f32(b->angular_velocity, dw);
 }
 
@@ -41,12 +42,15 @@ static f32 phys_lagrange_delta_no_update(f32 C, f32 w, f32 alpha) {
 }
 
 static f32 phys_update_lagrange_multiplier_return_delta(f32 C, f32 w, f32 alpha, f32* l) {
-    f32 dl = (-C - alpha*(*l)) / (w + alpha);
+    // f32 dl = (-C - alpha*(*l)) / (w + alpha);
+    // using l in calculating dl causes the stiffness to become substep dependent,
+    // @todo figure out why xpbd paper results don't match this observation.
+    f32 dl = -C / (w + alpha);
     *l += dl;
     return dl;
 }
 
-static vec3_f32 phys_calculate_velocity_at_offset(PHYS_Body* b, vec3_f32 r) {
+static vec3_f32 phys_body_velocity_at_offset(PHYS_Body* b, vec3_f32 r) {
     return add_3f32(b->linear_velocity, cross_3f32(b->angular_velocity, r));
 }
 
@@ -61,35 +65,35 @@ static void phys_constraint_solve_distance(PHYS_Constraint* c, PHYS_ConstraintSo
         r2 = rot_quat(c->distance.offset2, b2->rotation);
     }
 
-    vec3_f32 dC = sub_3f32(
-        c->distance.is_offset ? add_3f32(b1->position, r1) : b1->position,
-        c->distance.is_offset ? add_3f32(b2->position, r2) : b2->position
+    vec3_f32 dx = sub_3f32(
+        c->distance.is_offset ? add_3f32(b2->position, r2) : b2->position,
+        c->distance.is_offset ? add_3f32(b1->position, r1) : b1->position
     );
-    f32 d = length_3f32(dC);
-    dC = (d != 0.f) ? mul_3f32(dC, 1.f/d) : make_3f32(1,0,0);
+    f32 d = length_3f32(dx);
+    
+    f32 C = c->distance.d - d;
+    if (c->distance.unilateral ? (C <= 0.f) : (C == 0.f)) return;    
+    vec3_f32 n = (d != 0.f) ? mul_3f32(dx, sgn_f32(C)*1.f/d) : make_3f32(sgn_f32(C),0,0);
+    C = abs_f32(C);
 
-    f32 C = d - c->distance.d;
-    if (c->distance.unilateral ? C <= 0.f : C == 0.f) return;
     f32 alpha = settings.inv_dt2*c->compliance;
 
-    f32 w = 0.f;
-    if (c->distance.is_offset) {
-        w += phys_body_generalized_inverse_mass(b1, r1, dC);
-        w += phys_body_generalized_inverse_mass(b2, r2, dC);
-    } else {
-        w += b1->inv_mass;
+    f32 w  = b1->inv_mass;
         w += b2->inv_mass;
+    if (c->distance.is_offset) {
+        w += phys_body_inverse_inertia(b1, cross_3f32(r1, n));
+        w += phys_body_inverse_inertia(b2, cross_3f32(r2, n));
     }
 
     f32 dl = phys_update_lagrange_multiplier_return_delta(C, w, alpha, &c->l);
 
-    vec3_f32 corr1 = mul_3f32(dC, +dl);
-    vec3_f32 corr2 = mul_3f32(dC, -dl);
+    vec3_f32 corr1 = mul_3f32(n, +dl);
+    vec3_f32 corr2 = mul_3f32(n, -dl);
     phys_body_apply_linear_correction(b1, corr1);
     phys_body_apply_linear_correction(b2, corr2);
     if (c->distance.is_offset) {
-        phys_body_apply_angular_correction(b1, corr1, r1);
-        phys_body_apply_angular_correction(b2, corr2, r2);
+        phys_body_apply_angular_correction(b1, cross_3f32(r1, corr1));
+        phys_body_apply_angular_correction(b2, cross_3f32(r2, corr2));
     }
 
     c->force = abs_f32(c->l) * settings.inv_dt;
@@ -138,6 +142,34 @@ static void phys_constraint_solve_volume(PHYS_Constraint* c, PHYS_ConstraintSolv
     c->force = abs_f32(c->l) * settings.inv_dt;
 }
 
+static void phys_constraint_solve_hinge(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
+    PHYS_Body* b1 = phys_world_resolve_body(settings.w, c->hinge.b1);
+    PHYS_Body* b2 = phys_world_resolve_body(settings.w, c->hinge.b2);
+
+    vec3_f32 a1 = rot_quat(c->hinge.a1, b1->rotation);
+    vec3_f32 a2 = rot_quat(c->hinge.a2, b2->rotation);
+
+    vec3_f32 dq = cross_3f32(a1, a2);
+    f32 t2 = dot_3f32(dq, dq);
+    if (t2 == 0.f) return;
+    f32 t = sqrt_f32(t2);
+    vec3_f32 n = mul_3f32(dq, 1.f/t);
+
+    f32 alpha = settings.inv_dt2*c->compliance;
+    f32 w  = b1->inv_mass + phys_body_inverse_inertia(b1, n);
+        w += b2->inv_mass + phys_body_inverse_inertia(b2, n);
+    if (w == 0.f) return;
+    f32 dl = phys_update_lagrange_multiplier_return_delta(t, w, alpha, &c->l);
+
+    vec3_f32 corr1 = mul_3f32(n, +dl);
+    vec3_f32 corr2 = mul_3f32(n, -dl);
+
+    phys_body_apply_angular_correction(b1, corr1);
+    phys_body_apply_angular_correction(b2, corr2);
+
+    c->torque = mul_3f32(n, abs_f32(c->l) * settings.inv_dt);
+}
+
 static void phys_constraint_solve(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
     switch (c->type) {
         case PHYS_ConstraintType_Distance: {
@@ -146,23 +178,26 @@ static void phys_constraint_solve(PHYS_Constraint* c, PHYS_ConstraintSolveSettin
         case PHYS_ConstraintType_Volume: {
             phys_constraint_solve_volume(c, settings);
         }break;
+        case PHYS_ConstraintType_Hinge: {
+            phys_constraint_solve_hinge(c, settings);
+        }break;
     }
 }
 
 // colliders 
-static void phys_collision_apply_corrections(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 dC, f32 l) {
-    vec3_f32 corr1 = mul_3f32(dC, +l);
-    vec3_f32 corr2 = mul_3f32(dC, -l);
+static void phys_collision_apply_corrections(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 n, f32 l) {
+    vec3_f32 corr1 = mul_3f32(n, +l);
+    vec3_f32 corr2 = mul_3f32(n, -l);
     
     phys_body_apply_linear_correction(b1, corr1);
     phys_body_apply_linear_correction(b2, corr2);
-    phys_body_apply_angular_correction(b1, corr1, r1);
-    phys_body_apply_angular_correction(b2, corr2, r2);
+    phys_body_apply_angular_correction(b1, cross_3f32(r1, corr1));
+    phys_body_apply_angular_correction(b2, cross_3f32(r2, corr2));
 }
 
-static void phys_collision_apply_velocity_corrections(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 dC, f32 l) {
-    vec3_f32 corr1 = mul_3f32(dC, +l);
-    vec3_f32 corr2 = mul_3f32(dC, -l);
+static void phys_collision_apply_velocity_corrections(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 n, f32 l) {
+    vec3_f32 corr1 = mul_3f32(n, +l);
+    vec3_f32 corr2 = mul_3f32(n, -l);
     
     phys_body_apply_linear_velocity_correction(b1, corr1);
     phys_body_apply_linear_velocity_correction(b2, corr2);
@@ -170,16 +205,16 @@ static void phys_collision_apply_velocity_corrections(PHYS_Body* b1, PHYS_Body* 
     phys_body_apply_angular_velocity_correction(b2, corr2, r2);
 }
 
-static f32 phys_collision_calculate_generalized_inverse_mass(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 dC) {
-    f32 w1 = phys_body_generalized_inverse_mass(b1, r1, dC);
-    f32 w2 = phys_body_generalized_inverse_mass(b2, r2, dC);
+static f32 phys_collision_generalized_inverse_mass(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 n) {
+    f32 w1 = b1->inv_mass + phys_body_inverse_inertia(b1, cross_3f32(r1, n));
+    f32 w2 = b2->inv_mass + phys_body_inverse_inertia(b2, cross_3f32(r2, n));
     return w1 + w2;
 }
 
-static vec3_f32 phys_collision_calculate_velocity(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2) {
+static vec3_f32 phys_collision_total_velocity(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2) {
     return sub_3f32(
-        phys_calculate_velocity_at_offset(b1, r1),
-        phys_calculate_velocity_at_offset(b2, r2)
+        phys_body_velocity_at_offset(b1, r1),
+        phys_body_velocity_at_offset(b2, r2)
     );
 }
 
@@ -239,7 +274,7 @@ static void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, PHY
 
     
     // calculate lagrange multiplier for condition correction (along normal)
-    f32 w_n = phys_collision_calculate_generalized_inverse_mass(b1, b2, r1, r2, n);
+    f32 w_n = phys_collision_generalized_inverse_mass(b1, b2, r1, r2, n);
     f32 l_n = phys_lagrange_delta_no_update(d, w_n, 0.f);
 
     // apply static friction
@@ -264,7 +299,7 @@ static void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, PHY
         f32 dp_t_length = length_3f32(dp_t);
         vec3_f32 t = mul_3f32(dp_t, 1.f/dp_t_length);
         
-        f32 w_t = phys_collision_calculate_generalized_inverse_mass(b1, b2, r1, r2, t);
+        f32 w_t = phys_collision_generalized_inverse_mass(b1, b2, r1, r2, t);
         f32 l_t = phys_lagrange_delta_no_update(dp_t_length, w_t, 0.f);
 
         // determine if static friction is active
@@ -289,7 +324,7 @@ static void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, PHY
         .r2 = r2,
         .n  = n,
         .f_n = l_n * settings.inv_dt2,
-        .v_n = dot_3f32(n, phys_collision_calculate_velocity(b1, b2, r1, r2))
+        .v_n = dot_3f32(n, phys_collision_total_velocity(b1, b2, r1, r2))
     });
 }
 
@@ -475,6 +510,16 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
         if (!b->no_gravity) {
             b->linear_velocity = add_3f32(b->linear_velocity, mul_3f32(a_gravity, dt));
         }
+        if (b->has_inertia) {
+            vec3_f32 w_inertial = rot_quat(b->angular_velocity, inv_quat(b->rotation));
+            vec3_f32 n = rot_quat(eldiv_3f32(w_inertial, b->inv_inertia), b->rotation);
+            vec3_f32 t_ext = make_3f32(0,0,0); // @todo apply external torques
+            vec3_f32 dT = mul_3f32(sub_3f32(t_ext, n), dt);
+            vec3_f32 dT_inertial = rot_quat(dT, inv_quat(b->rotation));
+            vec3_f32 dw = rot_quat(elmul_3f32(b->inv_inertia, dT_inertial), b->rotation);
+
+            b->angular_velocity = add_3f32(b->angular_velocity, dw);
+        }
 
         // enforce maximum velocity to avoid skipping collisions
         if (w->min_r) {
@@ -562,7 +607,7 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
         );
 
         // @note this is the velocity after update (step 3)
-        vec3_f32 v = phys_collision_calculate_velocity(b1, b2, record->r1, record->r2);
+        vec3_f32 v = phys_collision_total_velocity(b1, b2, record->r1, record->r2);
         f32 v_n = dot_3f32(record->n, v);
 
         // ensure velocity is correctly reflected from pre-update velocity
@@ -582,15 +627,18 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
             }
         }
 
-        // apply velocity update
-        f32 w = phys_collision_calculate_generalized_inverse_mass(b1, b2, record->r1, record->r2, dv);
-        phys_collision_apply_velocity_corrections(b1, b2, record->r1, record->r2, dv, 1.f/w);
+        f32 dv_length2 = dot_3f32(dv, dv);
+        if (dv_length2 > EPSILON_F32) {
+            // apply velocity update
+            f32 w = phys_collision_generalized_inverse_mass(b1, b2, record->r1, record->r2, mul_3f32(dv, 1.f/sqrt_f32(dv_length2)));
+            phys_collision_apply_velocity_corrections(b1, b2, record->r1, record->r2, dv, 1.f/w);
+        }
     }
 }
 
 static void phys_bodies_adjust_allocation(PHYS_World* w) {
     PHYS_Body* new_v = (PHYS_Body*)os_allocate(w->bodies.capacity*sizeof(PHYS_Body));
-    memcpy(new_v, w->bodies.v, w->bodies.capacity*sizeof(PHYS_Body));
+    memcpy(new_v, w->bodies.v, w->bodies.length*sizeof(PHYS_Body));
     os_deallocate(w->bodies.v);
     w->bodies.v = new_v;
 }

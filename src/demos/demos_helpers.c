@@ -23,8 +23,8 @@ void demos_camera_controls_orbit(OS_Handle window, f32 dt, DEMOS_Camera* camera)
             }
         
             // compute rotation
-            vec4_f32 xrot = make_axis_angle_quat(delta.x*-2.f*PI, u);
-            vec4_f32 yrot = make_axis_angle_quat(delta.y*-1.f*PI, s);
+            vec4_f32 xrot = make_angle_axis_quat(delta.x*-2.f*PI, u);
+            vec4_f32 yrot = make_angle_axis_quat(delta.y*-1.f*PI, s);
             d = rot_quat(d, xrot);
             d = rot_quat(d, yrot);
             
@@ -44,7 +44,7 @@ void demos_camera_controls_orbit(OS_Handle window, f32 dt, DEMOS_Camera* camera)
         vec3_f32 d = sub_3f32(camera->eye, camera->target);
         f32 d_length = length_3f32(d);
         f32 d_zoom = Clamp(
-            d_length - DEMOS_CONTOLS_ORBIT_ZOOM_MULT*scroll_delta.y*dt*exp_f32(DEMOS_CONTOLS_ORBIT_ZOOM_RATE*d_length),
+            d_length - DEMOS_CONTOLS_ORBIT_ZOOM_MULT*scroll_delta.y*dt*(1.f + exp_f32(DEMOS_CONTOLS_ORBIT_ZOOM_RATE*d_length)),
             EPSILON_F32,
             DEMOS_CONTOLS_ORBIT_ZOOM_MAX
         );

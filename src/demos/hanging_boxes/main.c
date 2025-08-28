@@ -45,7 +45,7 @@ int demos_persistent_init_hook(DEMOS_CommonState* cs) {
 }
 
 void demos_state_init_hook() {
-    s.world = phys_make_world((PHYS_WorldSettings){});
+    s.world = phys_make_world((PHYS_WorldSettings){.substeps=32});
     s.phys_dbg_draw_ctx = phys_dbg_d_make_context(s.world, dbgdraw_edge_batch, dbgdraw_point_batch);
     s.phys_dbg_draw_ctx.color_mode = PHYS_DBG_DrawColorMode_Force;
 
@@ -58,13 +58,13 @@ void demos_state_init_hook() {
     s.box1.extents = make_3f32(1,1,1);
     PHYS_Box_Settings box1_settings = {
         .mass = 1,
-        .center = make_3f32(0,-5,0),
+        .center = make_3f32(0,-4,0),
         .extents = s.box1.extents,
     };
     s.box1.rigid_body = phys_world_add_box(s.world, box1_settings);
 
     s.anchor_to_box1 = phys_world_add_constraint(s.world, (PHYS_Constraint){
-        .compliance = 0.005f,
+        .compliance = 0.05f,
         .type = PHYS_ConstraintType_Distance,
         .distance = {
             .b1 = s.anchor_id,
@@ -86,7 +86,7 @@ void demos_state_init_hook() {
     s.box2.rigid_body = phys_world_add_box(s.world, box2_settings);
 
     s.box1_to_box2 = phys_world_add_constraint(s.world, (PHYS_Constraint){
-        .compliance = 0.005f,
+        .compliance = 0.05f,
         .type = PHYS_ConstraintType_Distance,
         .distance = {
             .b1 = s.box1.rigid_body.body_id,

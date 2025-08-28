@@ -1,5 +1,16 @@
 #pragma once
 
+// units
+#define PHYS_UNIT_KG(n)  (((f32)(n)))
+#define PHYS_UNIT_G(n)   (((f32)(n))*0.001f)
+#define PHYS_UNIT_KM(n)  (((f32)(n))*1000f)
+#define PHYS_UNIT_M(n)   (((f32)(n)))
+#define PHYS_UNIT_CM(n)  (((f32)(n))*0.01f)
+#define PHYS_UNIT_MM(n)  (((f32)(n))*0.001f)
+#define PHYS_UNIT_N(n)   (((f32)(n)))
+#define PHYS_UNIT_NM(n)  (((f32)(n)))
+#define PHYS_UNIT_J(n)   (((f32)(n)))
+
 // @note units are generally assumed to be m,kg,seconds (MKS),
 typedef struct PHYS_World PHYS_World;
 
@@ -18,21 +29,22 @@ struct PHYS_Body {
     b32         no_gravity;
     f32         inv_mass;
     b32         has_inertia;
-    mat3x3_f32  inv_inertia;
+    vec3_f32    inv_inertia; // unit rotation should ensure moment of inertia is diagonal
     f32         restitution;
 };
 
-// helpers
-static void     phys_body_apply_linear_correction(PHYS_Body* b, vec3_f32 corr);
-static void     phys_body_apply_angular_correction(PHYS_Body* b, vec3_f32 corr, vec3_f32 r);
+// correction helpers
+static f32  phys_body_inverse_inertia(PHYS_Body* b, vec3_f32 t_world);
+static void phys_body_apply_linear_correction(PHYS_Body* b, vec3_f32 dp_world);
+static void phys_body_apply_angular_correction(PHYS_Body* b, vec3_f32 dt_world);
 
+// velocity correction helpers
 static void     phys_body_apply_linear_velocity_correction(PHYS_Body* b, vec3_f32 corr);
 static void     phys_body_apply_angular_velocity_correction(PHYS_Body* b, vec3_f32 corr, vec3_f32 r);
+static vec3_f32 phys_body_velocity_at_offset(PHYS_Body* b, vec3_f32 r);
 
-static f32      phys_body_generalized_inverse_mass(PHYS_Body* b, vec3_f32 r, vec3_f32 dC);
-static f32      phys_lagrange_delta_no_update(f32 C, f32 w, f32 alpha);
-static f32      phys_update_lagrange_multiplier_return_delta(f32 C, f32 w, f32 alpha, f32* l);
-static vec3_f32 phys_calculate_velocity_at_offset(PHYS_Body* b, vec3_f32 r);
+static f32 phys_lagrange_delta_no_update(f32 C, f32 w, f32 alpha);
+static f32 phys_update_lagrange_multiplier_return_delta(f32 C, f32 w, f32 alpha, f32* l);
 
 // constraints
 typedef union PHYS_constraint_id {
@@ -62,9 +74,18 @@ struct PHYS_Constraint_Volume {
     f32 v_rest;
 };
 
+typedef struct PHYS_Constraint_Hinge PHYS_Constraint_Hinge;
+struct PHYS_Constraint_Hinge {
+    PHYS_body_id b1;
+    PHYS_body_id b2;
+    vec3_f32 a1;
+    vec3_f32 a2;
+};
+
 typedef enum PHYS_ConstraintType {
     PHYS_ConstraintType_Distance,
     PHYS_ConstraintType_Volume,
+    PHYS_ConstraintType_Hinge,
     PHYS_ConstraintType_COUNT ENUM_CASE_UNUSED,
 } PHYS_ConstraintType;
 
@@ -73,11 +94,16 @@ struct PHYS_Constraint {
     PHYS_ConstraintType type;
     f32 l;
     f32 compliance;
-    f32 force;
+
+    union {
+        f32 force;
+        vec3_f32 torque;
+    };
 
     union {
         PHYS_Constraint_Distance        distance;
         PHYS_Constraint_Volume          volume;
+        PHYS_Constraint_Hinge           hinge;
     };
 };
 
@@ -91,6 +117,7 @@ struct PHYS_ConstraintSolveSettings {
 // solvers
 static void phys_constraint_solve_distance(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings);
 static void phys_constraint_solve_volume(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings);
+static void phys_constraint_solve_hinge(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings);
 static void phys_constraint_solve(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings);
 
 // colliders
@@ -138,8 +165,8 @@ struct PHYS_Collider {
 // helpers
 static void     phys_collision_apply_corrections(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 dC, f32 l);
 static void     phys_collision_apply_velocity_corrections(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 dC, f32 l);
-static f32      phys_collision_calculate_generalized_inverse_mass(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 dC);
-static vec3_f32 phys_collision_calculate_velocity(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2);
+static f32      phys_collision_generalized_inverse_mass(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 dC);
+static vec3_f32 phys_collision_total_velocity(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2);
 
 // solver
 static void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, PHYS_ConstraintSolveSettings settings);

@@ -28,15 +28,20 @@ PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings){
 }
 
 PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings){
-    PHYS_body_id center = phys_world_add_body(w, (PHYS_Body){
+    PHYS_Body body = {
         .position = settings.center,
         .linear_velocity = settings.linear_velocity,
+        .rotation = (length_4f32(settings.rotation) == 0.f) ? make_identity_quat() : settings.rotation,
         .angular_velocity = settings.angular_velocity,
         .inv_mass = (settings.mass > 0.f) ? 1.f / settings.mass : 0.f,
-        .has_inertia = true,
-        .inv_inertia = phys_inv_moment_rect_cuboid(mul_3f32(settings.extents, 2.0), settings.mass),
         .restitution = settings.resitution,
-    });
+    };
+    if (settings.mass > 0.f) {
+        body.has_inertia = true;
+        body.inv_inertia = phys_inv_moment_rect_cuboid(mul_3f32(settings.extents, 2.0), settings.mass);
+    }
+    PHYS_body_id center = phys_world_add_body(w, body);
+
     PHYS_collider_id rect_cuboid = phys_world_add_collider(w, (PHYS_Collider){
         .type = PHYS_ColliderType_RectCuboid,
         .p = center,

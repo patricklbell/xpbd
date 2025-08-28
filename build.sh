@@ -28,28 +28,11 @@ build_demo() {
                 echo "Warning: Data file ${DATA_DIR}/${data_file} not found"
             fi
         done
-    else
-        for data_file in "${required_data_files[@]}"; do
-            copy_data_file "$data_file"
-        done
     fi
     
     build_command="${CC} ${CFLAGS} ${main_file} ${LDFLAGS} ${LDFLAGS_GFX} ${embed_args} -o ${BUILD_DIR}/${demo_name}${BUILD_EXT}"
     echo ${build_command}
     eval ${build_command}
-}
-
-# Function to build data files
-copy_data_file() {
-    local file="$1"
-    mkdir -p "${BUILD_DIR}/${DATA_DIR}"
-    if [ -f "${DATA_DIR}/${file}" ]; then
-        copy_command="cp -f '${DATA_DIR}/${file}' '${BUILD_DIR}/${DATA_DIR}/${file}'"
-        echo ${copy_command}
-        eval ${copy_command}
-    else
-        echo "Warning: Data file ${DATA_DIR}/${file} not found"
-    fi
 }
 
 # Function to clean build directory
@@ -65,6 +48,7 @@ build_demos() {
         [hanging_boxes]="cube.obj"
         [softbody]="bunny.vtk"
         [cloth]="cloth.vtk sphere.obj"
+        [pendulum]="cube.obj"
     )
 
     if [[ -n "$1" && -n "${dependencies[$1]}" ]]; then
