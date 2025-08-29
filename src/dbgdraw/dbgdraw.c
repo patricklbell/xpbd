@@ -45,7 +45,7 @@ void dbgdraw_submit(OS_Handle window, R_Handle rwindow) {
     }
 
     dbgdraw_load_into_rbuffer(&dbgdraw_thread_ctx->edge_buffer, &dbgdraw_thread_ctx->edge_buffer_size, edges_size, edges);
-    d_mesh(dbgdraw_thread_ctx->edge_buffer, edge_flags, r_zero_handle(), R_VertexTopology_Lines, R_Mesh3DMaterial_Debug, make_diagonal_4x4f32(1.f), make_3f32(1,1,1));
+    d_debug(dbgdraw_thread_ctx->edge_buffer, edge_flags, r_zero_handle(), R_VertexTopology_Lines);
 
     // convert points into flat array
     // @note splat uses texcoords for radii
@@ -71,7 +71,7 @@ void dbgdraw_submit(OS_Handle window, R_Handle rwindow) {
     }
 
     dbgdraw_load_into_rbuffer(&dbgdraw_thread_ctx->point_buffer, &dbgdraw_thread_ctx->point_buffer_size, points_size, points);
-    d_mesh(dbgdraw_thread_ctx->point_buffer, point_flags, r_zero_handle(), R_VertexTopology_Points, R_Mesh3DMaterial_Splat, make_diagonal_4x4f32(1.f), make_3f32(1,1,1));
+    d_splat(dbgdraw_thread_ctx->point_buffer, point_flags);
 }
 
 void dbgdraw_edge_batch(vec3_f32* vertices, vec3_f32* colors, u32 count) {

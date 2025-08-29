@@ -179,7 +179,10 @@ static void d_ball(PHYS_RigidBody* ball) {
         make_translate_4x4f32(center->position),
         make_scale_4x4f32(make_3f32(radius, radius, radius))
     );
-    d_mesh(s.sphere_vertices, s.sphere_flags, s.sphere_indices, s.sphere_topology, R_Mesh3DMaterial_Lambertian, t, make_3f32(0.7,0.7,0.7));
+    d_pbr_mesh(
+        s.sphere_vertices, s.sphere_flags, s.sphere_indices, s.sphere_topology,
+        t, make_3f32(0.7,0.7,0.7), 1.0, make_3f32(0,0,0)
+    );
 }
 
 static void d_cloth(PHYS_Cloth* cloth) {
@@ -207,6 +210,9 @@ static void d_cloth(PHYS_Cloth* cloth) {
         r_buffer_load(s.cloth_vertices[i], 0, m->vertices_count*r_vertex_size(m->flags), m->vertices);
     
         vec3_f32 color = mul_3f32(normalize_3f32(make_3f32(0.5+0.5*i,0.5*i,0)), 2.f);
-        d_mesh(s.cloth_vertices[i], m->flags, s.cloth_indices[i], m->topology, R_Mesh3DMaterial_Lambertian, make_diagonal_4x4f32(1.f), color);
+        d_pbr_mesh(
+            s.cloth_vertices[i], m->flags, s.cloth_indices[i], m->topology,
+            make_diagonal_4x4f32(1.f), color, 1.0, make_3f32(0,0,0)
+        );
     }
 }

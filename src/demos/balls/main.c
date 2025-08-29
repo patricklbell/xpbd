@@ -135,5 +135,8 @@ static void d_ball(Ball* ball) {
         make_translate_4x4f32(center->position),
         make_scale_4x4f32(make_3f32(ball->radius, ball->radius, ball->radius))
     );
-    d_mesh(s.sphere_vertices, s.sphere_flags, s.sphere_indices, s.sphere_topology, R_Mesh3DMaterial_Lambertian, t, ball->color);
+    d_pbr_mesh(
+        s.sphere_vertices, s.sphere_flags, s.sphere_indices, s.sphere_topology,
+        t, /*albedo*/ ball->color, /*roughness*/ 1.0, /*specular*/ make_3f32(0,0,0)
+    );
 }

@@ -46,6 +46,7 @@ typedef enum R_VertexTopology {
 // mesh
 typedef enum R_Mesh3DMaterial {
     R_Mesh3DMaterial_Lambertian,
+    R_Mesh3DMaterial_DieletricPBR,
     R_Mesh3DMaterial_Debug,
     R_Mesh3DMaterial_Splat,
     R_Mesh3DMaterial_COUNT ENUM_CASE_UNUSED,
@@ -55,6 +56,13 @@ typedef struct R_Mesh3DInstance R_Mesh3DInstance;
 struct R_Mesh3DInstance {
     mat4x4_f32 transform;
     vec3_f32 color;
+};
+
+typedef struct R_PBRMesh3DInstance R_PBRMesh3DInstance;
+struct R_PBRMesh3DInstance {
+    mat4x4_f32 transform;
+    vec4_f32 albedo_roughness;
+    vec3_f32 specular;
 };
 
 // batches

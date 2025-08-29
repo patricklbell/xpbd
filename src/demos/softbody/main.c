@@ -157,5 +157,8 @@ static void d_bunny(int bunny_i) {
 
     r_buffer_load(s.bunny_vertices[bunny_i], 0, m->vertices_count*r_vertex_size(m->flags), m->vertices);
 
-    d_mesh(s.bunny_vertices[bunny_i], m->flags, r_zero_handle(), m->topology, R_Mesh3DMaterial_Lambertian, make_diagonal_4x4f32(1.0f), s.bunny_colors[bunny_i]);
+    d_pbr_mesh(
+        s.bunny_vertices[bunny_i], m->flags, r_zero_handle(), m->topology,
+        make_diagonal_4x4f32(1.0f), s.bunny_colors[bunny_i], 0.1, make_3f32(0.9,0.9,0.9)
+    );
 }

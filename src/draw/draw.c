@@ -26,7 +26,7 @@ R_PassParams_3D* d_begin_3d_pass(rect_f32 viewport, mat4x4_f32 view, mat4x4_f32 
     return params;
 }
 
-R_Mesh3DInstance* d_mesh(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R_VertexTopology topology, R_Mesh3DMaterial material, mat4x4_f32 transform, vec3_f32 color) {
+void* d_3d(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R_VertexTopology topology, R_Mesh3DMaterial material, void* instance, u64 instance_size) {
     R_Pass *pass = r_pass_from_kind(d_thread_ctx->arena, &d_thread_ctx->passes, R_PassKind_3D);
     R_PassParams_3D *params = pass->params_3d;
 
@@ -72,7 +72,7 @@ R_Mesh3DInstance* d_mesh(R_Handle vertices, R_VertexFlag flags, R_Handle indices
             node = push_array(d_thread_ctx->arena, R_BatchGroup3DMapNode, 1);
             stack_push(params->mesh_batches.slots[slot_idx], node);
             node->hash = hash;
-            node->batches = r_batch_list_make(sizeof(R_Mesh3DInstance));
+            node->batches = r_batch_list_make(instance_size);
             node->params.mesh_vertices = vertices;
             node->params.mesh_flags = flags;
             node->params.mesh_indices = indices;
@@ -82,8 +82,39 @@ R_Mesh3DInstance* d_mesh(R_Handle vertices, R_VertexFlag flags, R_Handle indices
         }
     }
 
-    R_Mesh3DInstance *inst = (R_Mesh3DInstance*)r_batch_list_push_inst(d_thread_ctx->arena, &node->batches, 256);
-    inst->transform = transform;
-    inst->color = color;
+    void *inst = r_batch_list_push_inst(d_thread_ctx->arena, &node->batches, 128);
+    memcpy(inst, instance, instance_size);
     return inst;
+}
+
+// wrappers
+R_Mesh3DInstance* d_lambertian_mesh(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R_VertexTopology topology, mat4x4_f32 transform, vec3_f32 color) {
+    R_Mesh3DInstance instance = {
+        .transform = transform,
+        .color = color,
+    };
+    return (R_Mesh3DInstance*)d_3d(vertices, flags, indices, topology, R_Mesh3DMaterial_Lambertian, &instance, sizeof(instance));
+}
+R_PBRMesh3DInstance* d_pbr_mesh(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R_VertexTopology topology, mat4x4_f32 transform, vec3_f32 albedo, f32 roughness, vec3_f32 specular) {
+    R_PBRMesh3DInstance instance = {
+        .transform = transform,
+        .albedo_roughness = {.xyz = albedo, ._w = roughness},
+        .specular = specular,
+    };
+    return (R_PBRMesh3DInstance*)d_3d(vertices, flags, indices, topology, R_Mesh3DMaterial_DieletricPBR, &instance, sizeof(instance));
+}
+
+void d_debug(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R_VertexTopology topology) {
+    R_Mesh3DInstance instance = {
+        .transform = make_diagonal_4x4f32(1.f),
+        .color = make_3f32(1.f,1.f,1.f),
+    };
+    d_3d(vertices, flags, indices, topology, R_Mesh3DMaterial_Debug, &instance, sizeof(instance));
+}
+void d_splat(R_Handle vertices, R_VertexFlag flags) {
+    R_Mesh3DInstance instance = {
+        .transform = make_diagonal_4x4f32(1.f),
+        .color = make_3f32(1.f,1.f,1.f),
+    };
+    d_3d(vertices, flags, r_zero_handle(), R_VertexTopology_Points, R_Mesh3DMaterial_Splat, &instance, sizeof(instance));
 }

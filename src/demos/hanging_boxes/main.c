@@ -156,5 +156,8 @@ static void d_hanging_box(HangingBox* hanging_box) {
         make_rotate_4x4f32(normalize_4f32(body->rotation))),
         make_scale_4x4f32(hanging_box->extents)
     );
-    d_mesh(s.cube_vertices, s.cube_flags, s.cube_indices, s.cube_topology, R_Mesh3DMaterial_Lambertian, t, make_3f32(0,1,0));
+    d_pbr_mesh(
+        s.cube_vertices, s.cube_flags, s.cube_indices, s.cube_topology,
+        t, make_3f32(0,1,0), 1.0, make_3f32(0.1,0.1,0.1)
+    );
 }

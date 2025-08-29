@@ -26,11 +26,11 @@ union vec3_f32 {
         f32 y;
         f32 z;
     };
-    union {
+    struct {
         vec2_f32 xy;
         f32 _z;
     };
-    union {
+    struct {
         f32 _x;
         vec2_f32 yz;
     };
@@ -73,15 +73,15 @@ union vec4_f32 {
         f32 z;
         f32 w;
     };
-    union {
+    struct {
         vec2_f32 xy;
         vec2_f32 zw;
     };
-    union {
+    struct {
         vec3_f32 xyz;
         f32 _w;
     };
-    union {
+    struct {
         f32 _x;
         vec3_f32 yzw;
     };

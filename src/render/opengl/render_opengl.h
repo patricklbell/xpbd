@@ -111,7 +111,7 @@ struct R_OGL_InstanceAttribute {
 // materials
 //
 #if R_OGL_USES_ES
-    #define R_OGL_SHADER_PREAMBLE   "#version 300 es\nprecision mediump float;"
+    #define R_OGL_SHADER_PREAMBLE   "#version 300 es\nprecision mediump float;\n"
 #else
     #define R_OGL_SHADER_PREAMBLE   "#version 330 core\n"
 #endif
@@ -169,6 +169,127 @@ static const R_OGL_InstanceAttribute r_ogl_lambertian_shader_instance_attributes
     { .location = 12, .size = sizeof(Member(R_Mesh3DInstance, transform.c3))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c3), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
     { .location = 13, .size = sizeof(Member(R_Mesh3DInstance, transform.c4))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c4), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
     { .location = 14, .size = sizeof(Member(R_Mesh3DInstance, color       ))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, color       ), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_color") },
+};
+
+// dieletric pbr
+static const NTString8 r_ogl_dieletric_pbr_vertex_shader_src = ntstr8_lit_init(
+    R_OGL_SHADER_PREAMBLE
+    "layout (location = 0) in vec3 in_position;"
+    "layout (location = 1) in vec3 in_normal;"
+    "layout (location = 10) in mat4 in_model;"
+    "layout (location = 14) in vec4 in_albedo_roughness;"
+    "layout (location = 15) in vec3 in_specular;"
+    ""
+    "out vec3 vs_normal;"
+    "out vec3 vs_position;"
+    "out vec3 vs_albedo;"
+    "out float vs_roughness;"
+    "out vec3 vs_specular;"
+    ""
+    "uniform mat4 u_view;"
+    "uniform mat4 u_projection;"
+    ""
+    "void main() {"
+    "   vs_normal = (in_model*vec4(in_normal, 0.)).xyz;"
+    "   vec4 world_position = in_model*vec4(in_position, 1.0);"
+    "   vs_position = world_position.xyz;"
+    "   vs_albedo = in_albedo_roughness.xyz;"
+    "   vs_roughness = in_albedo_roughness.w;"
+    "   vs_specular = in_specular;"
+    ""
+    "   gl_Position = u_projection*u_view*world_position;"
+    "}"
+);
+
+static const NTString8 r_ogl_dieletric_pbr_fragment_shader_src = ntstr8_lit_init(
+    R_OGL_SHADER_PREAMBLE
+    "#define PI      3.141592f\n"
+    "#define EPSILON 1.19209e-07\n"
+    ""
+    "in vec3 vs_normal;"
+    "in vec3 vs_position;"
+    "in vec3 vs_albedo;"
+    "in float vs_roughness;"
+    "in vec3 vs_specular;"
+    ""
+    "out vec4 out_color;"
+    ""
+    "uniform mat4 u_view;"
+    ""
+    "vec3 F_Schlick(float cLdotH, vec3 F0) {"
+    "    return F0 + (1.0 - F0)*pow(1.0 - cLdotH, 5.0);"
+    "}"
+    ""
+    "float G2_GGX_corr(float alpha, float cLdotN, float cVdotN) {"
+    "    float nom = cLdotN*cVdotN;"
+    "    float denom = mix(2.0*nom, cLdotN + cVdotN, alpha) + EPSILON;"
+    "    return nom / denom;"
+    "}"
+    ""
+    "float D_GGX(float alpha, float HdotN) {"
+    "    float a2 = alpha*alpha;"
+    "    float c2 = HdotN*HdotN;"
+    ""
+    "    float nom = a2;"
+    "    float denom = PI*(c2*(a2 - 1.0) + 1.0)*(c2*(a2 - 1.0) + 1.0);"
+    "    return nom / denom;"
+    "}"
+    ""
+    "vec3 L_r(vec3 N, vec3 V, float cVdotN, float alpha, vec3 albedo, vec3 specular, vec3 L, float incident_radiance) {"
+    "    vec3 H = normalize(V + L);"
+    "    float cLdotN = max(dot(L, N), 0.0);"
+    "    float cLdotH = max(dot(L, H), 0.0);"
+    "    float HdotN = dot(H, N);"
+    ""
+    "    vec3 F = F_Schlick(cLdotH, specular);"
+    "    float D = D_GGX(alpha, HdotN);"
+    "    float G2 = G2_GGX_corr(alpha, cLdotN, cVdotN);"
+    ""
+    "    vec3 brdf_s = F*D*G2 / (4.0*cLdotN*cVdotN + EPSILON);"
+    "    vec3 brdf_d = (1.0 - F)*albedo / PI;"
+    ""
+    "    return (brdf_s + brdf_d)*incident_radiance*cLdotN;"
+    "}"
+    ""
+    "vec3 reinhard_tonemap(vec3 x) {"
+    "   return x / (x + vec3(1.0));"
+    "}"
+    ""
+    "vec3 gamma_correction(vec3 mapped) {"
+    "   const float gamma = 2.2;"
+    "   return pow(mapped, vec3(1.0 / gamma));"
+    "}"
+    ""
+    "void main() {"
+    "   vec3 E = -transpose(mat3(u_view)) * u_view[3].xyz;"
+    "   vec3 N = normalize(vs_normal);"
+    "   vec3 V = normalize(E - vs_position);"
+    "   float cVdotN = max(dot(V, N), 0.0);"
+    "   float alpha = vs_roughness*vs_roughness;"
+    ""
+    "   vec3 sun_direction = normalize(vec3(-1.0,1.0,1.0));"
+    "   float sun_radiance = 10.0;"
+    "   vec3 radiance = L_r(N, V, cVdotN, alpha, vs_albedo, vs_specular, sun_direction, sun_radiance);"
+    ""
+    "   float ambient = 0.1;"
+    "   radiance += ambient*vs_albedo / PI;"
+    ""
+    "   out_color = vec4(gamma_correction(reinhard_tonemap(radiance)), 1.0);"
+    "}"
+);
+
+static const R_OGL_VertexAttribute r_ogl_dieletric_pbr_shader_vertex_attributes[] = {
+    { .location = 0, .size = sizeof(vec3_f32)/sizeof(f32), .flag = R_VertexFlag_P, .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_position") },
+    { .location = 1, .size = sizeof(vec3_f32)/sizeof(f32), .flag = R_VertexFlag_N, .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_normal"  ) },
+};
+
+static const R_OGL_InstanceAttribute r_ogl_dieletric_pbr_shader_instance_attributes[] = {
+    { .location = 10, .size = sizeof(Member(R_PBRMesh3DInstance, transform.c1))/sizeof(f32), .offset = &Member(R_PBRMesh3DInstance, transform.c1), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
+    { .location = 11, .size = sizeof(Member(R_PBRMesh3DInstance, transform.c2))/sizeof(f32), .offset = &Member(R_PBRMesh3DInstance, transform.c2), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
+    { .location = 12, .size = sizeof(Member(R_PBRMesh3DInstance, transform.c3))/sizeof(f32), .offset = &Member(R_PBRMesh3DInstance, transform.c3), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
+    { .location = 13, .size = sizeof(Member(R_PBRMesh3DInstance, transform.c4))/sizeof(f32), .offset = &Member(R_PBRMesh3DInstance, transform.c4), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
+    { .location = 14, .size = sizeof(Member(R_PBRMesh3DInstance, albedo_roughness))/sizeof(f32), .offset = &Member(R_PBRMesh3DInstance, albedo_roughness), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_albedo_roughness") },
+    { .location = 15, .size = sizeof(Member(R_PBRMesh3DInstance, specular        ))/sizeof(f32), .offset = &Member(R_PBRMesh3DInstance, specular        ), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_specular"        ) },
 };
 
 // debug
@@ -322,7 +443,17 @@ static const R_OGL_ProgramDefinition r_ogl_programs_definitions[R_Mesh3DMaterial
         .vertex_attribute_count = ArrayLength(r_ogl_lambertian_shader_vertex_attributes),
         .instance_attributes = r_ogl_lambertian_shader_instance_attributes,
         .instance_attribute_count = ArrayLength(r_ogl_lambertian_shader_instance_attributes),
-        .disable_depth_test = 0,
+        .disable_depth_test = false,
+    },
+    {
+        .material = R_Mesh3DMaterial_DieletricPBR,
+        .vertex_shader_src = r_ogl_dieletric_pbr_vertex_shader_src,
+        .fragment_shader_src = r_ogl_dieletric_pbr_fragment_shader_src,
+        .vertex_attributes = r_ogl_dieletric_pbr_shader_vertex_attributes,
+        .vertex_attribute_count = ArrayLength(r_ogl_dieletric_pbr_shader_vertex_attributes),
+        .instance_attributes = r_ogl_dieletric_pbr_shader_instance_attributes,
+        .instance_attribute_count = ArrayLength(r_ogl_dieletric_pbr_shader_instance_attributes),
+        .disable_depth_test = false,
     },
     {
         .material = R_Mesh3DMaterial_Debug,
@@ -332,7 +463,7 @@ static const R_OGL_ProgramDefinition r_ogl_programs_definitions[R_Mesh3DMaterial
         .vertex_attribute_count = ArrayLength(r_ogl_debug_shader_vertex_attributes),
         .instance_attributes = r_ogl_debug_shader_instance_attributes,
         .instance_attribute_count = ArrayLength(r_ogl_debug_shader_instance_attributes),
-        .disable_depth_test = 0,
+        .disable_depth_test = true,
     },
     {
         .material = R_Mesh3DMaterial_Splat,
@@ -352,6 +483,6 @@ static const R_OGL_ProgramDefinition r_ogl_programs_definitions[R_Mesh3DMaterial
         .instance_attributes = r_ogl_splat_shader_instance_attributes,
         .instance_attribute_count = ArrayLength(r_ogl_splat_shader_instance_attributes),
         #endif
-        .disable_depth_test = 0,
+        .disable_depth_test = true,
     },
 };
