@@ -243,7 +243,6 @@ typedef struct PHYS_WorldSettings PHYS_WorldSettings;
 struct PHYS_WorldSettings {
     u64 substeps;    
     f32 little_g;
-    f32 linear_damping;
     f32 min_collision_distance;
     f32 hashgrid_cell_size;
     f32 hashgrid_object_size;
@@ -271,7 +270,6 @@ struct PHYS_World {
 
     u64 substeps;    
     f32 little_g;
-    f32 linear_damping;
 
     PHYS_CoefficientCalculation restitution_calculation;
     PHYS_CoefficientCalculation static_friction_calculation;

@@ -20,3 +20,12 @@ b32 phys_contact_points_plane_sphere(
     vec3_f32 in_p1, vec3_f32 in_p2, vec3_f32 in_n, f32 in_r2,
     f32* out_d, vec3_f32* out_r1, vec3_f32* out_r2, vec3_f32* out_n
 );
+// @note out_d is relative to first triangle point
+b32 phys_contact_points_triangle_sphere(
+    vec3_f32 in_p1[3], vec3_f32 in_n1, vec3_f32 in_p2, f32 in_r2,
+    f32* out_d, vec3_f32* out_r1, vec3_f32* out_r2, vec3_f32* out_n
+);
+b32 phys_contact_points_triangles(
+    vec3_f32 in_p1[3], vec3_f32 in_n1, vec3_f32 in_p2[3], vec3_f32 in_n2,
+    f32* out_d, vec3_f32* out_r1, vec3_f32* out_r2, vec3_f32* out_n
+);

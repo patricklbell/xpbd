@@ -12,7 +12,7 @@ struct DEMO_PendulumState {
 
     PHYS_World* phys_world;
     PHYS_DBG_DrawContext phys_dbg_d_ctx;
-    PHYS_RigidBody rod1, rod2;
+    PHYS_RigidBody phys_arms[3];
     
     f64 time;
 };
@@ -42,81 +42,62 @@ void demos_state_init_hook() {
     s.phys_dbg_d_ctx.color_mode = PHYS_DBG_DrawColorMode_Type;
     s.phys_dbg_d_ctx.body_radius = 0.007;
 
-    f32 hl = 0.6;
-    f32 ht = 0.01;
-    f32 inset = 0.05;
-
     // bodies
     PHYS_body_id anchor_id = phys_world_add_body(s.phys_world, (PHYS_Body){
-        .position=make_3f32(inset,0,0),
+        .position=make_3f32(0,0,0),
         .is_particle=true,
         .no_gravity=true,
     });
-    s.rod1 = phys_world_add_box(s.phys_world, (PHYS_Box_Settings){
-        .center=make_3f32(hl,0,0),
-        .extents=make_3f32(hl,hl/10,ht),
-        .mass=PHYS_UNIT_G(500),
-    });
-    s.rod2 = phys_world_add_box(s.phys_world, (PHYS_Box_Settings){
-        .center=make_3f32(3*hl-inset,0,0),
-        .extents=make_3f32(hl,hl/10,ht),
-        .linear_velocity=make_3f32(0,-10,0),
-        .mass=PHYS_UNIT_G(500),
-    });
 
     // constraints
-    phys_world_add_constraint(s.phys_world, (PHYS_Constraint){
-        .type=PHYS_ConstraintType_Distance,
-        .distance={
-            .b1=anchor_id,
-            .b2=s.rod1.body_id,
-            .d=0.f,
-            .is_offset=true,
-            .offset1=make_3f32(0,0,0),
-            .offset2=make_3f32(-hl+inset,0,0),
-        },
-    });
-    phys_world_add_constraint(s.phys_world, (PHYS_Constraint){
-        .type=PHYS_ConstraintType_Hinge,
-        .hinge={
-            .b1=anchor_id,
-            .b2=s.rod1.body_id,
-            .a1=make_3f32(0,0,1),
-            .a2=make_3f32(0,0,1),
-        },
-    });
-    phys_world_add_constraint(s.phys_world, (PHYS_Constraint){
-        .type=PHYS_ConstraintType_Distance,
-        .distance={
-            .b1=s.rod1.body_id,
-            .b2=s.rod2.body_id,
-            .d=0.f,
-            .is_offset=true,
-            .offset1=make_3f32( hl-inset,0,0),
-            .offset2=make_3f32(-hl+inset,0,0),
-        },
-    });
-    phys_world_add_constraint(s.phys_world, (PHYS_Constraint){
-        .type=PHYS_ConstraintType_Hinge,
-        .hinge={
-            .b1=s.rod1.body_id,
-            .b2=s.rod2.body_id,
-            .a1=make_3f32(0,0,1),
-            .a2=make_3f32(0,0,1),
-        },
-    });
+    f32 arm_half_length = 0.5, arm_half_width = 0.1, arm_half_depth = 0.05;
+    f32 arm_bearing_inset = 0.1;
+    f32 arm_inner_half_length = arm_half_length - arm_bearing_inset;
+    PHYS_body_id prev_id = anchor_id;
+    for EachElement(i, s.phys_arms) {
+        f32 z_offset = (i%2 == 0) ? -arm_half_depth : +arm_half_depth;
+        s.phys_arms[i] = phys_world_add_box(s.phys_world, (PHYS_Box_Settings){
+            .center=make_3f32((2*i+1)*arm_inner_half_length,0,z_offset),
+            .extents=make_3f32(arm_half_length,arm_half_width,arm_half_depth),
+            .linear_velocity=make_3f32(0,-10,0),
+            .mass=PHYS_UNIT_G(50),
+        });
+        PHYS_body_id curr_id = s.phys_arms[i].body_id;
+        phys_world_add_constraint(s.phys_world, (PHYS_Constraint){
+            .type=PHYS_ConstraintType_Distance,
+            .distance={
+                .b1=prev_id,
+                .b2=curr_id,
+                .d=0.f,
+                .is_offset=true,
+                .offset1=(i == 0) ? make_3f32(0,0,0) : make_3f32(+arm_inner_half_length,0,+z_offset),
+                .offset2=                              make_3f32(-arm_inner_half_length,0,-z_offset),
+            },
+        });
+        phys_world_add_constraint(s.phys_world, (PHYS_Constraint){
+            .type=PHYS_ConstraintType_Hinge,
+            .hinge={
+                .b1=prev_id,
+                .b2=curr_id,
+                .a1=make_3f32(0,0,1),
+                .a2=make_3f32(0,0,-1),
+            },
+        });
+
+        prev_id = curr_id;
+    }
 
     s.time = os_now_seconds();
 }
 
-static void d_box(PHYS_RigidBody* rb);
+static void d_arm(PHYS_RigidBody* rb);
 
 void demos_frame_hook(DEMOS_CommonState* cs) {
     f64 ntime = os_now_seconds();
     f64 dt = ntime - s.time;
     f64 pdt = 1.f/60.f;
     s.time = ntime;
-
+    
     input_update(&cs->events);
     demos_camera_controls_orbit(cs->window, dt, &s.camera);
 
@@ -127,8 +108,12 @@ void demos_frame_hook(DEMOS_CommonState* cs) {
     d_begin_pipeline();
     demos_d_begin_3d_pass_camera(cs->window, &s.camera);
     {
-        d_box(&s.rod1);
-        d_box(&s.rod2);
+        for EachElement(i, s.phys_arms) {
+            d_arm(&s.phys_arms[i]);
+        }
+        // dbgdraw_begin();
+        // phys_dbg_d_world(&s.phys_dbg_d_ctx);
+        // dbgdraw_submit(cs->window, cs->rwindow);
     }
     d_submit_pipeline(cs->window, cs->rwindow);
 
@@ -144,7 +129,7 @@ void demos_persistent_cleanup_hook(DEMOS_CommonState* cs) {
 }
 
 // helpers
-static void d_box(PHYS_RigidBody* rb) {
+static void d_arm(PHYS_RigidBody* rb) {
     PHYS_Body* body = phys_world_resolve_body(s.phys_world, rb->body_id);
     PHYS_Collider* collider = phys_world_resolve_collider(s.phys_world, rb->collider_id);
 
@@ -155,6 +140,6 @@ static void d_box(PHYS_RigidBody* rb) {
     );
     d_pbr_mesh(
         s.cube_vertices, s.cube_flags, s.cube_indices, s.cube_topology,
-        t, make_3f32(1,1,1), 1.0, make_3f32(0.1,0.1,0.1)
+        t, hsl_to_rgb(make_3f32(-PI/3.f, 0.9, 1)), 1.0, make_3f32(0,0,0)
     );
 }

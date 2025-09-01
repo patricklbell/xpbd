@@ -17,6 +17,7 @@ vec2_f32 mul_2f32(vec2_f32 a, f32 b);
 vec2_f32 elmul_2f32(vec2_f32 a, vec2_f32 b);
 f32 dot_2f32(vec2_f32 a, vec2_f32 b);
 f32 length_2f32(vec2_f32 a);
+#define length2_2f32(a) dot_2f32(a,a)
 vec2_f32 normalize_2f32(vec2_f32 a);
 
 typedef union vec3_f32 vec3_f32;
@@ -57,6 +58,7 @@ vec3_f32 elmul_3f32(vec3_f32 a, vec3_f32 b);
 vec3_f32 eldiv_3f32(vec3_f32 a, vec3_f32 b);
 f32 dot_3f32(vec3_f32 a, vec3_f32 b);
 f32 length_3f32(vec3_f32 a);
+#define length2_3f32(a) dot_3f32(a,a)
 vec3_f32 normalize_3f32(vec3_f32 a);
 vec3_f32 cross_3f32(vec3_f32 a, vec3_f32 b);
 vec3_f32 reflect_3f32(vec3_f32 i, vec3_f32 n);
@@ -110,6 +112,7 @@ vec4_f32 elmul_4f32(vec4_f32 a, vec4_f32 b);
 vec4_f32 eldiv_4f32(vec4_f32 a, vec4_f32 b);
 f32 dot_4f32(vec4_f32 a, vec4_f32 b);
 f32 length_4f32(vec4_f32 a);
+#define length2_4f32(a) dot_4f32(a,a)
 vec4_f32 normalize_4f32(vec4_f32 a);
 
 // @note all matrices are stored column major and multiplication with a column

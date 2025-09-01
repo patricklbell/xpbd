@@ -145,7 +145,7 @@ void r_window_begin_frame(OS_Handle window, R_Handle rwindow) {
     r_os_select_window(window, rwindow);
     vec2_f32 window_size = os_gfx_window_size(window);
 
-    glClearColor(0, 0, 0, 1);
+    glClearColor(1, 1, 1, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, (GLsizei)window_size.x, (GLsizei)window_size.y);
 }

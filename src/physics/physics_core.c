@@ -7,17 +7,18 @@ static f32 phys_body_inverse_inertia(PHYS_Body* b, vec3_f32 t_world) {
 }
 static void phys_body_apply_linear_correction(PHYS_Body* b, vec3_f32 dp_world) {
     if (b->inv_mass <= 0.f) return;
-    // apply position correction
-    vec3_f32 dp = mul_3f32(dp_world, b->inv_mass);
-    b->position = add_3f32(b->position, dp);
+    b->position = add_3f32(b->position, mul_3f32(dp_world, b->inv_mass));
 }
 static void phys_body_apply_angular_correction(PHYS_Body* b, vec3_f32 dt_world) {
     if (!b->has_inertia) return;
 
+    // stabilize rotation
+    // dt_world = mul_3f32(dt_world, 0.5f);
+
     // torque in inertial frame
-    vec3_f32 t = rot_quat(dt_world, inv_quat(b->rotation));
+    vec3_f32 t_inertial = rot_quat(dt_world, inv_quat(b->rotation));
     // delta angle in world frame
-    vec3_f32 dw = rot_quat(elmul_3f32(b->inv_inertia, t), b->rotation);
+    vec3_f32 dw = rot_quat(elmul_3f32(b->inv_inertia, t_inertial), b->rotation);
     // apply rotation correction (linearized approximation)
     vec4_f32 dr = mul_quat(make_axis_quat(dw), b->rotation);
     b->rotation = normalize_4f32(add_4f32(b->rotation, mul_4f32(dr, 0.5f)));
@@ -27,8 +28,7 @@ static void phys_body_apply_angular_correction(PHYS_Body* b, vec3_f32 dt_world) 
 static void phys_body_apply_linear_velocity_correction(PHYS_Body* b, vec3_f32 corr) {
     if (b->inv_mass <= 0.f) return;
     // apply position correction
-    vec3_f32 dv = mul_3f32(corr, b->inv_mass);
-    b->linear_velocity = add_3f32(b->linear_velocity, dv);
+    b->linear_velocity = add_3f32(b->linear_velocity, mul_3f32(corr, b->inv_mass));
 }
 static void phys_body_apply_angular_velocity_correction(PHYS_Body* b, vec3_f32 corr, vec3_f32 r) {
     if (!b->has_inertia) return;
@@ -84,6 +84,7 @@ static void phys_constraint_solve_distance(PHYS_Constraint* c, PHYS_ConstraintSo
         w += phys_body_inverse_inertia(b1, cross_3f32(r1, n));
         w += phys_body_inverse_inertia(b2, cross_3f32(r2, n));
     }
+    if (w <= 0.f) return;
 
     f32 dl = phys_update_lagrange_multiplier_return_delta(C, w, alpha, &c->l);
 
@@ -150,20 +151,19 @@ static void phys_constraint_solve_hinge(PHYS_Constraint* c, PHYS_ConstraintSolve
     vec3_f32 a2 = rot_quat(c->hinge.a2, b2->rotation);
 
     vec3_f32 dq = cross_3f32(a1, a2);
-    f32 t2 = dot_3f32(dq, dq);
-    if (t2 == 0.f) return;
-    f32 t = sqrt_f32(t2);
-    vec3_f32 n = mul_3f32(dq, 1.f/t);
+    f32 C2 = dot_3f32(dq, dq);
+    if (C2 == 0.f) return;
+    f32 C = sqrt_f32(C2);
+    vec3_f32 n = mul_3f32(dq, 1.f/C);
 
     f32 alpha = settings.inv_dt2*c->compliance;
     f32 w  = b1->inv_mass + phys_body_inverse_inertia(b1, n);
         w += b2->inv_mass + phys_body_inverse_inertia(b2, n);
-    if (w == 0.f) return;
-    f32 dl = phys_update_lagrange_multiplier_return_delta(t, w, alpha, &c->l);
+    if (w <= 0.f) return;
+    f32 dl = phys_update_lagrange_multiplier_return_delta(C, w, alpha, &c->l);
 
     vec3_f32 corr1 = mul_3f32(n, +dl);
     vec3_f32 corr2 = mul_3f32(n, -dl);
-
     phys_body_apply_angular_correction(b1, corr1);
     phys_body_apply_angular_correction(b2, corr2);
 
@@ -218,61 +218,7 @@ static vec3_f32 phys_collision_total_velocity(PHYS_Body* b1, PHYS_Body* b2, vec3
     );
 }
 
-static void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, PHYS_ConstraintSolveSettings settings) {
-    if (id1.v == id2.v)
-        return;
-
-    PHYS_Collider* c1 = phys_world_resolve_collider(settings.w, id1);
-    PHYS_Collider* c2 = phys_world_resolve_collider(settings.w, id2);
-    
-    Assert(phys_world_valid_radius(settings.w, c1->r));
-    Assert(phys_world_valid_radius(settings.w, c2->r));
-
-    PHYS_Body* b1 = phys_world_resolve_body(settings.w, c1->p);
-    PHYS_Body* b2 = phys_world_resolve_body(settings.w, c2->p);
-
-    // compute contact points
-    vec3_f32 r1, r2, n;
-    f32 d;
-    b32 did_collide = false;
-    for (int i = 0; i < 2; i++) {
-        if (
-            c1->type == PHYS_ColliderType_Sphere &&
-            c2->type == PHYS_ColliderType_Sphere
-        ) {
-            did_collide = phys_contact_points_spheres(
-                b1->position, b2->position, c1->r, c2->r,
-                &d, &r1, &r2, &n
-            );
-            break;
-        } else if (
-            c1->type == PHYS_ColliderType_Plane &&
-            c2->type == PHYS_ColliderType_Sphere
-        ) {
-            did_collide = phys_contact_points_plane_sphere(
-                b1->position, b2->position, c1->plane.n, c2->r,
-                &d, &r1, &r2, &n
-            );
-            break;
-        }
-
-        // swap colliders and bodies
-        {
-            PHYS_Collider* tmp = c1;
-            c1 = c2;
-            c2 = tmp;
-        }
-        {
-            PHYS_Body* tmp = b1;
-            b1 = b2;
-            b2 = tmp;
-        }
-    }
-
-    if (!did_collide)    
-        return;
-
-    
+static void phys_collision_solve_narrow(PHYS_ConstraintSolveSettings settings, PHYS_Collider* c1, PHYS_Collider* c2, PHYS_Body* b1, PHYS_Body* b2, f32 d, vec3_f32 r1, vec3_f32 r2, vec3_f32 n) {
     // calculate lagrange multiplier for condition correction (along normal)
     f32 w_n = phys_collision_generalized_inverse_mass(b1, b2, r1, r2, n);
     f32 l_n = phys_lagrange_delta_no_update(d, w_n, 0.f);
@@ -328,6 +274,59 @@ static void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, PHY
     });
 }
 
+static void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, PHYS_ConstraintSolveSettings settings) {
+    if (id1.v == id2.v)
+        return;
+
+    PHYS_Collider* c1 = phys_world_resolve_collider(settings.w, id1);
+    PHYS_Collider* c2 = phys_world_resolve_collider(settings.w, id2);
+    
+    Assert(phys_world_valid_radius(settings.w, c1->r));
+    Assert(phys_world_valid_radius(settings.w, c2->r));
+
+    PHYS_Body* b1 = phys_world_resolve_body(settings.w, c1->p);
+    PHYS_Body* b2 = phys_world_resolve_body(settings.w, c2->p);
+
+    // compute contact points
+    vec3_f32 r1, r2, n;
+    f32 d;
+    for (int i = 0; i < 2; i++) {
+        if (
+            c1->type == PHYS_ColliderType_Sphere &&
+            c2->type == PHYS_ColliderType_Sphere &&
+            phys_contact_points_spheres(
+                b1->position, b2->position, c1->r, c2->r,
+                &d, &r1, &r2, &n
+            )
+        ) {
+            phys_collision_solve_narrow(settings, c1, c2, b1, b2, d, r1, r2, n);
+            break;
+        } else if (
+            c1->type == PHYS_ColliderType_Plane &&
+            c2->type == PHYS_ColliderType_Sphere &&
+            phys_contact_points_plane_sphere(
+                b1->position, b2->position, c1->plane.n, c2->r,
+                &d, &r1, &r2, &n
+            )
+        ) {
+            phys_collision_solve_narrow(settings, c1, c2, b1, b2, d, r1, r2, n);
+            break;
+        }
+
+        // swap colliders and bodies
+        {
+            PHYS_Collider* tmp = c1;
+            c1 = c2;
+            c2 = tmp;
+        }
+        {
+            PHYS_Body* tmp = b1;
+            b1 = b2;
+            b2 = tmp;
+        }
+    }
+}
+
 static void phys_world_add_collision_record(PHYS_World* w, PHYS_CollisionSubstepRecord info) {
     PHYS_CollisionSubstepRecordNode* n = push_array(w->substep_arena, PHYS_CollisionSubstepRecordNode, 1);
     n->v = info;
@@ -355,7 +354,6 @@ PHYS_World* phys_make_world(PHYS_WorldSettings settings) {
         .substep_arena = arena_alloc(),
         .substeps = (!settings.substeps) ? 16 : settings.substeps,
         .little_g = (!settings.little_g) ? -10 : settings.little_g,
-        .linear_damping  = settings.linear_damping,
         .min_r = settings.min_collision_distance,
         .restitution_calculation = settings.restitution_calculation,
         .static_friction_calculation = settings.static_friction_calculation,
@@ -531,8 +529,7 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
         }
 
         // integrate velocities
-        vec3_f32 dp = mul_3f32(b->linear_velocity, dt);
-        b->position = add_3f32(b->position, dp);
+        b->position = add_3f32(b->position, mul_3f32(b->linear_velocity, dt));
         if (!b->is_particle) {
             vec4_f32 dr = mul_4f32(mul_quat(make_axis_quat(b->angular_velocity), b->rotation), dt);
             // @note linearized approximation
@@ -585,8 +582,7 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
         PHYS_Body* b = &w->bodies.v[i];
 
         if (b->inv_mass > 0.f) {
-            vec3_f32 dp = sub_3f32(b->position, b->prev_position);
-            b->linear_velocity = mul_3f32(dp, inv_dt*Max(1.f - w->linear_damping*dt, 0.f));
+            b->linear_velocity = mul_3f32(sub_3f32(b->position, b->prev_position), inv_dt);
             if (!b->is_particle) {
                 vec4_f32 dr = mul_quat(b->rotation, inv_quat(b->prev_rotation));
                 // @note linearized approximation
