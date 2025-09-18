@@ -130,36 +130,53 @@ typedef union PHYS_collider_id {
     u64 v;
 } PHYS_collider_id;
 
-typedef struct PHYS_Collider_Plane PHYS_Collider_Plane;
-struct PHYS_Collider_Plane {
-    vec3_f32 n;
-};
-
-typedef struct PHYS_Collider_RectCuboid PHYS_Collider_RectCuboid;
-struct PHYS_Collider_RectCuboid {
-    vec3_f32 r;
-};
-
 typedef enum PHYS_ColliderType {
     PHYS_ColliderType_Sphere,
-    PHYS_ColliderType_Plane,
-    PHYS_ColliderType_RectCuboid,
+    PHYS_ColliderType_Polytope,
     PHYS_ColliderType_COUNT ENUM_CASE_UNUSED,
 } PHYS_ColliderType;
 
-typedef struct PHYS_Collider PHYS_Collider;
-struct PHYS_Collider {
+typedef enum PHYS_ColliderLayer {
+    PHYS_ColliderLayer_0,
+    PHYS_ColliderLayer_NoSelf,
+    PHYS_ColliderLayer_COUNT ENUM_CASE_UNUSED,
+} PHYS_ColliderLayer;
+
+typedef struct PHYS_Collider_Base PHYS_Collider_Base;
+struct PHYS_Collider_Base {
     PHYS_ColliderType type;
     PHYS_body_id p;
     f32 r;
-
     f32 static_friction;
     f32 dynamic_friction;
+    PHYS_ColliderLayer layer;
+};
 
-    union {
-        PHYS_Collider_Plane          plane;
-        PHYS_Collider_RectCuboid     rect_cuboid;
-    };
+typedef struct PHYS_Collider_Polytope PHYS_Collider_Polytope;
+struct PHYS_Collider_Polytope {
+    PHYS_Collider_Base base;
+
+    // @note assumed ring connection
+    GEO_Topology topology;
+
+    vec3_f32*   points;
+    u32         points_count;
+    u32*        indices;
+    u32         indices_count;
+    vec3_f32*   normals;
+    u32         normals_count;
+};
+
+typedef struct PHYS_Collider_Sphere PHYS_Collider_Sphere;
+struct PHYS_Collider_Sphere {
+    PHYS_Collider_Base base;
+};
+
+typedef union PHYS_Collider PHYS_Collider;
+union PHYS_Collider {
+    PHYS_Collider_Base      base;
+    PHYS_Collider_Sphere    sphere;
+    PHYS_Collider_Polytope  polytope;
 };
 
 // helpers
@@ -168,7 +185,17 @@ static void     phys_collision_apply_velocity_corrections(PHYS_Body* b1, PHYS_Bo
 static f32      phys_collision_generalized_inverse_mass(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 dC);
 static vec3_f32 phys_collision_total_velocity(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2);
 
-// solver
+typedef struct PHYS_CollisionCheck PHYS_CollisionCheck;
+struct PHYS_CollisionCheck {
+    vec3_f32 r1, r2, n;
+    f32 d;
+};
+b32 phys_collision_check_spheres(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Sphere* s1, PHYS_Collider_Sphere* s2);
+b32 phys_collision_check_polytopes(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Polytope* p1, PHYS_Collider_Polytope* p2);
+b32 phys_collision_check_polytope_sphere(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Polytope* p1, PHYS_Collider_Sphere* s2);
+
+// solvers
+static void phys_collision_solve_narrow(PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2, PHYS_CollisionCheck* check, f32 static_friction, f32 dynamic_friction);
 static void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, PHYS_ConstraintSolveSettings settings);
 
 // coefficients
@@ -180,12 +207,12 @@ typedef enum PHYS_CoefficientCalculation {
 
 static f32 phys_calculate_coeffcient(f32 x1, f32 x2, PHYS_CoefficientCalculation method);
 
-
 // world
 typedef struct PHYS_CollisionSubstepRecord PHYS_CollisionSubstepRecord;
 struct PHYS_CollisionSubstepRecord {
     f32 dynamic_friction;
-    PHYS_body_id b1, b2;
+    PHYS_Body* b1;
+    PHYS_Body* b2;
     vec3_f32 r1, r2, n;
     f32 f_n;
     f32 v_n;

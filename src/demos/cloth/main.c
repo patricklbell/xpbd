@@ -14,18 +14,13 @@ struct SoftbodyState {
 
     VTK_Data cloth_vtk;
 
-    DEMOS_Camera camera;
-
     Arena* state_arena;
-    PHYS_World* world;
     PHYS_Cloth cloth_phys;
     PHYS_RigidBody ball_phys;
-    
-    f64 time;
 };
 static SoftbodyState s;
 
-int demos_persistent_init_hook(DEMOS_CommonState* cs) {
+int demos_init_hook(DEMOS_CommonState* cs) {
     MS_LoadResult sphere = ms_load_obj(cs->arena, ntstr8_lit("./data/sphere.obj"), (MS_LoadSettings){});
     if (sphere.error.length != 0) {
         fprintf(stderr, "%s\n", sphere.error.data);
@@ -43,8 +38,8 @@ int demos_persistent_init_hook(DEMOS_CommonState* cs) {
     }
     s.cloth_vtk = cloth.v;
     
-    s.camera.eye    = (vec3_f32){.x = 0,.y =-1.3,.z = 1};
-    s.camera.target = (vec3_f32){.x = 0,.y =-1.8,.z = 0};
+    cs->camera.eye    = (vec3_f32){.x = 0,.y =-1.3,.z = 1};
+    cs->camera.target = (vec3_f32){.x = 0,.y =-1.8,.z = 0};
 
     // setup visual mesh
     for EachElement(i, s.cloth_mesh) {
@@ -67,7 +62,9 @@ int demos_persistent_init_hook(DEMOS_CommonState* cs) {
     return 0;
 }
 
-void demos_state_init_hook() {
+void demos_world_start_hook(PHYS_World* w) {
+    w->substeps = 1;
+    
     {DeferResource(Temp scratch = scratch_begin_a(s.state_arena), scratch_end(scratch)) {
         u32* edge_indices;
         u32 edge_indices_count;
@@ -80,13 +77,12 @@ void demos_state_init_hook() {
         f32 l = 0.5;
         f32 subdivisions = 20;
         f32 thickness = l/subdivisions/(2.0f + 0.5);
-        s.world = phys_make_world((PHYS_WorldSettings){
-            .substeps = 8,
-            .min_collision_distance = thickness,
-            .hashgrid_cell_size = 10.f*thickness,
-            .hashgrid_object_size = thickness,
-            .dynamic_friction_calculation = PHYS_CoefficientCalculation_Max,
-        });
+        w->substeps = 8;
+        w->min_r = thickness;
+        w->hashgrid_cell_r = 10.f*thickness;
+        w->hashgrid_obj_r = thickness;
+        w->dynamic_friction_calculation = PHYS_CoefficientCalculation_Max;
+        phys_dbg_d_ctx->body_radius = thickness;
 
         PHYS_ClothFiber_Settings fibers_depth1[] = {
             {/*stretch-r*/ .compliance=0.f, .direction=make_3f32(1,0,0)},
@@ -102,7 +98,7 @@ void demos_state_init_hook() {
         PHYS_ClothFiber_Settings* fibers[] = {fibers_depth1, fibers_depth2};
         u32 fiber_depth = ArrayLength(fibers);
 
-        s.cloth_phys = phys_world_add_cloth(s.world, (PHYS_Cloth_Settings){
+        s.cloth_phys = phys_world_add_cloth(w, (PHYS_Cloth_Settings){
             .arena = s.state_arena,
             .thickness = thickness,
             .mass = 1.2f,
@@ -119,61 +115,38 @@ void demos_state_init_hook() {
             .fiber_ratio_hint       = 6, // each body connects to 6 constraints
         });
 
-        s.ball_phys = phys_world_add_ball(s.world, (PHYS_Ball_Settings){
+        s.ball_phys = phys_world_add_ball(w, (PHYS_Ball_Settings){
             .center = make_3f32(0,-1.5,0),
             .mass = 10.f,
             .radius = 0.1f,
         });
 
-        phys_world_add_box_boundary(s.world, (PHYS_BoxBoundary_Settings){
+        phys_world_add_box_boundary(w, (PHYS_BoxBoundary_Settings){
+            .arena=s.state_arena,
             .extents=make_3f32(2,2,2),
         });
     }}
-
-    s.time = os_now_seconds();
 }
 
-static void d_ball(PHYS_RigidBody* ball);
-static void d_cloth(PHYS_Cloth* cloth);
+static void d_ball(PHYS_World* w, PHYS_RigidBody* ball);
+static void d_cloth(PHYS_World* w, PHYS_Cloth* cloth);
 
 void demos_frame_hook(DEMOS_CommonState* cs) {
-    f64 ntime = os_now_seconds();
-    f64 dt = ntime - s.time;
-    f64 pdt = 1.f/60.f;
-    s.time = ntime;
-
-    input_update(&cs->events);
-    demos_camera_controls_orbit(cs->window, dt, &s.camera);
-
-    phys_world_step(s.world, pdt);
-
-    r_window_begin_frame(cs->window, cs->rwindow);
-    
-    d_begin_pipeline();
-    demos_d_begin_3d_pass_camera(cs->window, &s.camera);
-    {
-        d_ball(&s.ball_phys);
-        d_cloth(&s.cloth_phys);
-    }
-    d_submit_pipeline(cs->window, cs->rwindow);
-
-    r_window_end_frame(cs->window, cs->rwindow);
+    d_ball(cs->w, &s.ball_phys);
+    d_cloth(cs->w, &s.cloth_phys);
 }
 
-void demos_state_cleanup_hook() {
-    phys_world_cleanup(s.world);
+void demos_world_end_hook(PHYS_World* w) {
     arena_clear(s.state_arena);
 }
 
-void demos_persistent_cleanup_hook(DEMOS_CommonState* cs) {
-    return;
-}
+void demos_cleanup_hook(DEMOS_CommonState* cs) {}
 
 // helpers
-static void d_ball(PHYS_RigidBody* ball) {
-    PHYS_Body* center = phys_world_resolve_body(s.world, ball->body_id);
-    PHYS_Collider* collider = phys_world_resolve_collider(s.world, ball->collider_id);
-    f32 radius = collider->r;
+static void d_ball(PHYS_World* w, PHYS_RigidBody* ball) {
+    PHYS_Body* center = phys_world_resolve_body(w, ball->body_id);
+    PHYS_Collider* collider = phys_world_resolve_collider(w, ball->collider_id);
+    f32 radius = collider->base.r;
 
     mat4x4_f32 t = matmul_4x4f32(
         make_translate_4x4f32(center->position),
@@ -185,7 +158,7 @@ static void d_ball(PHYS_RigidBody* ball) {
     );
 }
 
-static void d_cloth(PHYS_Cloth* cloth) {
+static void d_cloth(PHYS_World* w, PHYS_Cloth* cloth) {
     for EachElement(i, s.cloth_mesh) {
         MS_Mesh* m = &s.cloth_mesh[i];
 
@@ -195,7 +168,7 @@ static void d_cloth(PHYS_Cloth* cloth) {
         u64 n_stride = r_vertex_stride(m->flags, R_VertexFlag_N);
         
         for EachIndex(i, cloth->vertices_count) {
-            vec3_f32 body_p = phys_world_resolve_body(s.world, cloth->vertices[i])->position;
+            vec3_f32 body_p = phys_world_resolve_body(w, cloth->vertices[i])->position;
             *OffsetPtr(p_start, i*p_stride, R_VertexType_P) = body_p;
             *OffsetPtr(n_start, i*n_stride, R_VertexType_N) = make_3f32(0,0,0);
         }
@@ -207,7 +180,7 @@ static void d_cloth(PHYS_Cloth* cloth) {
             n_start, n_stride
         );
     
-        r_buffer_load(s.cloth_vertices[i], 0, m->vertices_count*r_vertex_size(m->flags), m->vertices);
+        r_buffer_load(&s.cloth_vertices[i], 0, m->vertices_count*r_vertex_size(m->flags), m->vertices);
     
         vec3_f32 color = mul_3f32(normalize_3f32(make_3f32(0.5+0.5*i,0.5*i,0)), 2.f);
         d_pbr_mesh(

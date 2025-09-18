@@ -13,9 +13,9 @@ struct EMCONTROLS_Control {
     EMCONTROLS_ControlType type;
 
     NTString8 label;
+    void* data;
 
     EMCONTROLS_Control_Callback on_press;
-    void* data;
 
     EMCONTROLS_Control_SliderCallback on_slider;
     f32 slider_value; 

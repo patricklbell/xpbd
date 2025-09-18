@@ -88,16 +88,20 @@ void arena_pop_to(Arena* arena, u64 offset) {
     Arena* current = arena->current;
 
     // free pages if needed @note assumes free pages are only marked on bottom
-    while (offset < current->base_offset) {
+    while (offset < current->base_offset + ARENA_HEADER_SIZE) {
         stack_pop_n(arena->current, prev);
         os_deallocate(current);
         current = arena->current;
+
+        Assert(!(offset > current->base_offset && offset < current->base_offset + ARENA_HEADER_SIZE));
     }
 
     current->page_offset = Max(offset - current->base_offset, ARENA_HEADER_SIZE);
 }
 
 void arena_pop(Arena* arena, u64 size) {
+    // @todo consider page header sizes + alignment? currently this is not 
+    // guaranteed to reverse a push of the same size
     arena_pop_to(arena, arena_offset(arena) - size);
 }
 

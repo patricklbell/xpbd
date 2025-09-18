@@ -218,112 +218,188 @@ static vec3_f32 phys_collision_total_velocity(PHYS_Body* b1, PHYS_Body* b2, vec3
     );
 }
 
-static void phys_collision_solve_narrow(PHYS_ConstraintSolveSettings settings, PHYS_Collider* c1, PHYS_Collider* c2, PHYS_Body* b1, PHYS_Body* b2, f32 d, vec3_f32 r1, vec3_f32 r2, vec3_f32 n) {
+b32 phys_collision_check_spheres(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Sphere* s1, PHYS_Collider_Sphere* s2) {
+    return phys_contact_point_spheres(
+        b1->position, b2->position, s1->base.r, s2->base.r,
+        &out->d, &out->r1, &out->r2, &out->n
+    );
+}
+
+static void phys_collision_SAT_min_max(vec3_f32 axis, PHYS_Body* b, PHYS_Collider* c, f32* min, f32* max) {
+    *min = MAX_F32;
+    *max = -MAX_F32;
+    switch (c->base.type) {
+        case PHYS_ColliderType_Sphere: {
+            phys_SAT_sphere_min_max(axis, c->base.r, min, max);
+        }break;
+        case PHYS_ColliderType_Polytope: {
+            phys_SAT_polytope_min_max(rot_quat(axis, inv_quat(b->rotation)), c->polytope.points, c->polytope.points_count, min, max);
+        }break;
+    }
+    f32 center = dot_3f32(axis, b->position);
+    *min += center;
+    *max += center;
+}
+static b32 phys_collision_SAT_check_axis(PHYS_CollisionCheck* out, vec3_f32 axis, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider* c1, PHYS_Collider* c2) {
+    f32 min1, max1, min2, max2;
+
+    phys_collision_SAT_min_max(axis, b1, c1, &min1, &max1);
+    phys_collision_SAT_min_max(axis, b2, c2, &min2, &max2);
+    
+    if (phys_SAT_check_collision_axis(axis, min1, max1, min2, max2, &out->d, &out->n)) {
+        // @todo collision manifold
+        out->r1 = make_3f32(0.f,0.f,0.f);
+        out->r2 = make_3f32(0.f,0.f,0.f);
+        return true;
+    }
+
+    return false;
+}
+
+b32 phys_collision_check_polytopes(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Polytope* p1, PHYS_Collider_Polytope* p2) {
+    out->d = MAX_F32;
+    for EachIndex(ni, p1->normals_count) {
+        if (!phys_collision_SAT_check_axis(out, rot_quat(p1->normals[ni], b1->rotation), b1, b2, (PHYS_Collider*)p1, (PHYS_Collider*)p2))
+            return false;
+    }
+    for EachIndex(ni, p2->normals_count) {
+        if (!phys_collision_SAT_check_axis(out, rot_quat(p2->normals[ni], b2->rotation), b1, b2, (PHYS_Collider*)p1, (PHYS_Collider*)p2))
+            return false;
+    }
+    for GEO_EachEdge_Ring_Open(u1, v1, u32, p1->indices, p1->indices_count, p1->topology) {
+        for GEO_EachEdge_Ring_Open(u2, v2, u32, p2->indices, p2->indices_count, p2->topology) {
+            vec3_f32 e1 = rot_quat(sub_3f32(p1->points[v1], p1->points[u1]), b1->rotation);
+            vec3_f32 e2 = rot_quat(sub_3f32(p2->points[v2], p2->points[u2]), b2->rotation);
+            vec3_f32 axis = cross_3f32(e1, e2);
+
+            f32 axisl2 = length2_3f32(axis);
+            if (axisl2 <= EPSILON_F32) continue;
+            axis = mul_3f32(axis, 1.f/sqrt_f32(axisl2));
+
+            if (!phys_collision_SAT_check_axis(out, axis, b1, b2, (PHYS_Collider*)p1, (PHYS_Collider*)p2))
+                return false;
+        } GEO_EachEdge_Ring_Close;
+    } GEO_EachEdge_Ring_Close;
+
+    return true;
+}
+b32 phys_collision_check_polytope_sphere(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Polytope* p1, PHYS_Collider_Sphere* s2) {
+    out->d = MAX_F32;
+    for EachIndex(ni, p1->normals_count) {
+        if (!phys_collision_SAT_check_axis(out, rot_quat(p1->normals[ni], b1->rotation), b1, b2, (PHYS_Collider*)p1, (PHYS_Collider*)s2))
+            return false;
+    }
+    return true;
+}
+
+// solvers
+static void phys_collision_solve_narrow(PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2, PHYS_CollisionCheck* check, f32 static_friction, f32 dynamic_friction) {
     // calculate lagrange multiplier for condition correction (along normal)
-    f32 w_n = phys_collision_generalized_inverse_mass(b1, b2, r1, r2, n);
-    f32 l_n = phys_lagrange_delta_no_update(d, w_n, 0.f);
+    f32 w_n = phys_collision_generalized_inverse_mass(b1, b2, check->r1, check->r2, check->n);
+    f32 l_n = phys_lagrange_delta_no_update(check->d, w_n, 0.f);
 
     // apply static friction
-    f32 static_friction = phys_calculate_coeffcient(
-        c1->static_friction, c2->static_friction,
-        settings.w->static_friction_calculation
-    );
     if (static_friction > 0.f) {
-        vec3_f32 pc1 = add_3f32(b1->position, (b1->is_particle) ? r1 : rot_quat(r1, b1->rotation));
-        vec3_f32 pc2 = add_3f32(b2->position, (b2->is_particle) ? r2 : rot_quat(r2, b2->rotation));
+        vec3_f32 pc1 = add_3f32(b1->position, (b1->is_particle) ? check->r1 : rot_quat(check->r1, b1->rotation));
+        vec3_f32 pc2 = add_3f32(b2->position, (b2->is_particle) ? check->r2 : rot_quat(check->r2, b2->rotation));
         vec3_f32 diff_c = sub_3f32(pc1, pc2);
-        Assert(abs_f32(d - dot_3f32(diff_c, n)) < 10.f*EPSILON_F32);
+        Assert(abs_f32(check->d - dot_3f32(diff_c, check->n)) < 10.f*EPSILON_F32);
 
-        vec3_f32 pp1 = add_3f32(b1->prev_position, (b1->is_particle) ? r1 : rot_quat(r1, b1->prev_rotation));
-        vec3_f32 pp2 = add_3f32(b2->prev_position, (b2->is_particle) ? r2 : rot_quat(r2, b2->prev_rotation));
+        vec3_f32 pp1 = add_3f32(b1->prev_position, (b1->is_particle) ? check->r1 : rot_quat(check->r1, b1->prev_rotation));
+        vec3_f32 pp2 = add_3f32(b2->prev_position, (b2->is_particle) ? check->r2 : rot_quat(check->r2, b2->prev_rotation));
         vec3_f32 diff_p = sub_3f32(pp1, pp2);
 
         // per-step tangent velocity
         vec3_f32 dp = sub_3f32(diff_c, diff_p);
-        vec3_f32 dp_t = sub_3f32(dp, mul_3f32(n, dot_3f32(dp, n)));
+        vec3_f32 dp_t = sub_3f32(dp, mul_3f32(check->n, dot_3f32(dp, check->n)));
 
         f32 dp_t_length = length_3f32(dp_t);
         vec3_f32 t = mul_3f32(dp_t, 1.f/dp_t_length);
         
-        f32 w_t = phys_collision_generalized_inverse_mass(b1, b2, r1, r2, t);
+        f32 w_t = phys_collision_generalized_inverse_mass(b1, b2, check->r1, check->r2, t);
         f32 l_t = phys_lagrange_delta_no_update(dp_t_length, w_t, 0.f);
 
         // determine if static friction is active
         if (static_friction*l_t < l_n) {
             // set tangential velocity to zero
-            phys_collision_apply_corrections(b1, b2, r1, r2, t, l_t);
+            phys_collision_apply_corrections(b1, b2, check->r1, check->r2, t, l_t);
         }
     }
 
     // apply collision condition
-    phys_collision_apply_corrections(b1, b2, r1, r2, n, l_n);
+    phys_collision_apply_corrections(b1, b2, check->r1, check->r2, check->n, l_n);
 
     // record collision for velocity update
     phys_world_add_collision_record(settings.w, (PHYS_CollisionSubstepRecord){
-        .dynamic_friction = phys_calculate_coeffcient(
-            c1->dynamic_friction, c2->dynamic_friction,
-            settings.w->dynamic_friction_calculation
-        ),
-        .b1 = c1->p,
-        .b2 = c2->p,
-        .r1 = r1,
-        .r2 = r2,
-        .n  = n,
+        .dynamic_friction = dynamic_friction,
+        .b1 = b1,
+        .b2 = b2,
+        .r1 = check->r1,
+        .r2 = check->r2,
+        .n  = check->n,
         .f_n = l_n * settings.inv_dt2,
-        .v_n = dot_3f32(n, phys_collision_total_velocity(b1, b2, r1, r2))
+        .v_n = dot_3f32(check->n, phys_collision_total_velocity(b1, b2, check->r1, check->r2))
     });
-}
 
+    #if PHYS_DBG_D_STEP
+        if (phys_dbg_d_ctx->do_contact_points) {
+            PHYS_DBG_D_DRAW_EDGE(b1->position, add_3f32(b1->position, check->r1), make_3f32(1,0,0));
+            PHYS_DBG_D_DRAW_EDGE(b2->position, add_3f32(b2->position, check->r2), make_3f32(0,0,1));
+            PHYS_DBG_D_DRAW_NORMAL(add_3f32(b1->position, check->r1), check->n, make_3f32(0,1,0));
+            PHYS_DBG_D_DRAW_NORMAL(add_3f32(b2->position, check->r2), mul_3f32(check->n,-1.f), make_3f32(0,1,0));
+        }
+    #endif
+}
 static void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, PHYS_ConstraintSolveSettings settings) {
     if (id1.v == id2.v)
         return;
 
     PHYS_Collider* c1 = phys_world_resolve_collider(settings.w, id1);
     PHYS_Collider* c2 = phys_world_resolve_collider(settings.w, id2);
+
+    if (c1->base.layer == PHYS_ColliderLayer_NoSelf && c2->base.layer == PHYS_ColliderLayer_NoSelf)
+        return;
     
-    Assert(phys_world_valid_radius(settings.w, c1->r));
-    Assert(phys_world_valid_radius(settings.w, c2->r));
+    Assert(phys_world_valid_radius(settings.w, c1->base.r));
+    Assert(phys_world_valid_radius(settings.w, c2->base.r));
 
-    PHYS_Body* b1 = phys_world_resolve_body(settings.w, c1->p);
-    PHYS_Body* b2 = phys_world_resolve_body(settings.w, c2->p);
+    PHYS_Body* b1 = phys_world_resolve_body(settings.w, c1->base.p);
+    PHYS_Body* b2 = phys_world_resolve_body(settings.w, c2->base.p);
 
-    // compute contact points
-    vec3_f32 r1, r2, n;
-    f32 d;
+    f32 static_friction = phys_calculate_coeffcient(
+        c1->base.static_friction, c2->base.static_friction,
+        settings.w->static_friction_calculation
+    );
+    f32 dynamic_friction = phys_calculate_coeffcient(
+        c1->base.dynamic_friction, c2->base.dynamic_friction,
+        settings.w->dynamic_friction_calculation
+    );
+
+    // compute collision contact points
+    PHYS_CollisionCheck check = {0};
     for (int i = 0; i < 2; i++) {
         if (
-            c1->type == PHYS_ColliderType_Sphere &&
-            c2->type == PHYS_ColliderType_Sphere &&
-            phys_contact_points_spheres(
-                b1->position, b2->position, c1->r, c2->r,
-                &d, &r1, &r2, &n
+            (
+                c1->base.type == PHYS_ColliderType_Sphere &&
+                c2->base.type == PHYS_ColliderType_Sphere &&
+                phys_collision_check_spheres(&check, b1, b2, &c1->sphere, &c2->sphere)
+            ) || (
+                c1->base.type == PHYS_ColliderType_Polytope &&
+                c2->base.type == PHYS_ColliderType_Polytope &&
+                phys_collision_check_polytopes(&check, b1, b2, &c1->polytope, &c2->polytope)
+            ) || (
+                c1->base.type == PHYS_ColliderType_Polytope &&
+                c2->base.type == PHYS_ColliderType_Sphere &&
+                phys_collision_check_polytope_sphere(&check, b1, b2, &c1->polytope, &c2->sphere)
             )
         ) {
-            phys_collision_solve_narrow(settings, c1, c2, b1, b2, d, r1, r2, n);
-            break;
-        } else if (
-            c1->type == PHYS_ColliderType_Plane &&
-            c2->type == PHYS_ColliderType_Sphere &&
-            phys_contact_points_plane_sphere(
-                b1->position, b2->position, c1->plane.n, c2->r,
-                &d, &r1, &r2, &n
-            )
-        ) {
-            phys_collision_solve_narrow(settings, c1, c2, b1, b2, d, r1, r2, n);
+            phys_collision_solve_narrow(settings, b1, b2, &check, static_friction, dynamic_friction);
             break;
         }
 
-        // swap colliders and bodies
-        {
-            PHYS_Collider* tmp = c1;
-            c1 = c2;
-            c2 = tmp;
-        }
-        {
-            PHYS_Body* tmp = b1;
-            b1 = b2;
-            b2 = tmp;
-        }
+        // swap 1 and 2
+        PHYS_Collider* ctmp = c1; c1 = c2; c2 = ctmp;
+        PHYS_Body* btmp = b1; b1 = b2; b2 = btmp;
     }
 }
 
@@ -429,7 +505,7 @@ void phys_world_step(PHYS_World* w, f64 dt) {
             PHYS_Collider* collider = &collider_n->v;
 
             // if sphere is small enough, put it in the hashgrid
-            if (collider->r <= w->hashgrid_obj_r && collider->type == PHYS_ColliderType_Sphere) {
+            if (collider->base.r <= w->hashgrid_obj_r && collider->base.type == PHYS_ColliderType_Sphere) {
                 if (w->hashgrid_info_count >= hashgrid_info_capacity) {
                     hashgrid_info_capacity *= PHYS_PER_FRAME_DYNAMIC_ARRAY_GROWTH_RATE;
                     PHYS_CachedHashgridInfo* tmp = push_array(w->step_arena, PHYS_CachedHashgridInfo, hashgrid_info_capacity);
@@ -437,7 +513,7 @@ void phys_world_step(PHYS_World* w, f64 dt) {
                     w->hashgrid_info = tmp;
                 }
                 w->hashgrid_info[w->hashgrid_info_count] = (PHYS_CachedHashgridInfo){
-                    .position = phys_world_resolve_body(w, collider->p)->position,
+                    .position = phys_world_resolve_body(w, collider->base.p)->position,
                     .collider = collider_n->id,
                 };
                 w->hashgrid_info_count++;
@@ -595,8 +671,8 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
     for EachList(n, PHYS_CollisionSubstepRecordNode, w->substep_collision_records) {
         PHYS_CollisionSubstepRecord* record = &n->v;
 
-        PHYS_Body* b1 = phys_world_resolve_body(settings.w, record->b1);
-        PHYS_Body* b2 = phys_world_resolve_body(settings.w, record->b2);
+        PHYS_Body* b1 = record->b1;
+        PHYS_Body* b2 = record->b2;
         f32 restitution = phys_calculate_coeffcient(
             b1->restitution, b2->restitution,
             settings.w->restitution_calculation

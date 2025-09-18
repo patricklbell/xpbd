@@ -70,6 +70,7 @@ typedef union R_Handle R_Handle;
 union R_Handle {
     u64 v64[1];
     u32 v32[2];
+    u16 v16[4];
 };
 
 b32 r_is_zero_handle(R_Handle handle);
@@ -192,8 +193,9 @@ typedef enum R_ResourceHint
 } R_ResourceHint;
 
 R_Handle r_buffer_alloc(R_ResourceKind kind, R_ResourceHint hint, u32 size, void *data);
-void     r_buffer_load(R_Handle handle, u32 offset, u32 size, void *data);
-void     r_buffer_release(R_Handle buffer);
+void     r_buffer_load(R_Handle* handle, u32 offset, u32 size, void *data);
+R_Handle r_buffer_view(R_Handle src, u32 size); // @todo offset?
+void     r_buffer_release(R_Handle* buffer);
 
 // setup/teardown
 void r_init();

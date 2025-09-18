@@ -1,6 +1,7 @@
 #include "common/common_inc.c"
 #include "os/os_inc.c"
 #include "hashgrid/hashgrid.c"
+#include "geo/geo.c"
 #include "physics/physics_inc.c"
 #include "render/render_inc.c"
 #include "draw/draw.c"
@@ -8,7 +9,6 @@
 #include "input/input.c"
 #include "vtk/vtk.c"
 #include "dbgdraw/dbgdraw.c"
-#include "geo/geo.c"
 #if OS_WEB
     #include "emcontrols/emcontrols.c"
 #endif
@@ -16,7 +16,6 @@
 #include "demos_helpers.c"
 
 static void window_event_loop(void* data);
-static void reset_demo_callback(void* data);
 
 int main() {
     ThreadCtx main_ctx;
@@ -43,23 +42,33 @@ int main() {
     cs->rwindow = r_os_equip_window(cs->window);
 
     input_init();
+    phys_dbg_d_init(dbgdraw_edge_batch, dbgdraw_point_batch);
 
     #if OS_WEB
         emcontrols_init(cs->arena);
         emcontrols_add((EMCONTROLS_Control){
             .type = EMCONTROLS_ControlType_Button,
             .label = ntstr8_lit("reset"),
-            .on_press = &reset_demo_callback,
             .data = cs,
+            .on_press = &on_demo_button,
+        });
+        emcontrols_add((EMCONTROLS_Control){
+            .type = EMCONTROLS_ControlType_Slider,
+            .label = ntstr8_lit("gravity"),
+            .data = cs,
+            .on_slider = &on_slider_gravity,
+            .slider_value = -10,
+            .slider_min = -20,
+            .slider_max = +20,
         });
     #endif
 
     // demo hooks section
-    if (!demos_persistent_init_hook(cs)) {
-        demos_state_init_hook();
+    if (!demos_init_hook(cs)) {
+        demos_world_start_wrapper(cs);
         os_gfx_start_window_event_loop(cs->window, window_event_loop, cs, &cs->events);
-        demos_state_cleanup_hook();
-        demos_persistent_cleanup_hook(cs);
+        demos_world_end_wrapper(cs);
+        demos_cleanup_hook(cs);
     }
 
     os_gfx_close_window(cs->window);
@@ -72,17 +81,72 @@ int main() {
 
 static void window_event_loop(void* data) {
     DEMOS_CommonState* cs = (DEMOS_CommonState*)data;
+    f64 ntime = os_now_seconds();
+    f64 dt = ntime - cs->time;
+    f64 pdt = 1.f/60.f;
+    cs->time = ntime;
 
+    input_update(&cs->events);
+    demos_camera_controls_orbit(cs->window, dt, &cs->camera);
     if (cs->should_reset || input_is_key_pressed(OS_Key_r)) {
-        demos_state_cleanup_hook();
-        demos_state_init_hook();
+        demos_world_end_wrapper(cs);
+        demos_world_start_wrapper(cs);
         cs->should_reset = false;
     }
+    if (input_is_key_pressed(OS_Key_Space)) {
+        cs->is_paused = !cs->is_paused;
+    }
+    b32 single_step = false;
+    if (cs->is_paused && input_is_key_pressed(OS_Key_Period)) {
+        single_step = true;
+    }
+    if (cs->is_paused && input_is_key_pressed(OS_Key_Comma)) {
+        single_step = true;
+        pdt *= -1.f;
+    }
+    if (input_is_key_pressed(OS_Key_d)) {
+        cs->show_debug = !cs->show_debug;
+    }
 
-    demos_frame_hook(cs);
+    DeferCall(r_window_begin_frame(cs->window, cs->rwindow), r_window_end_frame(cs->window, cs->rwindow)) {
+        DeferCall(d_begin_pipeline(), d_submit_pipeline(cs->window, cs->rwindow)) {
+            demos_d_begin_3d_pass_camera(cs->window, &cs->camera);
+            demos_frame_hook(cs);
+
+            demos_d_begin_3d_pass_camera(cs->window, &cs->camera);
+            b32 requires_step = !cs->is_paused || single_step;
+            DeferCall(dbgdraw_begin(/*do_not_clear*/ !requires_step), (cs->show_debug ? dbgdraw_submit() : NULL)) {
+                if (requires_step) {
+                    phys_world_step(cs->w, pdt);
+                    phys_dbg_d_world(cs->w);
+                }
+            }
+        }
+    }
 }
 
-static void reset_demo_callback(void* data) {
+// wrappers
+void demos_world_start_wrapper(DEMOS_CommonState* cs) {
+    cs->w = phys_make_world((PHYS_WorldSettings){});
+
+    demos_world_start_hook(cs->w);
+    
+    cs->time = os_now_seconds();
+}
+void demos_world_end_wrapper(DEMOS_CommonState* cs) {
+    demos_world_end_hook(cs->w);
+    phys_world_cleanup(cs->w);
+}
+
+// emcontrol callbacks
+static void on_demo_button(void* data) {
     DEMOS_CommonState* cs = (DEMOS_CommonState*)data;
     cs->should_reset = true;
+}
+
+static void on_slider_gravity(f32 value, void* data) {
+    DEMOS_CommonState* cs = (DEMOS_CommonState*)data;
+    if (cs->w != NULL) {
+        cs->w->little_g = value;
+    }
 }

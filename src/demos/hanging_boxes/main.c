@@ -9,26 +9,24 @@ struct HangingBox {
 
 typedef struct HangingBoxesState HangingBoxesState;
 struct HangingBoxesState {
+    Arena* state_arena;
     R_Handle cube_vertices;
     R_Handle cube_indices;
     R_VertexFlag cube_flags;
     R_VertexTopology cube_topology;
 
-    DEMOS_Camera camera;
-
-    PHYS_World* world;
-    PHYS_DBG_DrawContext phys_dbg_draw_ctx;
     PHYS_body_id anchor_id;
     PHYS_constraint_id anchor_to_box1;
     HangingBox box1;
     PHYS_constraint_id box1_to_box2;
     HangingBox box2;
-    
-    f64 time;
+    HangingBox box3;
 };
 static HangingBoxesState s;
 
-int demos_persistent_init_hook(DEMOS_CommonState* cs) {
+int demos_init_hook(DEMOS_CommonState* cs) {
+    phys_dbg_d_ctx->color_mode = PHYS_DBG_DrawColorMode_Force;
+
     MS_LoadResult cube = ms_load_obj(cs->arena, ntstr8_lit("./data/cube.obj"), (MS_LoadSettings){});
     if (cube.error.length != 0) {
         fprintf(stderr, "%s\n", cube.error.data);
@@ -39,17 +37,16 @@ int demos_persistent_init_hook(DEMOS_CommonState* cs) {
     s.cube_flags = cube.v.flags;
     s.cube_topology = cube.v.topology;
 
-    s.camera.eye    = (vec3_f32){.x = 0,.y =-10,.z =40};
-    s.camera.target = (vec3_f32){.x = 0,.y =-10,.z = 0};
+    cs->camera.eye    = (vec3_f32){.x = 0,.y =-10,.z =40};
+    cs->camera.target = (vec3_f32){.x = 0,.y =-10,.z = 0};
+
+    s.state_arena = arena_alloc();
     return 0;
 }
+void demos_cleanup_hook(DEMOS_CommonState* cs) {}
 
-void demos_state_init_hook() {
-    s.world = phys_make_world((PHYS_WorldSettings){.substeps=32});
-    s.phys_dbg_draw_ctx = phys_dbg_d_make_context(s.world, dbgdraw_edge_batch, dbgdraw_point_batch);
-    s.phys_dbg_draw_ctx.color_mode = PHYS_DBG_DrawColorMode_Force;
-
-    s.anchor_id = phys_world_add_body(s.world, (PHYS_Body){
+void demos_world_start_hook(PHYS_World* w) {
+    s.anchor_id = phys_world_add_body(w, (PHYS_Body){
         .position = make_3f32(0,0,0),
         .inv_mass = 0.f,
         .no_gravity = true,
@@ -57,13 +54,14 @@ void demos_state_init_hook() {
 
     s.box1.extents = make_3f32(1,1,1);
     PHYS_Box_Settings box1_settings = {
+        .arena = s.state_arena,
         .mass = 1,
         .center = make_3f32(0,-4,0),
         .extents = s.box1.extents,
     };
-    s.box1.rigid_body = phys_world_add_box(s.world, box1_settings);
+    s.box1.rigid_body = phys_world_add_box(w, box1_settings);
 
-    s.anchor_to_box1 = phys_world_add_constraint(s.world, (PHYS_Constraint){
+    s.anchor_to_box1 = phys_world_add_constraint(w, (PHYS_Constraint){
         .compliance = 0.05f,
         .type = PHYS_ConstraintType_Distance,
         .distance = {
@@ -78,14 +76,15 @@ void demos_state_init_hook() {
 
     s.box2.extents = make_3f32(1,1,1);
     PHYS_Box_Settings box2_settings = {
+        .arena = s.state_arena,
         .mass = 1,
         .center = make_3f32(0,-15,0),
         .linear_velocity = make_3f32(10,0,0),
         .extents = s.box2.extents,
     };
-    s.box2.rigid_body = phys_world_add_box(s.world, box2_settings);
+    s.box2.rigid_body = phys_world_add_box(w, box2_settings);
 
-    s.box1_to_box2 = phys_world_add_constraint(s.world, (PHYS_Constraint){
+    s.box1_to_box2 = phys_world_add_constraint(w, (PHYS_Constraint){
         .compliance = 0.05f,
         .type = PHYS_ConstraintType_Distance,
         .distance = {
@@ -99,57 +98,34 @@ void demos_state_init_hook() {
         }
     });
 
-    s.time = os_now_seconds();
+    s.box3.extents = make_3f32(10,1,10);
+    PHYS_Box_Settings box3_settings = {
+        .arena = s.state_arena,
+        .center = make_3f32(0,-20,0),
+        .extents = s.box3.extents,
+        .mass = 0,
+        .no_gravity = true,
+    };
+    s.box3.rigid_body = phys_world_add_box(w, box3_settings);
+}
+void demos_world_end_hook(PHYS_World* w) {
+    arena_clear(s.state_arena);
 }
 
-static void d_hanging_box(HangingBox* hanging_box);
+static void d_hanging_box(PHYS_World* w, HangingBox* hanging_box);
 
 void demos_frame_hook(DEMOS_CommonState* cs) {
-    f64 ntime = os_now_seconds();
-    f64 dt = ntime - s.time;
-    f64 pdt = 1.f/60.f;
-    s.time = ntime;
+    d_hanging_box(cs->w, &s.box1);
+    d_hanging_box(cs->w, &s.box2);
+    d_hanging_box(cs->w, &s.box3);
 
-    input_update(&cs->events);
-    demos_camera_controls_orbit(cs->window, dt, &s.camera);
-
-    phys_world_step(s.world, pdt);
-    
-    r_window_begin_frame(cs->window, cs->rwindow);
-
-    // objects
-    d_begin_pipeline();
-    demos_d_begin_3d_pass_camera(cs->window, &s.camera);
-    {
-        d_hanging_box(&s.box1);
-        d_hanging_box(&s.box2);
-    }
-    d_submit_pipeline(cs->window, cs->rwindow);
-
-    // debug
-    d_begin_pipeline();
-    demos_d_begin_3d_pass_camera(cs->window, &s.camera);
-    {
-        dbgdraw_begin();
-        phys_dbg_d_world(&s.phys_dbg_draw_ctx);
-        dbgdraw_submit(cs->window, cs->rwindow);
-    }
-    d_submit_pipeline(cs->window, cs->rwindow);
-
-    r_window_end_frame(cs->window, cs->rwindow);
-}
-
-void demos_state_cleanup_hook() {
-    phys_world_cleanup(s.world);
-}
-
-void demos_persistent_cleanup_hook(DEMOS_CommonState* cs) {
-    return;
+    if (cs->should_draw_dbg)
+        phys_dbg_d_world(cs->w);
 }
 
 // helpers
-static void d_hanging_box(HangingBox* hanging_box) {
-    PHYS_Body* body = phys_world_resolve_body(s.world, hanging_box->rigid_body.body_id);
+static void d_hanging_box(PHYS_World* w, HangingBox* hanging_box) {
+    PHYS_Body* body = phys_world_resolve_body(w, hanging_box->rigid_body.body_id);
 
     mat4x4_f32 t = matmul_4x4f32(matmul_4x4f32(
         make_translate_4x4f32(body->position),

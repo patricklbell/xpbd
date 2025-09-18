@@ -22,13 +22,16 @@ PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings);
 
 typedef struct PHYS_Box_Settings PHYS_Box_Settings;
 struct PHYS_Box_Settings {
-    f32 mass;
-    f32 resitution;
+    Arena* arena;
     vec3_f32 center;
     vec3_f32 extents;
     vec4_f32 rotation;
+    f32 mass;
+    b32 no_gravity;
+    f32 resitution;
     vec3_f32 linear_velocity;
     vec3_f32 angular_velocity;
+    PHYS_ColliderLayer collision_layer;
 };
 
 PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings);
@@ -36,11 +39,12 @@ PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings);
 // box boundary
 typedef struct PHYS_BoxBoundary PHYS_BoxBoundary;
 struct PHYS_BoxBoundary {
-    PHYS_collider_id areas[6];
+    PHYS_collider_id polytopes[6];
     PHYS_body_id positions[6];
 };
 typedef struct PHYS_BoxBoundary_Settings PHYS_BoxBoundary_Settings;
 struct PHYS_BoxBoundary_Settings {
+    Arena* arena;
     vec3_f32 center;
     vec3_f32 extents;
     vec4_f32 rotation;

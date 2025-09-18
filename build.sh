@@ -13,6 +13,8 @@ DATA_DIR="data"
 
 # Common build function for demos
 build_demo() {
+    mkdir -p "${BUILD_DIR}"
+    
     local demo_name="$1"
     shift
     local required_data_files=("$@")
@@ -72,7 +74,6 @@ build_emcc() {
     BUILD_EXT=".html"
     CFLAGS="${CFLAGS} --shell-file docs/emcc-template.html --pre-js docs/emcc-pre.js"
     
-    mkdir -p "${BUILD_DIR}"
     build_demos $1
 }
 

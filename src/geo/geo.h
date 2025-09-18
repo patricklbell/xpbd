@@ -1,6 +1,7 @@
 #pragma once
 
 typedef enum GEO_Topology {
+    GEO_Topology_Empty       = 0,
     GEO_Topology_Point       = 1,
     GEO_Topology_Edge        = 2,
     GEO_Topology_Line        = 2,
@@ -91,3 +92,30 @@ void geo_triangulate(
     u32* in_indices, u32 in_indices_count,
     u32** out_indices, u32* out_indices_count
 );
+
+#define GEO_EachEdge_Strongly_Open(u, v, T, data, data_count, topology) (u32 off##__LINE__ = 0; off##__LINE__ < data_count; off##__LINE__+=topology) { \
+        for (u32 i##__LINE__ = 0; i##__LINE__ < topology; i##__LINE__++) { \
+            for (u32 j##__LINE__ = i##__LINE__+1; j##__LINE__ < topology; j##__LINE__++) { \
+                T u = data[off##__LINE__ + i##__LINE__]; \
+                T v = data[off##__LINE__ + j##__LINE__];
+#define GEO_EachEdge_Strongly_Close } \
+        } \
+    }
+
+#define GEO_EachEdge_Ring_Open(u, v, T, data, data_count, topology) (u32 off##__LINE__ = 0; off##__LINE__ < data_count; off##__LINE__+=topology) { \
+        for (u32 i##__LINE__ = 0; i##__LINE__ < topology; i##__LINE__++) { \
+            T u = data[off##__LINE__ + i##__LINE__]; \
+            T v = data[off##__LINE__ + (i##__LINE__ + 1)%topology];
+#define GEO_EachEdge_Ring_Close } \
+    }
+
+
+typedef struct GEO_Polygon GEO_Polygon;
+struct GEO_Polygon {
+    GEO_Topology topology;
+    vec3_f32 data[GEO_Topology_COUNT];
+};
+
+GEO_Polygon geo_clip_polygon_against_plane(GEO_Polygon* in_to_clip, vec3_f32 in_origin, vec3_f32 in_normal);
+GEO_Polygon geo_clip_polygon_against_polygon(GEO_Polygon* in_to_clip, GEO_Polygon* in_clip, vec3_f32 in_normal);
+GEO_Polygon geo_clip_polygon_against_edge(GEO_Polygon* in_to_clip, vec3_f32 in_clip_start, vec3_f32 in_clip_end, vec3_f32 in_normal);

@@ -14,9 +14,15 @@
 static GLuint r_ogl_handle_to_buffer(R_Handle handle) {
     return handle.v32[0];
 }
+static void r_ogl_handle_set_buffer(R_Handle* handle, GLuint buffer) {
+    handle->v32[0] = buffer;
+}
 
 static u32 r_ogl_handle_to_size(R_Handle handle) {
     return handle.v32[1];
+}
+static void r_ogl_handle_set_size(R_Handle* handle, u32 size) {
+    handle->v32[1] = size;
 }
 
 static GLuint r_ogl_temp_buffer(u64 size) {
@@ -164,24 +170,33 @@ R_Handle r_buffer_alloc(R_ResourceKind kind, R_ResourceHint hint, u32 size, void
     Assert(kind >= 0 && kind < ArrayLength(r_ogl_resource_kind));
     Assert(hint >= 0 && hint < ArrayLength(r_ogl_resource_hint));
 
-    R_Handle buffer;
-    glGenBuffers(1, &buffer.v32[0]);
-    glBindBuffer(r_ogl_resource_hint[hint].target, buffer.v32[0]);
+    GLuint buffer;
+    glGenBuffers(1, &buffer);
+    glBindBuffer(r_ogl_resource_hint[hint].target, buffer);
     glBufferData(r_ogl_resource_hint[hint].target, size, data, r_ogl_resource_kind[kind].usage);
 
-    buffer.v32[1] = size;
+    R_Handle handle = r_zero_handle();
+    r_ogl_handle_set_buffer(&handle, buffer);
+    r_ogl_handle_set_size(&handle, size);
 
-    return buffer;
+    return handle;
 }
 
-void r_buffer_load(R_Handle handle, u32 offset, u32 size, void *data) {
-    GLuint buffer = r_ogl_handle_to_buffer(handle);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+void r_buffer_load(R_Handle* handle, u32 offset, u32 size, void *data) {
+    Assert(r_ogl_handle_to_size(*handle) >= size);
+
+    glBindBuffer(GL_ARRAY_BUFFER, r_ogl_handle_to_buffer(*handle));
     glBufferSubData(GL_ARRAY_BUFFER, offset, size, data);
 }
 
-void r_buffer_release(R_Handle handle) {
-    GLuint buffer = r_ogl_handle_to_buffer(handle);
+R_Handle r_buffer_view(R_Handle src, u32 size) {
+    R_Handle view = src;
+    r_ogl_handle_set_size(&view, size);
+    return view;
+}
+
+void r_buffer_release(R_Handle* handle) {
+    GLuint buffer = r_ogl_handle_to_buffer(*handle);
     glDeleteBuffers(1, &buffer);
 }
 

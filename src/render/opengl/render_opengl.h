@@ -20,9 +20,12 @@ void r_ogl_os_init();
 void r_ogl_os_cleanup();
 void r_ogl_os_window_swap(OS_Handle window, R_Handle rwindow);
 
-static GLuint  r_ogl_handle_to_buffer(R_Handle handle);
-static u32     r_ogl_handle_to_size(R_Handle handle);
-static GLuint  r_ogl_temp_buffer(u64 size);
+static GLuint   r_ogl_handle_to_buffer(R_Handle handle);
+static void     r_ogl_handle_set_buffer(R_Handle* handle, GLuint buffer);
+static u32      r_ogl_handle_to_size(R_Handle handle);
+static void     r_ogl_handle_set_size(R_Handle* handle, u32 size);
+
+static GLuint r_ogl_temp_buffer(u64 size);
 
 typedef struct R_OGL_BufferChain R_OGL_BufferChain;
 struct R_OGL_BufferChain {

@@ -4,7 +4,7 @@ void phys_world_remove_rigid_body(PHYS_World* w, PHYS_RigidBody* object) {
     phys_world_remove_body(w, object->body_id);
 }
 
-PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings){
+PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings) {
     Assert(phys_world_valid_radius(w, settings.radius));
 
     PHYS_body_id center = phys_world_add_body(w, (PHYS_Body){
@@ -14,11 +14,15 @@ PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings){
         .restitution = settings.resitution,
     });
     PHYS_collider_id sphere = phys_world_add_collider(w, (PHYS_Collider){
-        .type = PHYS_ColliderType_Sphere,
-        .p = center,
-        .r = settings.radius,
-        .static_friction = settings.coefficient_of_static_friction,
-        .dynamic_friction = settings.coefficient_of_dynamic_friction,
+        .sphere = {
+            .base = {
+                .type = PHYS_ColliderType_Sphere,
+                .p = center,
+                .r = settings.radius,
+                .static_friction = settings.coefficient_of_static_friction,
+                .dynamic_friction = settings.coefficient_of_dynamic_friction,
+            }
+        }
     });
 
     return (PHYS_RigidBody){
@@ -27,12 +31,15 @@ PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings){
     };
 }
 
-PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings){
+PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings) {
+    Assert(settings.arena != NULL);
+
     PHYS_Body body = {
         .position = settings.center,
         .linear_velocity = settings.linear_velocity,
         .rotation = (length_4f32(settings.rotation) == 0.f) ? make_identity_quat() : settings.rotation,
         .angular_velocity = settings.angular_velocity,
+        .no_gravity = settings.no_gravity,
         .inv_mass = (settings.mass > 0.f) ? 1.f / settings.mass : 0.f,
         .restitution = settings.resitution,
     };
@@ -42,14 +49,50 @@ PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings){
     }
     PHYS_body_id center = phys_world_add_body(w, body);
 
-    PHYS_collider_id rect_cuboid = phys_world_add_collider(w, (PHYS_Collider){
-        .type = PHYS_ColliderType_RectCuboid,
-        .p = center,
-        .r = length_3f32(settings.extents),
-        .rect_cuboid = {
-            .r = settings.extents,
+    PHYS_Collider collider = {
+        .polytope = {
+            .base = {
+                .type = PHYS_ColliderType_Polytope,
+                .p = center,
+                .r = length_3f32(settings.extents),
+                .layer = settings.collision_layer,
+            },
+            .topology = GEO_Topology_Quad,
+            .points = push_array(settings.arena, vec3_f32, 8),
+            .points_count = 8,
+            .indices = push_array(settings.arena, u32, GEO_Topology_Quad*6),
+            .indices_count = GEO_Topology_Quad*6,
+            .normals = push_array(settings.arena, vec3_f32, 6),
+            .normals_count = 6,
         }
-    });
+    };
+    PHYS_Collider_Polytope* p = &collider.polytope;
+
+    // build box vertices @todo move to geo
+    for (u32 i = 0; i < 8; i++) {
+        vec3_f32 v = make_3f32((i&(1<<0))>>0, (i&(1<<1))>>1, (i&(1<<2))>>2);
+        p->points[i] = elmul_3f32(sub_3f32(mul_3f32(v, 2.f), make_3f32(1.f,1.f,1.f)), settings.extents);
+    }
+    u32 indice_offset = 0, normals_offset = 0;
+    for (int dim = 0; dim < 3; dim++) {
+        u32 u = 1<<((dim + 1)%3), v = 1<<((dim + 2)%3);
+
+        u32 cidx = 0b000;
+        p->indices[indice_offset++] = cidx;
+        p->indices[indice_offset++] = cidx|u;
+        p->indices[indice_offset++] = cidx|u|v;
+        p->indices[indice_offset++] = cidx|v;
+        p->normals[normals_offset++].v[dim] = -1.f;
+
+        cidx = 0b111;
+        p->indices[indice_offset++] = cidx;
+        p->indices[indice_offset++] = cidx^u;
+        p->indices[indice_offset++] = cidx^u^v;
+        p->indices[indice_offset++] = cidx^v;
+        p->normals[normals_offset++].v[dim] = +1.f;
+    }
+
+    PHYS_collider_id rect_cuboid = phys_world_add_collider(w, collider);
 
     return (PHYS_RigidBody){
         .body_id = center,
@@ -59,6 +102,7 @@ PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings){
 
 // box boundary
 PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Settings settings){
+    Assert(settings.arena != NULL);
     PHYS_BoxBoundary result;
 
     if (length_4f32(settings.rotation) == 0.f) {
@@ -67,13 +111,16 @@ PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Set
 
     int i = 0;
     for EachIndex(dim, 3) {
-        for (int offset = -1; offset <= 1; offset += 2) {
+        for (int dir = -1; dir <= 1; dir += 2) {
             vec3_f32 normal = zero_struct;
-            normal.v[dim] = offset;
+            normal.v[dim] = dir;
 
             vec3_f32 position = zero_struct;
-            position.v[dim] = -offset*settings.extents.v[dim];
+            position.v[dim] = -dir*settings.extents.v[dim];
             position = add_3f32(settings.center, rot_quat(position, settings.rotation));
+
+            vec3_f32 area = settings.extents;
+            area.v[dim] = 0;
 
             result.positions[i] = phys_world_add_body(w, (PHYS_Body){
                 .position = position,
@@ -81,14 +128,49 @@ PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Set
                 .inv_mass = 0.f,
                 .restitution = settings.resitution,
             });
-            result.areas[i] = phys_world_add_collider(w, (PHYS_Collider){
-                .type = PHYS_ColliderType_Plane,
-                .p = result.positions[i],
-                .r = MAX_F32,
-                .plane = {
-                    .n = rot_quat(normal, settings.rotation),
+            PHYS_Collider collider = {
+                .polytope = {
+                    .base = {
+                        .type = PHYS_ColliderType_Polytope,
+                        .p = result.positions[i],
+                        .r = length_3f32(area),
+                        .layer = PHYS_ColliderLayer_NoSelf,
+                    },
+                    .topology = GEO_Topology_Quad,
+                    .points = push_array(settings.arena, vec3_f32, GEO_Topology_Quad),
+                    .points_count = GEO_Topology_Quad,
+                    .indices = push_array(settings.arena, u32, GEO_Topology_Quad),
+                    .indices_count = GEO_Topology_Quad,
+                    .normals = push_array(settings.arena, vec3_f32, 1),
+                    .normals_count = 1,
                 }
-            });
+            };
+            PHYS_Collider_Polytope* p = &collider.polytope;
+
+            p->normals[0] = normal;
+            
+            int point_idx = 0;
+            int dimu = (dim+1)%3, dimv = (dim+2)%3;
+            p->points[point_idx].v[dimu] = -settings.extents.v[dimu];
+            p->points[point_idx].v[dimv] = -settings.extents.v[dimv];
+            p->indices[point_idx] = point_idx;
+            point_idx++;
+            p->points[point_idx].v[dimu] = +settings.extents.v[dimu];
+            p->points[point_idx].v[dimv] = -settings.extents.v[dimv];
+            p->indices[point_idx] = point_idx;
+            point_idx++;
+            p->points[point_idx].v[dimu] = +settings.extents.v[dimu];
+            p->points[point_idx].v[dimv] = +settings.extents.v[dimv];
+            p->indices[point_idx] = point_idx;
+            point_idx++;
+            p->points[point_idx].v[dimu] = -settings.extents.v[dimu];
+            p->points[point_idx].v[dimv] = +settings.extents.v[dimv];
+            p->indices[point_idx] = point_idx;
+            point_idx++;
+            
+
+            result.polytopes[i] = phys_world_add_collider(w, collider);
+
             i++;
         }
     }
@@ -97,8 +179,10 @@ PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Set
 }
 
 void phys_world_remove_box_boundary(PHYS_World* w, PHYS_BoxBoundary* object){
-    for EachElement(i, object->areas) {
-        phys_world_remove_collider(w, object->areas[i]);
+    for EachElement(i, object->polytopes) {
+        phys_world_remove_collider(w, object->polytopes[i]);
+    }
+    for EachElement(i, object->positions) {
         phys_world_remove_body(w, object->positions[i]);
     }
 }
@@ -135,10 +219,14 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
         u32 v = settings.surface_point_indices[surf_i];
 
         result.sphere_colliders[surf_i] = phys_world_add_collider(w, (PHYS_Collider){
-            .type = PHYS_ColliderType_Sphere,
-            .p = result.vertices[v],
-            .r = w->min_r,
-            .dynamic_friction = 1.f,
+            .sphere = {
+                .base = {
+                    .type = PHYS_ColliderType_Sphere,
+                    .p = result.vertices[v],
+                    .r = w->min_r,
+                    .dynamic_friction = 1.f,
+                }
+            }
         });
     }
 
@@ -310,10 +398,14 @@ PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
         });
 
         result.sphere_colliders[vert_i] = phys_world_add_collider(w, (PHYS_Collider){
-            .type = PHYS_ColliderType_Sphere,
-            .p = result.vertices[vert_i],
-            .r = settings.thickness,
-            .dynamic_friction = 1.f,
+            .sphere = {
+                .base = {
+                    .type = PHYS_ColliderType_Sphere,
+                    .p = result.vertices[vert_i],
+                    .r = settings.thickness,
+                    .dynamic_friction = 1.f,
+                }
+            }
         });
     }
 

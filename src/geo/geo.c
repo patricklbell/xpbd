@@ -76,22 +76,17 @@ void geo_neighbor_map_add_indices(GEO_NeighborMap* map, GEO_Topology topology, c
     Assert(connected == GEO_Connected_Strongly || connected == GEO_Connected_Ring);
     Assert(!(connected == GEO_Connected_Ring && topology <= GEO_Topology_Line));
 
-    for (u32 indices_off = 0; indices_off < indices_count; indices_off+=topology) {
-        for (u32 i = 0; i < topology; i++) {
-            if (connected == GEO_Connected_Strongly) {
-                for (u32 j = i+1; j < topology; j++) {
-                    u32 indice_i = indices[indices_off + i];
-                    u32 indice_j = indices[indices_off + j];
-    
-                    geo_neighbor_map_add_edge(map, indice_i, indice_j);
-                }
-            } else {
-                u32 indice_i = indices[indices_off + i];
-                u32 indice_j = indices[indices_off + (i+1)%topology];
-    
+    switch (connected) {
+        case GEO_Connected_Strongly:{
+            for GEO_EachEdge_Strongly_Open(indice_i, indice_j, u32, indices, indices_count, topology) {
                 geo_neighbor_map_add_edge(map, indice_i, indice_j);
-            }
-        }
+            } GEO_EachEdge_Strongly_Close;
+        }break;
+        case GEO_Connected_Ring:{
+            for GEO_EachEdge_Ring_Open(indice_i, indice_j, u32, indices, indices_count, topology) {
+                geo_neighbor_map_add_edge(map, indice_i, indice_j);
+            } GEO_EachEdge_Ring_Close;
+        }break;
     }
 }
 
@@ -105,24 +100,19 @@ void geo_calculate_edges(
     {DeferResource(Temp scratch = scratch_begin_a(arena), scratch_end(scratch)) {
         GEO_EdgeMap edge_map = geo_make_edge_map(scratch.arena, approx_edges);
 
-        for (int in_indice_i = 0; in_indice_i < in_indices_count; in_indice_i+=topology) {
-            for (int point_i = 0; point_i < topology; point_i++) {
-                if (connected == GEO_Connected_Strongly) {
-                    for (int point_j = point_i+1; point_j < topology; point_j++) {
-                        GEO_EdgeMapHash hash = {
-                            .i = in_indices[in_indice_i + point_i],
-                            .j = in_indices[in_indice_i + point_j],
-                        };
-                        geo_edge_map_add_edge(&edge_map, hash);
-                    }
-                } else {
-                    GEO_EdgeMapHash hash = {
-                        .i = in_indices[in_indice_i + point_i],
-                        .j = in_indices[in_indice_i + (point_i+1)%topology],
-                    };
+        switch (connected) {
+            case GEO_Connected_Strongly: {
+                for GEO_EachEdge_Strongly_Open(indice_i, indice_j, u32, in_indices, in_indices_count, topology) {
+                    GEO_EdgeMapHash hash = {.i = indice_i, .j = indice_j,};
                     geo_edge_map_add_edge(&edge_map, hash);
-                }
-            }
+                } GEO_EachEdge_Strongly_Close;
+            }break;
+            case GEO_Connected_Ring: {
+                for GEO_EachEdge_Ring_Open(indice_i, indice_j, u32, in_indices, in_indices_count, topology) {
+                    GEO_EdgeMapHash hash = {.i = indice_i, .j = indice_j,};
+                    geo_edge_map_add_edge(&edge_map, hash);
+                } GEO_EachEdge_Ring_Close;
+            }break;
         }
 
         // extract deduplicated edges
@@ -251,4 +241,108 @@ void geo_triangulate(
             }
         }
     }
+}
+
+// clip polygon to lie inside positive halfspace of plane
+GEO_Polygon geo_clip_polygon_against_plane(GEO_Polygon* in_to_clip, vec3_f32 in_origin, vec3_f32 in_normal) {
+    Assert(in_to_clip->topology >= GEO_Topology_Edge);
+    GEO_Polygon clipped;
+
+    vec3_f32 prev_v = in_to_clip->data[in_to_clip->topology - 1];
+    f32 prev_num = dot_3f32(sub_3f32(in_origin, prev_v), in_normal);
+    b32 prev_inside = prev_num < 0.f;
+    for EachIndex(i, in_to_clip->topology) {
+        vec3_f32 cur_v = in_to_clip->data[i];
+        f32 cur_num = dot_3f32(sub_3f32(in_origin, cur_v), in_normal);
+        b32 cur_inside = cur_num < 0.f;
+
+        // transition from clipped to unclipped side of plane, add projected point on plane
+        if (cur_inside != prev_inside) {
+            // intersection between segment and planar equations
+            // S: X = prev_v + t*d
+            // P: (X - in_origin) . in_normal = 0
+            vec3_f32 d = sub_3f32(cur_v, prev_v);
+            f32 denom = dot_3f32(d, in_normal);
+            if (denom != 0.f) {
+                f32 t = prev_num / denom;
+                clipped.data[clipped.topology++] = add_3f32(prev_v, mul_3f32(d, t));
+            } else {
+                cur_inside = prev_inside; // segment is parallel, no transition could have occurred
+            }
+        }
+
+        if (cur_inside)
+            clipped.data[clipped.topology++] = cur_v;
+
+        prev_v = cur_v; prev_num = cur_num; prev_inside = cur_inside;
+    }
+
+    return clipped;
+}
+
+// clip a polygon against each of edge planes of another polygon, tangent to the normal
+GEO_Polygon geo_clip_polygon_against_polygon(GEO_Polygon* in_to_clip, GEO_Polygon* in_clip, vec3_f32 in_normal) {
+    GEO_Polygon ping_pong[2];
+    u32 src_idx = -1;
+
+    for GEO_EachEdge_Ring_Open(edge_start, edge_end, vec3_f32, in_clip->data, in_clip->topology, in_clip->topology) {
+        vec3_f32 edge_normal = cross_3f32(in_normal, sub_3f32(edge_start, edge_end));
+
+        GEO_Polygon* src = (src_idx == -1) ? in_to_clip : &ping_pong[src_idx];
+        ping_pong[src_idx ^ 1] = geo_clip_polygon_against_plane(src, edge_start, edge_normal);
+        src_idx = src_idx ^ 1;
+
+        if (ping_pong[src_idx].topology < GEO_Topology_Triangle)
+            return (GEO_Polygon){0};
+    } GEO_EachEdge_Ring_Close;
+
+    return ping_pong[src_idx];
+}
+
+GEO_Polygon geo_clip_polygon_against_edge(GEO_Polygon* in_to_clip, vec3_f32 in_clip_start, vec3_f32 in_clip_end, vec3_f32 in_normal) {
+    Assert(in_to_clip->topology >= GEO_Topology_Triangle);
+    GEO_Polygon clipped;
+
+    vec3_f32 clipping_edge_dir = sub_3f32(in_clip_start, in_clip_end);
+    vec3_f32 clipping_edge_normal = cross_3f32(clipping_edge_dir, in_normal);
+
+    // project edge onto the polygon we are clipping
+    vec3_f32 polygon_normal = cross_3f32(sub_3f32(in_to_clip->data[2], in_to_clip->data[0]), sub_3f32(in_to_clip->data[1], in_to_clip->data[0]));
+    f32 polygon_normal_l2 = length2_3f32(polygon_normal);
+    vec3_f32 proj_clipping_edge_start = sub_3f32(in_clip_start,     mul_3f32(polygon_normal, dot_3f32(sub_3f32(in_clip_start, in_to_clip->data[0]), polygon_normal)/polygon_normal_l2));
+    vec3_f32 proj_clipping_edge_dir   = sub_3f32(clipping_edge_dir, mul_3f32(polygon_normal, dot_3f32(clipping_edge_dir,                            polygon_normal)/polygon_normal_l2));
+    f32 proj_clipping_edge_dir_l2 = length2_3f32(proj_clipping_edge_dir);    
+
+    vec3_f32 prev_v = in_to_clip->data[in_to_clip->topology - 1];
+    f32 prev_num = dot_3f32(sub_3f32(in_clip_start, prev_v), in_normal);
+    b32 prev_inside = prev_num < 0.f;
+    for EachIndex(i, in_to_clip->topology) {
+        vec3_f32 cur_v = in_to_clip->data[i];
+        f32 cur_num = dot_3f32(sub_3f32(in_clip_start, cur_v), in_normal);
+        b32 cur_inside = cur_num < 0.f;
+
+        // transition from clipped to unclipped side of plane
+        if (cur_inside != prev_inside) {
+            // intersection between polygon edge segment and edge's planar equations
+            // S: X = prev_v + t*d
+            // P: (X - in_clip_start) . clipping_edge_normal = 0
+            vec3_f32 d = sub_3f32(cur_v, prev_v);
+            f32 denom = dot_3f32(d, clipping_edge_normal);
+            // @note if polygon face is perpendicular to clipping edge, dont clip
+            vec3_f32 x = (denom == 0.f) ? prev_v : add_3f32(prev_v, mul_3f32(d, prev_num / denom));
+
+            // now check which side of the edge x lies on
+            f32 proj = dot_3f32(sub_3f32(x, proj_clipping_edge_start), proj_clipping_edge_dir);
+            if (proj < 0.f)
+                clipped.data[clipped.topology++] = prev_v;
+            else if (proj > proj_clipping_edge_dir_l2)
+                clipped.data[clipped.topology++] = cur_v;
+            else
+                clipped.data[clipped.topology++] = x;
+        }
+
+        prev_v = cur_v; prev_num = cur_num; prev_inside = cur_inside;
+    }
+
+    return clipped;
 }

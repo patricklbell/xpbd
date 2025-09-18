@@ -1,10 +1,15 @@
-vec3_f32 phys_scale_rotate_translate(vec3_f32 x, vec3_f32 scale, vec4_f32 rotation, vec3_f32 translation) {
+// helpers
+vec3_f32 phys_rotate_translate(vec3_f32 x, vec4_f32 rotation, vec3_f32 translation) {
     return add_3f32(
-        rot_quat(elmul_3f32(x, scale), rotation),
+        rot_quat(x, rotation),
         translation
     );
 }
+vec3_f32 phys_scale_rotate_translate(vec3_f32 x, vec3_f32 scale, vec4_f32 rotation, vec3_f32 translation) {
+    return phys_rotate_translate(elmul_3f32(x, scale), rotation, translation);
+}
 
+// moment of interia
 vec3_f32 phys_inv_moment_rect_cuboid(vec3_f32 dimensions, f32 m) {
     vec3_f32 d2 = elmul_3f32(dimensions,dimensions);
     vec3_f32 inv_D = mul_3f32(
@@ -14,6 +19,7 @@ vec3_f32 phys_inv_moment_rect_cuboid(vec3_f32 dimensions, f32 m) {
     return inv_D;
 }
 
+// volumes and areas
 f32 phys_tetrahedron_volume(vec3_f32 v1, vec3_f32 v2, vec3_f32 v3, vec3_f32 v4) {
     vec3_f32 d21 = sub_3f32(v2, v1);
     vec3_f32 d31 = sub_3f32(v3, v1);
@@ -26,7 +32,66 @@ f32 phys_tetrahedron_volume_axis(vec3_f32 d21, vec3_f32 d31, vec3_f32 d41) {
     return (1.f/6.f)*dot_3f32(cross_3f32(d21, d31), d41);
 }
 
-b32 phys_contact_points_spheres(
+// separating axis theorem
+b32 phys_SAT_check_collision_axis(
+    vec3_f32 in_axis1, f32 in_min1, f32 in_max1, f32 in_min2, f32 in_max2,
+    f32* in_out_d, vec3_f32* out_n
+) {
+    // Overlap Test
+    //         +-------------+
+    //   +-----|-----+   2   |
+    //   |  1  |     |       |
+    //   |     +-----|-------+
+    //   +-----------+
+    //   A ------C---B ----- D
+    //
+    // IF A < C AND B > C (Overlap in order object 1 -> object 2)
+    // IF C < A AND D > A (Overlap in order object 2 -> object 1)
+    f32 A = in_min1;
+    f32 B = in_max1;
+    f32 C = in_min2;
+    f32 D = in_max2;
+
+    if (A <= C && B >= C) {
+        f32 d = Min(B - C, D - A);
+        if (d < *in_out_d) {
+            *in_out_d = d;
+            *out_n = mul_3f32(in_axis1, (B - C < D - A) ? +1.f : -1.f);
+        }
+        return true;
+    }
+    if (C <= A && D >= A) {
+        f32 d = Min(D - A, B - C);
+        if (d < *in_out_d) {
+            *in_out_d = d;
+            *out_n = mul_3f32(in_axis1, (D - A < B - C) ? -1.f : +1.f);
+        }
+        return true;
+    }
+
+    return false;
+}
+void phys_SAT_polytope_min_max(
+    vec3_f32 in_axis, vec3_f32* in_points, u32 in_points_count,
+    f32* out_min, f32* out_max
+) {
+    for EachIndex(i, in_points_count) {
+        f32 proj = dot_3f32(in_axis, in_points[i]);
+
+        *out_min = Min(*out_min, proj);
+        *out_max = Max(*out_max, proj);
+    }
+}
+void phys_SAT_sphere_min_max(
+    vec3_f32 in_axis, f32 in_radius,
+    f32* out_min, f32* out_max
+) {
+    *out_min = -in_radius;
+    *out_max = +in_radius;
+}
+
+// contact points
+b32 phys_contact_point_spheres(
     vec3_f32 in_p1, vec3_f32 in_p2, f32 in_r1, f32 in_r2,
     f32* out_d, vec3_f32* out_r1, vec3_f32* out_r2, vec3_f32* out_n
 ) {
@@ -47,7 +112,7 @@ b32 phys_contact_points_spheres(
     return true;
 }
 
-b32 phys_contact_points_plane_sphere(
+b32 phys_contact_point_plane_sphere(
     vec3_f32 in_p1, vec3_f32 in_p2, vec3_f32 in_n, f32 in_r2,
     f32* out_d, vec3_f32* out_r1, vec3_f32* out_r2, vec3_f32* out_n
 ) {
@@ -64,7 +129,7 @@ b32 phys_contact_points_plane_sphere(
     return true;
 }
 
-b32 phys_contact_points_triangle_sphere(
+b32 phys_contact_point_triangle_sphere(
     vec3_f32 in_p1[3], vec3_f32 in_n1, vec3_f32 in_p2, f32 in_r2,
     f32* out_d, vec3_f32* out_r1, vec3_f32* out_r2, vec3_f32* out_n
 ) {
@@ -95,7 +160,7 @@ b32 phys_contact_points_triangle_sphere(
 }
 
 // @todo efficient implementation
-b32 phys_contact_points_triangles(
+b32 phys_contact_point_triangles(
     vec3_f32 in_p1[3], vec3_f32 in_n1, vec3_f32 in_p2[3], vec3_f32 in_n2,
     f32* out_d, vec3_f32* out_r1, vec3_f32* out_r2, vec3_f32* out_n
 ) {

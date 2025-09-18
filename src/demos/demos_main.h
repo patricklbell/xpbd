@@ -1,8 +1,11 @@
 #pragma once
 
+#define PHYS_DBG_D_STEP 1
+
 #include "common/common_inc.h"
 #include "os/os_inc.h"
 #include "hashgrid/hashgrid.h"
+#include "geo/geo.h"
 #include "physics/physics_inc.h"
 #include "render/render_inc.h"
 #include "draw/draw.h"
@@ -10,7 +13,6 @@
 #include "input/input.h"
 #include "vtk/vtk.h"
 #include "dbgdraw/dbgdraw.h"
-#include "geo/geo.h"
 #if OS_WEB
     #include "emcontrols/emcontrols.h"
 #endif
@@ -24,14 +26,29 @@ struct DEMOS_CommonState {
     
     OS_Handle window;
     R_Handle rwindow;
+    
     OS_Events events;
-
     b32 should_reset;
+    b32 is_paused;
+    b32 should_draw_dbg;
+    b32 show_debug;
+
+    DEMOS_Camera camera;
+    PHYS_World* w;
+    f32 time;
 };
 
 // hooks implemented by each demo
-int  demos_persistent_init_hook(DEMOS_CommonState*);
-void demos_state_init_hook();
+int  demos_init_hook(DEMOS_CommonState*);
+void demos_world_start_hook(PHYS_World*);
 void demos_frame_hook(DEMOS_CommonState*);
-void demos_state_cleanup_hook();
-void demos_persistent_cleanup_hook(DEMOS_CommonState*);
+void demos_world_end_hook(PHYS_World*);
+void demos_cleanup_hook(DEMOS_CommonState*);
+
+// wrappers
+void demos_world_start_wrapper(DEMOS_CommonState*);
+void demos_world_end_wrapper(DEMOS_CommonState*);
+
+// emcontrol callbacks
+static void on_demo_button(void* data);
+static void on_slider_gravity(f32 value, void* data);
