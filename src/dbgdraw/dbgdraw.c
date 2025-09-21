@@ -1,11 +1,11 @@
-void dbgdraw_begin(b32 do_not_clear) {
+void dbgdraw_clear() {
     Arena* arena;
     if (dbgdraw_thread_ctx == NULL) {
         arena = arena_alloc();
         dbgdraw_thread_ctx = push_array(arena, DBGDRAW_ThreadCtx, 1);
         dbgdraw_thread_ctx->arena = arena;
         dbgdraw_thread_ctx->edge_buffer = r_zero_handle();
-    } else if (!do_not_clear) {
+    } else {
         arena = dbgdraw_thread_ctx->arena;
         arena_pop_to(dbgdraw_thread_ctx->arena, ARENA_HEADER_SIZE + sizeof(*dbgdraw_thread_ctx));
         dbgdraw_thread_ctx->edges = (DBGDRAW_BatchList){};
@@ -25,7 +25,7 @@ static void dbgdraw_load_into_rbuffer(R_Handle* buffer, u32* buffer_size, u32 si
     }
 }
 
-void dbgdraw_submit() {
+void dbgdraw_draw() {
     if (dbgdraw_thread_ctx->edges.total_count) {
         // convert edges into flat vertex array
         R_VertexFlag edge_flags = R_VertexFlag_PC;

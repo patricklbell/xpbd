@@ -45,6 +45,10 @@ int demos_init_hook(DEMOS_CommonState* cs) {
 void demos_cleanup_hook(DEMOS_CommonState* cs) {}
 
 void demos_world_start_hook(PHYS_World* w) {
+    w->min_r = 0.01f;
+    w->hashgrid_cell_r = 10.f*w->min_r;
+    w->hashgrid_obj_r = w->min_r;
+    
     {DeferResource(Temp scratch = scratch_begin_a(s.state_arena), scratch_end(scratch)) {
         // @note allocates to cs arena for use later
         u32* surface_body_indices;

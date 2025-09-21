@@ -16,6 +16,7 @@ struct PHYS_Ball_Settings {
     vec3_f32 linear_velocity;
     f32 coefficient_of_dynamic_friction;
     f32 coefficient_of_static_friction;
+    b32 can_rotate;
 };
 
 PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings);
@@ -32,6 +33,8 @@ struct PHYS_Box_Settings {
     vec3_f32 linear_velocity;
     vec3_f32 angular_velocity;
     PHYS_ColliderLayer collision_layer;
+    f32 coefficient_of_dynamic_friction;
+    f32 coefficient_of_static_friction;
 };
 
 PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings);

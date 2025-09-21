@@ -35,8 +35,12 @@ struct PHYS_DBG_ThreadCtx {
     vec3_f32 min_force_color_hsl;
     vec3_f32 max_force_color_hsl;
 
+    b32 do_colliders;
+    b32 do_bodies;
+    b32 do_constraints;
     b32 do_collider_normals;
     b32 do_contact_points;
+    b32 do_contact_manifold;
 };
 
 thread_static PHYS_DBG_ThreadCtx* phys_dbg_d_ctx = NULL;
@@ -61,8 +65,6 @@ void phys_dbg_d_body(PHYS_World* w, PHYS_Body* b);
 void phys_dbg_d_constraints(PHYS_World* w, PHYS_ConstraintType* blacklist, int blacklist_count);
 void phys_dbg_d_colliders(PHYS_World* w, PHYS_ColliderType* blacklist, int blacklist_count);
 void phys_dbg_d_bodies(PHYS_World* w);
-
-void phys_dbg_d_world(PHYS_World* w);
 
 // helpers
 #define PHYS_DBG_D_DRAW_POINT(p,c,r)        {vec3_f32 x = p; vec3_f32 y = c; vec2_f32 z = r; phys_dbg_d_ctx->draw_point_batch(&x,&y,&z,1);}

@@ -246,7 +246,7 @@ void geo_triangulate(
 // clip polygon to lie inside positive halfspace of plane
 GEO_Polygon geo_clip_polygon_against_plane(GEO_Polygon* in_to_clip, vec3_f32 in_origin, vec3_f32 in_normal) {
     Assert(in_to_clip->topology >= GEO_Topology_Edge);
-    GEO_Polygon clipped;
+    GEO_Polygon clipped = {0};
 
     vec3_f32 prev_v = in_to_clip->data[in_to_clip->topology - 1];
     f32 prev_num = dot_3f32(sub_3f32(in_origin, prev_v), in_normal);
@@ -277,31 +277,34 @@ GEO_Polygon geo_clip_polygon_against_plane(GEO_Polygon* in_to_clip, vec3_f32 in_
         prev_v = cur_v; prev_num = cur_num; prev_inside = cur_inside;
     }
 
+    Assert(clipped.topology < GEO_MAX_CLIPPED_TOPOLOGY);
     return clipped;
 }
 
 // clip a polygon against each of edge planes of another polygon, tangent to the normal
 GEO_Polygon geo_clip_polygon_against_polygon(GEO_Polygon* in_to_clip, GEO_Polygon* in_clip, vec3_f32 in_normal) {
-    GEO_Polygon ping_pong[2];
-    u32 src_idx = -1;
+    GEO_Polygon ping_pong[2] = {0};
+    u32 src_idx = 0;
+    ping_pong[src_idx] = *in_to_clip;
 
     for GEO_EachEdge_Ring_Open(edge_start, edge_end, vec3_f32, in_clip->data, in_clip->topology, in_clip->topology) {
-        vec3_f32 edge_normal = cross_3f32(in_normal, sub_3f32(edge_start, edge_end));
+        vec3_f32 edge_normal = cross_3f32(in_normal, sub_3f32(edge_end, edge_start));
 
-        GEO_Polygon* src = (src_idx == -1) ? in_to_clip : &ping_pong[src_idx];
-        ping_pong[src_idx ^ 1] = geo_clip_polygon_against_plane(src, edge_start, edge_normal);
-        src_idx = src_idx ^ 1;
+        GEO_Polygon* src = &ping_pong[src_idx];
+        ping_pong[src_idx^1] = geo_clip_polygon_against_plane(src, edge_start, edge_normal);
+        src_idx = src_idx^1;
 
         if (ping_pong[src_idx].topology < GEO_Topology_Triangle)
             return (GEO_Polygon){0};
     } GEO_EachEdge_Ring_Close;
 
+    Assert(ping_pong[src_idx].topology < GEO_MAX_CLIPPED_TOPOLOGY);
     return ping_pong[src_idx];
 }
 
 GEO_Polygon geo_clip_polygon_against_edge(GEO_Polygon* in_to_clip, vec3_f32 in_clip_start, vec3_f32 in_clip_end, vec3_f32 in_normal) {
     Assert(in_to_clip->topology >= GEO_Topology_Triangle);
-    GEO_Polygon clipped;
+    GEO_Polygon clipped = {0};
 
     vec3_f32 clipping_edge_dir = sub_3f32(in_clip_start, in_clip_end);
     vec3_f32 clipping_edge_normal = cross_3f32(clipping_edge_dir, in_normal);
@@ -344,5 +347,6 @@ GEO_Polygon geo_clip_polygon_against_edge(GEO_Polygon* in_to_clip, vec3_f32 in_c
         prev_v = cur_v; prev_num = cur_num; prev_inside = cur_inside;
     }
 
+    Assert(clipped.topology < GEO_MAX_CLIPPED_TOPOLOGY);
     return clipped;
 }

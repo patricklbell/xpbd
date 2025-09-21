@@ -20,12 +20,15 @@ struct HangingBoxesState {
     HangingBox box1;
     PHYS_constraint_id box1_to_box2;
     HangingBox box2;
-    HangingBox box3;
 };
 static HangingBoxesState s;
 
 int demos_init_hook(DEMOS_CommonState* cs) {
     phys_dbg_d_ctx->color_mode = PHYS_DBG_DrawColorMode_Force;
+    phys_dbg_d_ctx->do_constraints = true;
+    phys_dbg_d_ctx->do_colliders = true;
+    phys_dbg_d_ctx->do_contact_points = true;
+    phys_dbg_d_ctx->do_contact_manifold = true;
 
     MS_LoadResult cube = ms_load_obj(cs->arena, ntstr8_lit("./data/cube.obj"), (MS_LoadSettings){});
     if (cube.error.length != 0) {
@@ -39,6 +42,7 @@ int demos_init_hook(DEMOS_CommonState* cs) {
 
     cs->camera.eye    = (vec3_f32){.x = 0,.y =-10,.z =40};
     cs->camera.target = (vec3_f32){.x = 0,.y =-10,.z = 0};
+    cs->show_debug = true;
 
     s.state_arena = arena_alloc();
     return 0;
@@ -98,15 +102,15 @@ void demos_world_start_hook(PHYS_World* w) {
         }
     });
 
-    s.box3.extents = make_3f32(10,1,10);
-    PHYS_Box_Settings box3_settings = {
-        .arena = s.state_arena,
-        .center = make_3f32(0,-20,0),
-        .extents = s.box3.extents,
-        .mass = 0,
-        .no_gravity = true,
-    };
-    s.box3.rigid_body = phys_world_add_box(w, box3_settings);
+    // s.box3.extents = make_3f32(10,1,10);
+    // PHYS_Box_Settings box3_settings = {
+    //     .arena = s.state_arena,
+    //     .center = make_3f32(0,-20,0),
+    //     .extents = s.box3.extents,
+    //     .mass = 0,
+    //     .no_gravity = true,
+    // };
+    // s.box3.rigid_body = phys_world_add_box(w, box3_settings);
 }
 void demos_world_end_hook(PHYS_World* w) {
     arena_clear(s.state_arena);
@@ -117,10 +121,6 @@ static void d_hanging_box(PHYS_World* w, HangingBox* hanging_box);
 void demos_frame_hook(DEMOS_CommonState* cs) {
     d_hanging_box(cs->w, &s.box1);
     d_hanging_box(cs->w, &s.box2);
-    d_hanging_box(cs->w, &s.box3);
-
-    if (cs->should_draw_dbg)
-        phys_dbg_d_world(cs->w);
 }
 
 // helpers

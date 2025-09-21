@@ -152,13 +152,13 @@ struct PHYS_Collider_Base {
     PHYS_ColliderLayer layer;
 };
 
+// @note assumed that faces are CCW and edges are joined in a ring
 typedef struct PHYS_Collider_Polytope PHYS_Collider_Polytope;
 struct PHYS_Collider_Polytope {
     PHYS_Collider_Base base;
-
-    // @note assumed ring connection
+    
     GEO_Topology topology;
-
+    
     vec3_f32*   points;
     u32         points_count;
     u32*        indices;
@@ -189,6 +189,7 @@ typedef struct PHYS_CollisionCheck PHYS_CollisionCheck;
 struct PHYS_CollisionCheck {
     vec3_f32 r1, r2, n;
     f32 d;
+    u32 f1, f2;
 };
 b32 phys_collision_check_spheres(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Sphere* s1, PHYS_Collider_Sphere* s2);
 b32 phys_collision_check_polytopes(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Polytope* p1, PHYS_Collider_Polytope* p2);

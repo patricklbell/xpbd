@@ -2,10 +2,13 @@
 
 // helpers
 vec3_f32 phys_rotate_translate(vec3_f32 x, vec4_f32 rotation, vec3_f32 translation);
+vec3_f32 phys_inv_rotate_translate(vec3_f32 x, vec4_f32 rotation, vec3_f32 translation);
 vec3_f32 phys_scale_rotate_translate(vec3_f32 x, vec3_f32 scale, vec4_f32 rotation, vec3_f32 translation);
+vec3_f32 phys_polygon_normal_ccw(GEO_Polygon* f);
 
 // moment of interia
 vec3_f32 phys_inv_moment_rect_cuboid(vec3_f32 dimensions, f32 m);
+vec3_f32 phys_inv_moment_spehere(f32 r, f32 m);
 
 // volumes and areas
 f32 phys_triangle_area(vec3_f32 x1, vec3_f32 x2, vec3_f32 x3);
@@ -15,13 +18,25 @@ f32 phys_tetrahedron_volume(vec3_f32 v1, vec3_f32 v2, vec3_f32 v3, vec3_f32 v4);
 f32 phys_tetrahedron_volume_axis(vec3_f32 d21, vec3_f32 d31, vec3_f32 d41);
 
 // separating axis theorem, @note checks in_out_d to maximise depth
-b32 phys_SAT_check_collision_axis(
-    vec3_f32 in_axis1, f32 in_min1, f32 in_max1, f32 in_min2, f32 in_max2,
+typedef enum PHYS_SATCollisionForm {
+    PHYS_SATCollisionForm_None = 0,
+    PHYS_SATCollisionForm_NotCloser,
+    PHYS_SATCollisionForm_MaxMin,
+    PHYS_SATCollisionForm_MinMax,
+} PHYS_SATCollisionForm;
+
+PHYS_SATCollisionForm phys_SAT_check_collision_axis(
+    vec3_f32 in_axis1,
+    f32 in_min1, f32 in_max1, f32 in_min2, f32 in_max2,
     f32* in_out_d, vec3_f32* out_n
 );
 void phys_SAT_polytope_min_max(
     vec3_f32 in_axis, vec3_f32* in_points, u32 in_points_count,
     f32* out_min, f32* out_max
+);
+void phys_SAT_polytope_min_max_with_aligned_face(
+    vec3_f32 in_axis, vec3_f32* in_points, u32* in_indices, u32 in_indices_count, vec3_f32* in_normals,  GEO_Topology in_topology,
+    f32* out_min, f32* out_max, u32* out_min_face, u32* out_max_face
 );
 void phys_SAT_sphere_min_max(
     vec3_f32 in_axis, f32 in_radius,

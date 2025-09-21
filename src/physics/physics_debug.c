@@ -120,7 +120,55 @@ void phys_dbg_d_constraint_hinge(PHYS_World* w, PHYS_Constraint* c) {
 }
 
 void phys_dbg_d_collider_sphere(PHYS_World* w, PHYS_Collider_Sphere* c) {
-    return; // @todo
+    static u32 parallels = 3, points_per_parallel = 16, dims_shown = 3, dims = 3;
+
+    f32 r = c->base.r;
+    f32 gap = r/(parallels+1);
+    DeferResource(Temp scratch = scratch_begin(NULL, 0), scratch_end(scratch)) {
+        u32 i = 0;
+        u32 total_points = 2*(dims_shown*(1 + 2*parallels))*points_per_parallel;
+        vec3_f32* points = push_array(scratch.arena, vec3_f32, total_points);
+        vec3_f32* colors = push_array(scratch.arena, vec3_f32, total_points);
+
+        for EachIndex(paralleli, 1+parallels) {
+            f32 gapi = paralleli*gap;
+            f32 ri = sqrt_f32(r*r - gapi*gapi);
+            for EachIndex(pointi, points_per_parallel) {
+                f32 t1 = 2.f*PI*(f32)pointi/points_per_parallel;
+                f32 x1 = ri*cos_f32(t1);
+                f32 y1 = ri*sin_f32(t1);
+
+                f32 t2 = 2.f*PI*(f32)(pointi+1)/points_per_parallel;
+                f32 x2 = ri*cos_f32(t2);
+                f32 y2 = ri*sin_f32(t2);
+
+                for EachIndex(dim, dims_shown) {
+                    // +parallel
+                    points[i].v[dim] = +gapi; points[i].v[(dim+1)%dims] = x1; points[i].v[(dim+2)%dims] = y1;
+                    i++;
+                    points[i].v[dim] = +gapi; points[i].v[(dim+1)%dims] = x2; points[i].v[(dim+2)%dims] = y2;
+                    i++;
+                    if (paralleli == 0) continue;
+
+                    // -parallel
+                    points[i].v[dim] = -gapi; points[i].v[(dim+1)%dims] = x1; points[i].v[(dim+2)%dims] = y1;
+                    i++;
+                    points[i].v[dim] = -gapi; points[i].v[(dim+1)%dims] = x2; points[i].v[(dim+2)%dims] = y2;
+                    i++;
+                }
+            }
+        }
+        Assert(i == total_points);
+
+        PHYS_Body* b = phys_world_resolve_body(w, c->base.p);
+        vec3_f32 color = phys_dbg_d_get_collider_color(w, (PHYS_Collider*)c);
+        for EachIndex(i, total_points) {
+            points[i] = phys_rotate_translate(points[i], b->rotation, b->position);
+            colors[i] = color;
+        }
+
+        phys_dbg_d_ctx->draw_edge_batch(points, colors, total_points);
+    }
 }
 void phys_dbg_d_collider_polytope(PHYS_World* w, PHYS_Collider_Polytope* c) {
     DeferResource(Temp scratch = scratch_begin(NULL, 0), scratch_end(scratch)) {
@@ -140,12 +188,24 @@ void phys_dbg_d_collider_polytope(PHYS_World* w, PHYS_Collider_Polytope* c) {
 
         if (phys_dbg_d_ctx->do_collider_normals) {
             for EachIndex(ni, c->normals_count) {
+                // vec3_f32 centroid = {0};
+                // for EachIndex(pi, c->topology) {
+                //     centroid = add_3f32(centroid, phys_rotate_translate(c->points[c->indices[ni*c->topology + pi]], b->rotation, b->position));
+                // }
+                // centroid = mul_3f32(centroid, 1.f/c->topology);
+                // PHYS_DBG_D_DRAW_NORMAL(centroid, c->normals[ni], make_3f32(1,0,0));
+
+                // computed normal from face to check winding order
+                GEO_Polygon f = {.topology=c->topology};
                 vec3_f32 centroid = {0};
                 for EachIndex(pi, c->topology) {
-                    centroid = add_3f32(centroid, phys_rotate_translate(c->points[c->indices[ni*c->topology + pi]], b->rotation, b->position));
+                    vec3_f32 v = c->points[c->indices[ni*c->topology + pi]];
+
+                    centroid = add_3f32(centroid, phys_rotate_translate(v, b->rotation, b->position));
+                    f.data[pi] = rot_quat(v, b->rotation);
                 }
                 centroid = mul_3f32(centroid, 1.f/c->topology);
-                PHYS_DBG_D_DRAW_NORMAL(centroid, c->normals[ni], make_3f32(1,0,0));
+                PHYS_DBG_D_DRAW_NORMAL(centroid, normalize_3f32(phys_polygon_normal_ccw(&f)), make_3f32(1,0,0));
             }
         }
     
@@ -238,10 +298,4 @@ void phys_dbg_d_bodies(PHYS_World* w) {
         PHYS_Body* b = &w->bodies.v[i];
         phys_dbg_d_body(w, b);
     }
-}
-
-void phys_dbg_d_world(PHYS_World* w) {
-    phys_dbg_d_colliders(w, NULL, 0);
-    phys_dbg_d_constraints(w, NULL, 0);
-    phys_dbg_d_bodies(w);
 }

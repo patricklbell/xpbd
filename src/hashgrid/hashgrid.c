@@ -71,6 +71,9 @@ HG_QueryResult hg_hashgrid_query(
     HG_3s32 imin = hg_3f32_3u32(addscl_3f32(position,-radius), grid->cell_length);
     HG_3s32 imax = hg_3f32_3u32(addscl_3f32(position,+radius), grid->cell_length);
     
+    // u64 q_acc = 0.f;
+    // u64 q_count = 0;
+
     for (s32 ix = imin.x; ix <= imax.x; ix++) {
         for (s32 iy = imin.y; iy <= imax.y; iy++) {
             for (s32 iz = imin.z; iz <= imax.z; iz++) {
@@ -78,6 +81,7 @@ HG_QueryResult hg_hashgrid_query(
                 u32 beg_index = grid->cells[hash  ].object_index;
                 u32 end_index = grid->cells[hash+1].object_index;
 
+                // q_acc += Max((s64)end_index - beg_index, 0); q_count++;
                 for (u32 object_i = beg_index; object_i < end_index; object_i++) {
                     HG_QueryResultNode* n = push_array(arena, HG_QueryResultNode, 1);
                     n->id = grid->objects[object_i];
@@ -87,6 +91,11 @@ HG_QueryResult hg_hashgrid_query(
             }
         }
     }
+
+    // s32 area = (imax.x - imin.x)*(imax.y - imin.y)*(imax.z - imin.z);
+    // printf("%dx%dx%d\n", imax.x - imin.x, imax.y - imin.y, imax.z - imin.z);
+    // printf("\tavg len: %f\n", (f64)q_acc/(f64)q_count);
+    // printf("\ttotal nodes: %f\n", (f64)area * (f64)q_acc/(f64)q_count);
 
     return result;
 }

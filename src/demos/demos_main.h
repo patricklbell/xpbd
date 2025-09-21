@@ -32,6 +32,7 @@ struct DEMOS_CommonState {
     b32 is_paused;
     b32 should_draw_dbg;
     b32 show_debug;
+    b32 dont_show_frame;
 
     DEMOS_Camera camera;
     PHYS_World* w;

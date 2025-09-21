@@ -5,8 +5,18 @@ vec3_f32 phys_rotate_translate(vec3_f32 x, vec4_f32 rotation, vec3_f32 translati
         translation
     );
 }
+vec3_f32 phys_inv_rotate_translate(vec3_f32 x, vec4_f32 rotation, vec3_f32 translation) {
+    return rot_quat(
+        sub_3f32(x, translation),
+        inv_quat(rotation)
+    );
+}
 vec3_f32 phys_scale_rotate_translate(vec3_f32 x, vec3_f32 scale, vec4_f32 rotation, vec3_f32 translation) {
     return phys_rotate_translate(elmul_3f32(x, scale), rotation, translation);
+}
+vec3_f32 phys_polygon_normal_ccw(GEO_Polygon* f) {
+    Assert(f->topology >= GEO_Topology_Triangle);
+    return cross_3f32(sub_3f32(f->data[1], f->data[0]), sub_3f32(f->data[2], f->data[0]));
 }
 
 // moment of interia
@@ -17,6 +27,9 @@ vec3_f32 phys_inv_moment_rect_cuboid(vec3_f32 dimensions, f32 m) {
         12.f/m
     );
     return inv_D;
+}
+vec3_f32 phys_inv_moment_spehere(f32 r, f32 m) {
+    return mul_3f32(make_3f32(1.f,1.f,1.f), (5.f/2.f) / (m*r*r));
 }
 
 // volumes and areas
@@ -33,7 +46,7 @@ f32 phys_tetrahedron_volume_axis(vec3_f32 d21, vec3_f32 d31, vec3_f32 d41) {
 }
 
 // separating axis theorem
-b32 phys_SAT_check_collision_axis(
+PHYS_SATCollisionForm phys_SAT_check_collision_axis(
     vec3_f32 in_axis1, f32 in_min1, f32 in_max1, f32 in_min2, f32 in_max2,
     f32* in_out_d, vec3_f32* out_n
 ) {
@@ -57,19 +70,23 @@ b32 phys_SAT_check_collision_axis(
         if (d < *in_out_d) {
             *in_out_d = d;
             *out_n = mul_3f32(in_axis1, (B - C < D - A) ? +1.f : -1.f);
+            return (B - C < D - A) ? PHYS_SATCollisionForm_MaxMin : PHYS_SATCollisionForm_MinMax;
         }
-        return true;
+
+        return PHYS_SATCollisionForm_NotCloser;
     }
     if (C <= A && D >= A) {
         f32 d = Min(D - A, B - C);
         if (d < *in_out_d) {
             *in_out_d = d;
             *out_n = mul_3f32(in_axis1, (D - A < B - C) ? -1.f : +1.f);
+            return (D - A < B - C) ? PHYS_SATCollisionForm_MinMax : PHYS_SATCollisionForm_MaxMin;
         }
-        return true;
+
+        return PHYS_SATCollisionForm_NotCloser;
     }
 
-    return false;
+    return PHYS_SATCollisionForm_None;
 }
 void phys_SAT_polytope_min_max(
     vec3_f32 in_axis, vec3_f32* in_points, u32 in_points_count,
@@ -80,6 +97,49 @@ void phys_SAT_polytope_min_max(
 
         *out_min = Min(*out_min, proj);
         *out_max = Max(*out_max, proj);
+    }
+}
+void phys_SAT_polytope_min_max_with_aligned_face(
+    vec3_f32 in_axis, vec3_f32* in_points, u32* in_indices, u32 in_indices_count, vec3_f32* in_normals,  GEO_Topology in_topology,
+    f32* out_min, f32* out_max, u32* out_min_face, u32* out_max_face
+) {
+    *out_min = MAX_F32;
+    *out_max = -MAX_F32;
+    // @note alignments of face containing min and max, not the min and max alignments
+    f32 min_face_alignment = -MAX_F32, max_face_alignment = -MAX_F32;
+    for (u32 facei = 0; facei < in_indices_count/in_topology; facei++) {
+        b32 face_contains_min = false, face_contains_max = false;
+        
+        f32 face_min = *out_min, face_max = *out_max;
+        for (u32 indexi = facei*in_topology; indexi < (facei+1)*in_topology; indexi++) {
+            f32 proj = dot_3f32(in_axis, in_points[in_indices[indexi]]);
+
+            if (proj <= face_min) {
+                face_min = proj;
+                face_contains_min = true;
+            }
+            if (proj >= face_max) {
+                face_max = proj;
+                face_contains_max = true;
+            }
+        }
+        if (!face_contains_min && !face_contains_max)
+            continue;
+
+        f32 face_alignment = abs_f32(dot_3f32(in_normals[facei], in_axis));
+
+        // replace the face if we have a better vertex or better alignment
+        if (face_contains_min && (face_min < (*out_min) || face_alignment > min_face_alignment)) {
+            *out_min_face = facei*in_topology;
+            min_face_alignment = face_alignment;
+        }
+        if (face_contains_max && (face_max > (*out_max) || face_alignment > max_face_alignment)) {
+            *out_max_face = facei*in_topology;
+            max_face_alignment = face_alignment;
+        }
+
+        *out_min = face_min;
+        *out_max = face_max;
     }
 }
 void phys_SAT_sphere_min_max(

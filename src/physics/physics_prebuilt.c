@@ -7,12 +7,18 @@ void phys_world_remove_rigid_body(PHYS_World* w, PHYS_RigidBody* object) {
 PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings) {
     Assert(phys_world_valid_radius(w, settings.radius));
 
-    PHYS_body_id center = phys_world_add_body(w, (PHYS_Body){
+    PHYS_Body body = {
         .position = settings.center,
         .linear_velocity = settings.linear_velocity,
         .inv_mass = (settings.mass > 0.f) ? 1.f / settings.mass : 0.f,
         .restitution = settings.resitution,
-    });
+    };
+    if (settings.can_rotate && settings.mass > 0.f) {
+        body.has_inertia = true;
+        body.inv_inertia = phys_inv_moment_spehere(settings.radius, settings.mass);
+    }
+
+    PHYS_body_id center = phys_world_add_body(w, body);
     PHYS_collider_id sphere = phys_world_add_collider(w, (PHYS_Collider){
         .sphere = {
             .base = {
@@ -56,6 +62,8 @@ PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings) {
                 .p = center,
                 .r = length_3f32(settings.extents),
                 .layer = settings.collision_layer,
+                .dynamic_friction = settings.coefficient_of_dynamic_friction,
+                .static_friction = settings.coefficient_of_static_friction,
             },
             .topology = GEO_Topology_Quad,
             .points = push_array(settings.arena, vec3_f32, 8),
@@ -79,11 +87,12 @@ PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings) {
 
         u32 cidx = 0b000;
         p->indices[indice_offset++] = cidx;
-        p->indices[indice_offset++] = cidx|u;
-        p->indices[indice_offset++] = cidx|u|v;
         p->indices[indice_offset++] = cidx|v;
+        p->indices[indice_offset++] = cidx|u|v;
+        p->indices[indice_offset++] = cidx|u;
         p->normals[normals_offset++].v[dim] = -1.f;
 
+        // @note order switched to ensure CCW
         cidx = 0b111;
         p->indices[indice_offset++] = cidx;
         p->indices[indice_offset++] = cidx^u;
@@ -151,20 +160,22 @@ PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Set
             
             int point_idx = 0;
             int dimu = (dim+1)%3, dimv = (dim+2)%3;
+
+            // @note multiply by dir to ensure CCW
             p->points[point_idx].v[dimu] = -settings.extents.v[dimu];
             p->points[point_idx].v[dimv] = -settings.extents.v[dimv];
             p->indices[point_idx] = point_idx;
             point_idx++;
-            p->points[point_idx].v[dimu] = +settings.extents.v[dimu];
-            p->points[point_idx].v[dimv] = -settings.extents.v[dimv];
+            p->points[point_idx].v[dimu] = +dir*settings.extents.v[dimu];
+            p->points[point_idx].v[dimv] = -dir*settings.extents.v[dimv];
             p->indices[point_idx] = point_idx;
             point_idx++;
             p->points[point_idx].v[dimu] = +settings.extents.v[dimu];
             p->points[point_idx].v[dimv] = +settings.extents.v[dimv];
             p->indices[point_idx] = point_idx;
             point_idx++;
-            p->points[point_idx].v[dimu] = -settings.extents.v[dimu];
-            p->points[point_idx].v[dimv] = +settings.extents.v[dimv];
+            p->points[point_idx].v[dimu] = -dir*settings.extents.v[dimu];
+            p->points[point_idx].v[dimv] = +dir*settings.extents.v[dimv];
             p->indices[point_idx] = point_idx;
             point_idx++;
             

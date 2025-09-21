@@ -104,22 +104,26 @@ static void window_event_loop(void* data) {
         single_step = true;
         pdt *= -1.f;
     }
+    if (input_is_key_pressed(OS_Key_f)) {
+        cs->dont_show_frame = !cs->dont_show_frame;
+    }
     if (input_is_key_pressed(OS_Key_d)) {
         cs->show_debug = !cs->show_debug;
     }
 
     DeferCall(r_window_begin_frame(cs->window, cs->rwindow), r_window_end_frame(cs->window, cs->rwindow)) {
         DeferCall(d_begin_pipeline(), d_submit_pipeline(cs->window, cs->rwindow)) {
-            demos_d_begin_3d_pass_camera(cs->window, &cs->camera);
-            demos_frame_hook(cs);
-
-            demos_d_begin_3d_pass_camera(cs->window, &cs->camera);
-            b32 requires_step = !cs->is_paused || single_step;
-            DeferCall(dbgdraw_begin(/*do_not_clear*/ !requires_step), (cs->show_debug ? dbgdraw_submit() : NULL)) {
-                if (requires_step) {
-                    phys_world_step(cs->w, pdt);
-                    phys_dbg_d_world(cs->w);
-                }
+            demos_d_begin_3d_pass_camera(cs->window, &cs->camera, /*debug*/ false);
+            if (!cs->dont_show_frame)
+                demos_frame_hook(cs);
+                
+            if (!cs->is_paused || single_step) {
+                dbgdraw_clear();
+                phys_world_step(cs->w, pdt);
+            }
+            if (cs->show_debug) {
+                demos_d_begin_3d_pass_camera(cs->window, &cs->camera, /*debug*/ true);
+                dbgdraw_draw();
             }
         }
     }

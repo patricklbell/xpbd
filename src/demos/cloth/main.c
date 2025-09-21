@@ -63,8 +63,6 @@ int demos_init_hook(DEMOS_CommonState* cs) {
 }
 
 void demos_world_start_hook(PHYS_World* w) {
-    w->substeps = 1;
-    
     {DeferResource(Temp scratch = scratch_begin_a(s.state_arena), scratch_end(scratch)) {
         u32* edge_indices;
         u32 edge_indices_count;
@@ -123,7 +121,7 @@ void demos_world_start_hook(PHYS_World* w) {
 
         phys_world_add_box_boundary(w, (PHYS_BoxBoundary_Settings){
             .arena=s.state_arena,
-            .extents=make_3f32(2,2,2),
+            .extents=make_3f32(1,2,1),
         });
     }}
 }

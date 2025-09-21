@@ -8,8 +8,17 @@ typedef enum GEO_Topology {
     GEO_Topology_Triangle    = 3,
     GEO_Topology_Quad        = 4,
     GEO_Topology_Tetrahedron = 4,
-    GEO_Topology_COUNT       = 5,
+    GEO_Topology_COUNT,
 } GEO_Topology;
+
+#define GEO_MAX_CLIPPED_TOPOLOGY (2*GEO_Topology_COUNT)
+
+typedef struct GEO_Polygon GEO_Polygon;
+struct GEO_Polygon {
+    GEO_Topology topology;
+    // @note needs enough space for worst case clipping
+    vec3_f32 data[GEO_MAX_CLIPPED_TOPOLOGY];
+};
 
 typedef enum GEO_Connected {
   GEO_Connected_Strongly,
@@ -108,13 +117,6 @@ void geo_triangulate(
             T v = data[off##__LINE__ + (i##__LINE__ + 1)%topology];
 #define GEO_EachEdge_Ring_Close } \
     }
-
-
-typedef struct GEO_Polygon GEO_Polygon;
-struct GEO_Polygon {
-    GEO_Topology topology;
-    vec3_f32 data[GEO_Topology_COUNT];
-};
 
 GEO_Polygon geo_clip_polygon_against_plane(GEO_Polygon* in_to_clip, vec3_f32 in_origin, vec3_f32 in_normal);
 GEO_Polygon geo_clip_polygon_against_polygon(GEO_Polygon* in_to_clip, GEO_Polygon* in_clip, vec3_f32 in_normal);

@@ -204,7 +204,8 @@ void r_submit(OS_Handle window, R_PassList *passes) {
     for EachList(pass_n, R_PassNode, passes->first) {
         R_Pass* pass = &pass_n->v;
         switch (pass->kind) {
-            case R_PassKind_3D: {
+            case R_PassKind_3D:
+            case R_PassKind_3DDebug: {
                 R_PassParams_3D* params = pass->params_3d;
                 
                 glViewport(params->viewport.tl.x, params->viewport.tl.y, params->viewport.br.x, params->viewport.br.y);

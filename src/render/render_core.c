@@ -52,8 +52,6 @@ void* r_batch_list_push_inst(Arena *arena, R_BatchList *list, u64 batch_inst_cap
 }
 
 R_Pass* r_pass_from_kind(Arena *arena, R_PassList *list, R_PassKind kind) {
-    Assert(kind == R_PassKind_3D); // @todo
-
     R_PassNode *n = list->last;
     if(n == NULL || n->v.kind != kind) {
         n = push_array(arena, R_PassNode, 1);

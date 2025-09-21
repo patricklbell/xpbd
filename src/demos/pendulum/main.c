@@ -22,7 +22,11 @@ static DEMO_PendulumState s;
 
 int demos_init_hook(DEMOS_CommonState* cs) {
     phys_dbg_d_ctx->color_mode = PHYS_DBG_DrawColorMode_Type;
-    phys_dbg_d_ctx->body_radius = 0.007;
+    phys_dbg_d_ctx->do_contact_points = true;
+    phys_dbg_d_ctx->do_contact_manifold = true;
+    phys_dbg_d_ctx->do_collider_normals = true;
+    phys_dbg_d_ctx->do_colliders = true;
+    phys_dbg_d_ctx->default_point_radius = 0.01;
 
     MS_LoadResult res = ms_load_obj(cs->arena, ntstr8_lit("./data/cube.obj"), (MS_LoadSettings){});
     if (res.error.length != 0) {
@@ -59,14 +63,13 @@ void demos_world_start_hook(PHYS_World* w) {
     for EachElement(i, s.arms) {
         f32 z_offset = (i%2 == 0) ? -arm_half_depth : +arm_half_depth;
 
-        s.arms[i].extents = make_3f32(arm_half_length,arm_half_width,arm_half_depth);
+        s.arms[i].extents = make_3f32(arm_half_length,arm_half_width,arm_half_depth*0.9f);
         s.arms[i].rb = phys_world_add_box(w, (PHYS_Box_Settings){
             .arena=s.state_arena,
             .center=make_3f32((2*i+1)*arm_inner_half_length,0,z_offset),
             .extents=s.arms[i].extents,
-            .linear_velocity=make_3f32(0,-10,0),
+            .linear_velocity=make_3f32(0,(i-1.f)*5.f,0),
             .mass=PHYS_UNIT_G(50),
-            .collision_layer=PHYS_ColliderLayer_NoSelf, // @todo, need to implement manifold first
         });
         PHYS_body_id curr_id = s.arms[i].rb.body_id;
         phys_world_add_constraint(w, (PHYS_Constraint){

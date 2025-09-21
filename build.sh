@@ -46,7 +46,7 @@ clean() {
 # Function to build all demos
 build_demos() {
     declare -A dependencies=(
-        [balls]="sphere.obj"
+        [balls]="sphere.obj cube.obj"
         [hanging_boxes]="cube.obj"
         [softbody]="bunny.vtk"
         [cloth]="cloth.vtk sphere.obj"
