@@ -15,11 +15,14 @@ struct DEMO_SoftbodyState {
     MS_Mesh bunny_mesh;
     VTK_Data bunny_vtk;
 
-    DEMO_SoftbodyBunny bunnies[4];
+    DEMO_SoftbodyBunny bunnies[1];
 };
 static DEMO_SoftbodyState s;
 
 int demos_init_hook(DEMOS_CommonState* cs) {
+    phys_dbg_d_ctx->do_bodies = true;
+    phys_dbg_d_ctx->do_constraints = true;
+
     VTK_LoadResult bunny = vtk_load(cs->arena, ntstr8_lit("./data/bunny.vtk"), (VTK_LoadSettings){});
     if (bunny.error.length != 0) {
         fprintf(stderr, "%s\n", bunny.error.data);
@@ -65,7 +68,7 @@ void demos_world_start_hook(PHYS_World* w) {
             /*out*/ &volume_edge_indices, &volume_edge_indices_count
         );
         
-        f32 compliances[ArrayLength(s.bunnies)] = {0.1f,0.3f,0.7f,1.f};
+        f32 compliances[ArrayLength(s.bunnies)] = { 0.3f }; // {0.1f,0.3f,0.7f,1.f};
         for EachElement(i, s.bunnies) {
             s.bunnies[i].sb = phys_world_add_softbody(w, (PHYS_TetTriSoftbody_Settings){
                 .arena = s.state_arena,
@@ -87,7 +90,8 @@ void demos_world_start_hook(PHYS_World* w) {
 
         phys_world_add_box_boundary(w, (PHYS_BoxBoundary_Settings){
             .arena=s.state_arena,
-            .extents=make_3f32(10,4,4)
+            .extents=make_3f32(10,4,4),
+            .layer=PHYS_ColliderLayer_1_No1, // no raycasting and no self collision
         });
     }}
 }

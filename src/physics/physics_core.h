@@ -211,13 +211,22 @@ typedef enum PHYS_ColliderType {
     PHYS_ColliderType_COUNT ENUM_CASE_UNUSED,
 } PHYS_ColliderType;
 
-typedef enum PHYS_ColliderLayer {
-    PHYS_ColliderLayer_0,
-    PHYS_ColliderLayer_NoSelf,
-    PHYS_ColliderLayer_COUNT ENUM_CASE_UNUSED,
+typedef union PHYS_ColliderLayer {
+    struct {
+        u32 mask;
+        u32 group;
+    };
+    u64 v;
 } PHYS_ColliderLayer;
 
+#define PHYS_ColliderLayer_Invalid  ((PHYS_ColliderLayer){.v=0})
+#define PHYS_ColliderLayer_1        ((PHYS_ColliderLayer){.mask=~0,.group=1})
+#define PHYS_ColliderLayer_1_No1    ((PHYS_ColliderLayer){.mask=~1,.group=1})
+#define PHYS_ColliderLayer_All_No1  ((PHYS_ColliderLayer){.mask=~1,.group=~0})
+#define PHYS_ColliderLayer_All      ((PHYS_ColliderLayer){.mask=~0,.group=~0})
+
 b32 phys_collider_layers_overlap(PHYS_ColliderLayer l1, PHYS_ColliderLayer l2);
+b32 phys_collider_layers_equal(PHYS_ColliderLayer l1, PHYS_ColliderLayer l2);
 
 typedef struct PHYS_Collider_Base PHYS_Collider_Base;
 struct PHYS_Collider_Base {

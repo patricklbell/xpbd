@@ -34,7 +34,7 @@ struct PHYS_Box_Settings {
     f32 resitution;
     vec3_f32 linear_velocity;
     vec3_f32 angular_velocity;
-    PHYS_ColliderLayer collision_layer;
+    PHYS_ColliderLayer layer;
     f32 coefficient_of_dynamic_friction;
     f32 coefficient_of_static_friction;
 };
@@ -54,6 +54,7 @@ struct PHYS_BoxBoundary_Settings {
     vec3_f32 extents;
     vec4_f32 rotation;
     f32 resitution;
+    PHYS_ColliderLayer layer;
 };
 
 PHYS_BoxBoundary    phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Settings settings);

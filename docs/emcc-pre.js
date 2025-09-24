@@ -85,7 +85,7 @@ Module = {
 
             canvas.width = pxWidth
             canvas.height = pxHeight
-            Module._os_gfx_wasm_resize_callback(Math.floor(x), Math.floor(y), pxWidth, pxHeight)
+            Module._os_gfx_wasm_resize_callback(Math.floor(x), Math.floor(y), pxWidth, pxHeight, window.devicePixelRatio)
         }).observe(document.getElementById('canvas'))
 
         const updateControlsCallbackPtr = Module.addFunction(updateControls, 'v')

@@ -74,19 +74,14 @@ static vec3_f32 phys_dbg_d_get_body_color(PHYS_World* w, PHYS_Body* b) {
 void phys_dbg_d_constraint_distance(PHYS_World* w, PHYS_Constraint* c) {
     PHYS_Body* b1 = phys_world_resolve_body(w, c->distance.body1);
     PHYS_Body* b2 = phys_world_resolve_body(w, c->distance.body2);
-
-    vec3_f32 edges[] = { b1->position, b2->position };
-
-    vec3_f32 color = phys_dbg_d_get_constraint_color(w, c);
-    vec3_f32 colors[] = { color, color };
-
-    phys_dbg_d_ctx->draw_edge_batch(edges, colors, ArrayLength(edges));
-
-    vec2_f32 radii[] = {
-        make_2f32(phys_dbg_d_ctx->attachment_radius, phys_dbg_d_ctx->attachment_radius),
-        make_2f32(phys_dbg_d_ctx->attachment_radius, phys_dbg_d_ctx->attachment_radius),
-    };
-    phys_dbg_d_ctx->draw_point_batch(edges, colors, radii, ArrayLength(edges));
+    PHYS_DBG_D_DRAW_EDGE(b1->position, b2->position, phys_dbg_d_get_constraint_color(w, c));
+}
+void phys_dbg_d_constraint_advanced_distance(PHYS_World* w, PHYS_Constraint* c) {
+    PHYS_Body* b1 = phys_world_resolve_body(w, c->advanced_distance.body1);
+    PHYS_Body* b2 = phys_world_resolve_body(w, c->advanced_distance.body2);
+    vec3_f32 r1 = rot_quat(c->advanced_distance.offset1, b1->rotation);
+    vec3_f32 r2 = rot_quat(c->advanced_distance.offset2, b2->rotation);
+    PHYS_DBG_D_DRAW_EDGE(add_3f32(b1->position, r1), add_3f32(b2->position, r2), phys_dbg_d_get_constraint_color(w, c));
 }
 void phys_dbg_d_constraint_volume(PHYS_World* w, PHYS_Constraint* c) {
     static const int points_count = ArrayLength(c->volume.bodies)*(ArrayLength(c->volume.bodies)-1); // 2*(n choose 2)
@@ -217,6 +212,9 @@ void phys_dbg_d_constraint(PHYS_World* w, PHYS_Constraint* c) {
     switch (c->type) {
         case PHYS_ConstraintType_Distance: {
             phys_dbg_d_constraint_distance(w, c);
+        }break;
+        case PHYS_ConstraintType_AdvancedDistance: {
+            phys_dbg_d_constraint_advanced_distance(w, c);
         }break;
         case PHYS_ConstraintType_Volume: {
             phys_dbg_d_constraint_volume(w, c);

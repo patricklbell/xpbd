@@ -129,7 +129,7 @@ b32 demos_controls_phys_drag(PHYS_World* w, OS_Handle window, DEMOS_Camera* came
 
             {DeferResource(Temp scratch = scratch_begin_a(state->arena), scratch_end(scratch)){
                 PHYS_HitList hit_list = phys_make_hit_list(scratch.arena);
-                phys_world_raycast(w, o, d, PHYS_ColliderLayer_0, &hit_list);
+                phys_world_raycast(w, o, d, PHYS_ColliderLayer_All_No1, &hit_list);
                 PHYS_HitListNode* closest_node = phys_hit_list_closest(&hit_list);
 
                 if (closest_node != NULL) {

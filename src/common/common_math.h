@@ -50,6 +50,7 @@ union vec3_f32 {
 };
 
 vec3_f32 make_3f32(f32 x, f32 y, f32 z);
+vec3_f32 make_scale_3f32(f32 s);
 vec3_f32 make_up_3f32();
 vec3_f32 add_3f32(vec3_f32 a, vec3_f32 b);
 vec3_f32 sub_3f32(vec3_f32 a, vec3_f32 b);

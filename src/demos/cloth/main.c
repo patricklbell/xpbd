@@ -120,7 +120,8 @@ void demos_world_start_hook(PHYS_World* w) {
 
         phys_world_add_box_boundary(w, (PHYS_BoxBoundary_Settings){
             .arena=s.state_arena,
-            .extents=make_3f32(1,2,1),
+            .extents=make_3f32(0.5,2,0.5),
+            .layer=PHYS_ColliderLayer_1_No1, // no raycast and no self collision
         });
     }}
 }

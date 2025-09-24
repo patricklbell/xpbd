@@ -99,6 +99,9 @@ PHYS_Body* phys_world_resolve_body(PHYS_World* w, PHYS_body_id dp) {
 
 // collider api
 PHYS_collider_id phys_world_add_collider(PHYS_World* w, PHYS_Collider c) {
+    if (phys_collider_layers_equal(c.base.layer, PHYS_ColliderLayer_Invalid))
+        c.base.layer = PHYS_ColliderLayer_All; // @todo layer context?
+
     PHYS_ColliderNode* new_node;
     if (w->colliders.free_chain != NULL) {
         new_node = w->colliders.free_chain;
@@ -236,7 +239,8 @@ b32 phys_world_valid_radius(PHYS_World* w, f32 d) {
 
 // layers
 b32 phys_collider_layers_overlap(PHYS_ColliderLayer l1, PHYS_ColliderLayer l2) {
-    if (l1 == PHYS_ColliderLayer_NoSelf && l2 == PHYS_ColliderLayer_NoSelf)
-        return false;
-    return true;
+    return (l1.group&l2.mask) && (l2.group&l1.mask);
+}
+b32 phys_collider_layers_equal(PHYS_ColliderLayer l1, PHYS_ColliderLayer l2) {
+    return l1.v == l2.v;
 }

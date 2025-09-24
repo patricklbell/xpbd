@@ -53,6 +53,7 @@ static vec3_f32 phys_dbg_d_get_collider_color(PHYS_World* w, PHYS_Collider* c);
 static vec3_f32 phys_dbg_d_get_body_color(PHYS_World* w, PHYS_Body* b);
 
 void phys_dbg_d_constraint_distance(PHYS_World* w, PHYS_Constraint* c);
+void phys_dbg_d_constraint_advanced_distance(PHYS_World* w, PHYS_Constraint* c);
 void phys_dbg_d_constraint_volume(PHYS_World* w, PHYS_Constraint* c);
 void phys_dbg_d_constraint_hinge(PHYS_World* w, PHYS_Constraint* c);
 void phys_dbg_d_constraint_swing(PHYS_World* w, PHYS_Constraint* c);

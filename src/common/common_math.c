@@ -8,6 +8,7 @@ f32      length_2f32(vec2_f32 a)                    { return sqrt_f32(a.x*a.x + 
 vec2_f32 normalize_2f32(vec2_f32 a)                 { f32 l = length_2f32(a); return (vec2_f32) {.x = a.x/l,.y = a.y/l}; }
 
 vec3_f32 make_3f32(f32 x, f32 y, f32 z)             { return (vec3_f32) {.x=x,.y=y,.z=z}; }
+vec3_f32 make_scale_3f32(f32 s)                     { return (vec3_f32) {.x=s,.y=s,.z=s}; }
 vec3_f32 make_up_3f32()                             { return (vec3_f32) {.x=0,.y=1,.z=0}; }
 vec3_f32 add_3f32(vec3_f32 a, vec3_f32 b)           { return (vec3_f32) {.x = a.x + b.x,.y = a.y + b.y,.z = a.z + b.z}; }
 vec3_f32 sub_3f32(vec3_f32 a, vec3_f32 b)           { return (vec3_f32) {.x = a.x - b.x,.y = a.y - b.y,.z = a.z - b.z}; }

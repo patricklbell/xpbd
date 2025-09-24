@@ -10,16 +10,17 @@ static void os_gfx_wasm_add_os_event(OS_Event os_event, void *user_data) {
 
 static vec2_f32 os_gfx_wasm_transform_screen_xy(int x, int y) {
     return (vec2_f32){
-        .x = (f32)(x - os_gfx_wasm_state.window_position.x),
-        .y = (f32)(os_gfx_wasm_state.window_size.y - (y - os_gfx_wasm_state.window_position.y)),
+        .x = (f32)(os_gfx_wasm_state.window_pixel_ratio*x - os_gfx_wasm_state.window_position.x),
+        .y = (f32)(os_gfx_wasm_state.window_size.y - (os_gfx_wasm_state.window_pixel_ratio*y - os_gfx_wasm_state.window_position.y)),
     };
 }
 
 // callbacks
 EMSCRIPTEN_KEEPALIVE
-void os_gfx_wasm_resize_callback(int x, int y, int width, int height) {
+void os_gfx_wasm_resize_callback(int x, int y, int width, int height, int pixel_ratio) {
     os_gfx_wasm_state.window_position = make_2f32((f32)x,(f32)y);
     os_gfx_wasm_state.window_size = make_2f32((f32)width,(f32)height);
+    os_gfx_wasm_state.window_pixel_ratio = pixel_ratio;
 }
 
 static EM_BOOL os_gfx_wasm_scroll_callback(int eventType, const EmscriptenWheelEvent *wheelEvent, void *userData) {

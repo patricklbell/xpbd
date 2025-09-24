@@ -70,7 +70,7 @@ PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings) {
                 .type = PHYS_ColliderType_Polytope,
                 .p = center,
                 .r = length_3f32(settings.extents),
-                .layer = settings.collision_layer,
+                .layer = settings.layer,
                 .dynamic_friction = settings.coefficient_of_dynamic_friction,
                 .static_friction = settings.coefficient_of_static_friction,
             },
@@ -152,7 +152,7 @@ PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Set
                         .type = PHYS_ColliderType_Polytope,
                         .p = result.positions[i],
                         .r = length_3f32(area),
-                        .layer = PHYS_ColliderLayer_NoSelf,
+                        .layer = settings.layer,
                     },
                     .topology = GEO_Topology_Quad,
                     .points = push_array(settings.arena, vec3_f32, GEO_Topology_Quad),
@@ -208,6 +208,7 @@ void phys_world_remove_box_boundary(PHYS_World* w, PHYS_BoxBoundary* object){
 }
 
 // softbody
+// @note all surface points must have an edge or the collider will be MAX_F32
 PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Settings settings) {
     PHYS_Softbody result;
 
@@ -232,48 +233,61 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
         });
     }
 
-    // surface sphere colliders
-    result.sphere_colliders_count = settings.surface_point_indices_count;
-    result.sphere_colliders = push_array(settings.arena, PHYS_collider_id, result.sphere_colliders_count);
-    for (int surf_i = 0; surf_i < result.sphere_colliders_count; surf_i++) {
-        u32 v = settings.surface_point_indices[surf_i];
-
-        result.sphere_colliders[surf_i] = phys_world_add_collider(w, (PHYS_Collider){
-            .sphere = {
-                .base = {
-                    .type = PHYS_ColliderType_Sphere,
-                    .p = result.vertices[v],
-                    .r = w->min_r,
-                    .dynamic_friction = 1.f,
+    // @todo scratch settings for vertices_count
+    {DeferResource(Temp scratch = scratch_begin_a(settings.arena), scratch_end(scratch)) {
+        // store the minimum radius for each vertex
+        f32* min_radii = push_array_no_zero(scratch.arena, f32, result.vertices_count);
+        for EachIndex(idx, result.vertices_count)
+            min_radii[idx] = MAX_F32;
+    
+        // edge constraints
+        const static int edge_size = 2;
+        result.distance_constraints_count = settings.tetrahedron_edge_indices_count / edge_size;
+        result.distance_constraints = push_array(settings.arena, PHYS_constraint_id, result.distance_constraints_count);
+        for (int edge_i = 0; edge_i < result.distance_constraints_count; edge_i++) {
+            u32 v1 = settings.tetrahedron_edge_indices[edge_i*edge_size + 0];
+            u32 v2 = settings.tetrahedron_edge_indices[edge_i*edge_size + 1];
+    
+            f32 d = length_3f32(elmul_3f32(sub_3f32(settings.vertices[v1], settings.vertices[v2]), settings.scale));
+    
+            if (d < 2.f*w->min_r) {
+                // @todo logging
+                fprintf(stderr, "degenerate edge in softbody, moving points apart\n");
+                d = 2.f*w->min_r;
+            }
+    
+            min_radii[v1] = Min(min_radii[v1], d/2.f);
+            min_radii[v2] = Min(min_radii[v2], d/2.f);
+    
+            result.distance_constraints[edge_i] = phys_world_add_constraint(w, (PHYS_Constraint){
+                .compliance = settings.edge_compliance,
+                .type = PHYS_ConstraintType_Distance,
+                .distance = {
+                    .body1 = result.vertices[v1],
+                    .body2 = result.vertices[v2],
+                    .d = d,
                 }
-            }
-        });
-    }
-
-    // edge constraints
-    const static int edge_size = 2;
-    result.distance_constraints_count = settings.tetrahedron_edge_indices_count / edge_size;
-    result.distance_constraints = push_array(settings.arena, PHYS_constraint_id, result.distance_constraints_count);
-    for (int edge_i = 0; edge_i < result.distance_constraints_count; edge_i++) {
-        u32 v1 = settings.tetrahedron_edge_indices[edge_i*edge_size + 0];
-        u32 v2 = settings.tetrahedron_edge_indices[edge_i*edge_size + 1];
-
-        f32 d = length_3f32(elmul_3f32(sub_3f32(settings.vertices[v1], settings.vertices[v2]), settings.scale));
-
-        if (d < 2.f*w->min_r) {
-            fprintf(stderr, "degenerate edge in softbody, moving points apart\n");
-            d = 2.f*w->min_r;
+            });
         }
-        result.distance_constraints[edge_i] = phys_world_add_constraint(w, (PHYS_Constraint){
-            .compliance = settings.edge_compliance,
-            .type = PHYS_ConstraintType_Distance,
-            .distance = {
-                .body1 = result.vertices[v1],
-                .body2 = result.vertices[v2],
-                .d = d,
-            }
-        });
-    }
+    
+        // surface sphere colliders
+        result.sphere_colliders_count = settings.surface_point_indices_count;
+        result.sphere_colliders = push_array(settings.arena, PHYS_collider_id, result.sphere_colliders_count);
+        for (int surf_i = 0; surf_i < result.sphere_colliders_count; surf_i++) {
+            u32 v = settings.surface_point_indices[surf_i];
+    
+            result.sphere_colliders[surf_i] = phys_world_add_collider(w, (PHYS_Collider){
+                .sphere = {
+                    .base = {
+                        .type = PHYS_ColliderType_Sphere,
+                        .p = result.vertices[v],
+                        .r = (min_radii[v] < MAX_F32) ? min_radii[v] : w->min_r,
+                        .dynamic_friction = 1.f,
+                    }
+                }
+            });
+        }
+    }}
 
     f32 total_volume = 0.f;
 

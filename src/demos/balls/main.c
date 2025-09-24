@@ -21,7 +21,7 @@ struct DEMOS_BallsState {
     R_VertexFlag cube_flags;
     R_VertexTopology cube_topology;
 
-    DEMOS_Ball balls[10];
+    DEMOS_Ball balls[27];
 };
 static DEMOS_BallsState s;
 
@@ -62,46 +62,58 @@ void demos_cleanup_hook(DEMOS_CommonState* cs) {}
 void demos_world_start_hook(PHYS_World* w) {
     w->restitution_calculation = PHYS_CoefficientCalculation_Max;
     w->dynamic_friction_calculation = PHYS_CoefficientCalculation_Max;
+    w->little_g = -0.1f;
     
     srand(31415);
-    for EachElement(i, s.balls) {
-        f32 radius = rand_f32()*0.3f + 0.1f;
-        f32 density = 1.0f;
-        f32 resitution = rand_f32();
+
+    u32 balls_count_dim = (u32)pow_f32(ArrayLength(s.balls), 1.f/3.f);
+    vec3_f32 balls_region_extents = make_scale_3f32(balls_count_dim/2.f);
+    for EachElement(idx, s.balls) {
+        u32 i = idx % balls_count_dim;
+        u32 j = (idx/balls_count_dim) % balls_count_dim;
+        u32 k = (idx/balls_count_dim/balls_count_dim) % balls_count_dim;
+
+        vec3_f32 ball_center = sub_3f32(make_3f32(i,j,k), balls_region_extents);
         
+        f32 radius = rand_f32()*0.3f + 0.1f;
+        f32 density = 0.1f;
+        f32 resitution = rand_f32();
+
         PHYS_body_id center_id;
         if (i % 2 == 0) {
             PHYS_Ball_Settings settings = {
                 .radius=radius,
                 .mass=radius*radius*radius*(3.f/4.f)*PI*density,
                 .resitution = resitution,
-                .center=make_3f32((i - ArrayLength(s.balls)/2.f)*1.f, 0, 0),
-                .linear_velocity=make_3f32(0, rand_f32()*5, rand_f32()*5.0),
-                .coefficient_of_dynamic_friction=0.2f,
+                .center=ball_center,
                 .can_rotate=true,
             };
             center_id = phys_world_add_ball(w, settings).body_id;
         } else {
+            radius *= 0.8;
             PHYS_Box_Settings settings = {
                 .arena=s.state_arena,
-                .center=make_3f32((i - ArrayLength(s.balls)/2.f)*1.f, 0, 0),
+                .center=ball_center,
                 .rotation=normalize_4f32(make_axis_quat(make_3f32(1.f-2.f*rand_f32(), 1.f-2.f*rand_f32(), 1.f-2.f*rand_f32()))),
                 .extents=make_3f32(radius,radius,radius),
                 .mass=radius*radius*radius*density,
                 .resitution=resitution,
-                .linear_velocity=make_3f32(0, rand_f32()*5, rand_f32()*5.0),
-                .coefficient_of_dynamic_friction=0.2f,
             };
             center_id = phys_world_add_box(w, settings).body_id;
         }
 
-        s.balls[i] = (DEMOS_Ball){
+        s.balls[idx] = (DEMOS_Ball){
             .is_cube = i % 2 != 0,
             .center_id = center_id,
             .color = hsl_to_rgb(make_3f32(resitution,1.0,1.0)),
             .radius = radius,
         };
     }
+    phys_world_add_box_boundary(w, (PHYS_BoxBoundary_Settings){
+        .arena=w->arena,
+        .extents=add_3f32(balls_region_extents, make_scale_3f32(0.5f)),
+        .layer=PHYS_ColliderLayer_1_No1, // no raycast and no self collision
+    });
 
     // s.balls[0] = (DEMOS_Ball){
     //     .is_cube = true,
@@ -131,12 +143,6 @@ void demos_world_start_hook(PHYS_World* w) {
     //     .color = make_3f32(0,0,1),
     //     .radius = 1,
     // };
-
-    phys_world_add_box_boundary(w, (PHYS_BoxBoundary_Settings){
-        .arena = w->arena,
-        .extents=make_3f32(ArrayLength(s.balls),3.5,3.5),
-        // .extents=make_3f32(4,4,4),
-    });
 }
 void demos_world_end_hook(PHYS_World* w) {
     arena_clear(s.state_arena);
