@@ -141,12 +141,11 @@ b32 demos_controls_phys_drag(PHYS_World* w, OS_Handle window, DEMOS_Camera* came
                     state->drag_plane_normal = d;
                     state->pin = phys_world_add_fixed_point(w, hit_world);
                     state->drag = phys_world_add_constraint(w, (PHYS_Constraint){
-                        .type=PHYS_ConstraintType_AdvancedDistance,
+                        .type=PHYS_ConstraintType_Distance,
                         .compliance=compliance,
-                        .advanced_distance={
+                        .distance={
                             .body1=hit_collider->base.p,
                             .body2=state->pin,
-                            .offset1=sub_3f32(hit_world, hit_body->position),
                         },
                     });
                 }
