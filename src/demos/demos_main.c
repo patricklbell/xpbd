@@ -87,7 +87,10 @@ static void window_event_loop(void* data) {
     cs->time = ntime;
 
     input_update(&cs->events);
-    demos_camera_controls_orbit(cs->window, dt, &cs->camera);
+
+    if (!demos_controls_phys_drag(cs->w, cs->window, &cs->camera, /*compliance*/ 0.001)) {
+        demos_controls_camera_orbit(cs->window, dt, &cs->camera);
+    }
     if (cs->should_reset || input_is_key_pressed(OS_Key_r)) {
         demos_world_end_wrapper(cs);
         demos_world_start_wrapper(cs);

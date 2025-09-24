@@ -1,6 +1,9 @@
 #pragma once
 
+// 
 // units
+// 
+// @note units are m,kg,seconds (MKS),
 #define PHYS_UNIT_KG(n)  (((f32)(n)))
 #define PHYS_UNIT_G(n)   (((f32)(n))*0.001f)
 #define PHYS_UNIT_KM(n)  (((f32)(n))*1000f)
@@ -11,9 +14,11 @@
 #define PHYS_UNIT_NM(n)  (((f32)(n)))
 #define PHYS_UNIT_J(n)   (((f32)(n)))
 
-// @note units are generally assumed to be m,kg,seconds (MKS),
 typedef struct PHYS_World PHYS_World;
 
+// 
+// bodies
+// 
 typedef u64 PHYS_body_id;
 typedef struct PHYS_Body PHYS_Body;
 struct PHYS_Body {
@@ -33,80 +38,154 @@ struct PHYS_Body {
     f32         restitution;
 };
 
-// correction helpers
-static f32  phys_body_inverse_inertia(PHYS_Body* b, vec3_f32 t_world);
-static void phys_body_apply_linear_correction(PHYS_Body* b, vec3_f32 dp_world);
-static void phys_body_apply_angular_correction(PHYS_Body* b, vec3_f32 dt_world);
-
-// velocity correction helpers
-static void     phys_body_apply_linear_velocity_correction(PHYS_Body* b, vec3_f32 corr);
-static void     phys_body_apply_angular_velocity_correction(PHYS_Body* b, vec3_f32 corr, vec3_f32 r);
-static vec3_f32 phys_body_velocity_at_offset(PHYS_Body* b, vec3_f32 r);
-
-static f32 phys_lagrange_delta_no_update(f32 C, f32 w, f32 alpha);
-static f32 phys_update_lagrange_multiplier_return_delta(f32 C, f32 w, f32 alpha, f32* l);
-
+// 
 // constraints
+// 
 typedef union PHYS_constraint_id {
     struct {
-        u32 i;
+        u32 idx;
         u32 version;
     };
     u64 v;
 } PHYS_constraint_id;
 
-typedef struct PHYS_Constraint_Distance PHYS_Constraint_Distance;
-struct PHYS_Constraint_Distance {
-    PHYS_body_id b1;
-    PHYS_body_id b2;
-    f32 d;
+// dependent constraints (not processed by themselves)
+typedef PHYS_constraint_id PHYS_dependent_constraint_id;
 
-    b32 is_offset;
-    vec3_f32 offset1;
-    vec3_f32 offset2;
-
-    b32 unilateral; // eg. string
+typedef struct PHYS_DependentConstraint_Target PHYS_DependentConstraint_Target;
+struct PHYS_DependentConstraint_Target {
+    f32 value;
 };
 
-typedef struct PHYS_Constraint_Volume PHYS_Constraint_Volume;
-struct PHYS_Constraint_Volume {
-    PHYS_body_id p[4];
-    f32 v_rest;
+typedef struct PHYS_DependentConstraint_Limits PHYS_DependentConstraint_Limits;
+struct PHYS_DependentConstraint_Limits {
+    f32 min;
+    f32 max;
 };
 
-typedef struct PHYS_Constraint_Hinge PHYS_Constraint_Hinge;
-struct PHYS_Constraint_Hinge {
-    PHYS_body_id b1;
-    PHYS_body_id b2;
-    vec3_f32 a1;
-    vec3_f32 a2;
-};
-
-typedef enum PHYS_ConstraintType {
-    PHYS_ConstraintType_Distance,
-    PHYS_ConstraintType_Volume,
-    PHYS_ConstraintType_Hinge,
-    PHYS_ConstraintType_COUNT ENUM_CASE_UNUSED,
-} PHYS_ConstraintType;
-
-typedef struct PHYS_Constraint PHYS_Constraint;
-struct PHYS_Constraint {
-    PHYS_ConstraintType type;
+typedef struct PHYS_DependentConstraint PHYS_DependentConstraint;
+struct PHYS_DependentConstraint {
     f32 l;
     f32 compliance;
-
     union {
         f32 force;
         vec3_f32 torque;
     };
 
     union {
-        PHYS_Constraint_Distance        distance;
-        PHYS_Constraint_Volume          volume;
-        PHYS_Constraint_Hinge           hinge;
+        PHYS_DependentConstraint_Target target;
+        PHYS_DependentConstraint_Limits limits;
     };
 };
 
+// applied constraints
+typedef struct PHYS_Constraint_Distance PHYS_Constraint_Distance;
+struct PHYS_Constraint_Distance {
+    PHYS_body_id body1, body2;
+
+    f32 d;
+    b32 unilateral; // eg. string
+};
+
+typedef struct PHYS_Constraint_AdvancedDistance PHYS_Constraint_AdvancedDistance;
+struct PHYS_Constraint_AdvancedDistance {
+    PHYS_body_id body1, body2;
+
+    vec3_f32 offset1, offset2;
+
+    b32 is_projected;
+    // @note relative to body1
+    vec3_f32 axis;
+
+    f32 d;
+    b32 unilateral;
+};
+
+typedef struct PHYS_Constraint_LinearDOFs PHYS_Constraint_LinearDOFs;
+struct PHYS_Constraint_LinearDOFs {
+    PHYS_body_id body1, body2;
+
+    // @note relative to body1
+    vec3_f32 axes[3];
+    PHYS_DependentConstraint_Limits limits[3];
+};
+
+typedef struct PHYS_Constraint_Volume PHYS_Constraint_Volume;
+struct PHYS_Constraint_Volume {
+    PHYS_body_id bodies[4];
+    f32 v_rest;
+};
+
+typedef struct PHYS_Constraint_Orientation PHYS_Constraint_Orientation;
+struct PHYS_Constraint_Orientation {
+    PHYS_body_id body1, body2;
+};
+
+typedef struct PHYS_Constraint_Hinge PHYS_Constraint_Hinge;
+struct PHYS_Constraint_Hinge {
+    PHYS_body_id body1;
+    PHYS_body_id body2;
+    vec3_f32 a1, b1;
+    vec3_f32 a2, b2;
+
+    PHYS_dependent_constraint_id limit_angle;
+    PHYS_dependent_constraint_id target_angle;
+};
+
+typedef struct PHYS_Constraint_Swing PHYS_Constraint_Swing;
+struct PHYS_Constraint_Swing {
+    PHYS_body_id body1;
+    PHYS_body_id body2;
+    vec3_f32 a1;
+    vec3_f32 a2;
+    PHYS_DependentConstraint_Limits limits;
+};
+
+typedef struct PHYS_Constraint_Twist PHYS_Constraint_Twist;
+struct PHYS_Constraint_Twist {
+    PHYS_body_id body1;
+    PHYS_body_id body2;
+    vec3_f32 a1, b1;
+    vec3_f32 a2, b2;
+    PHYS_DependentConstraint_Limits limits;
+};
+
+typedef enum PHYS_ConstraintType {
+    PHYS_ConstraintType_Distance,
+    PHYS_ConstraintType_AdvancedDistance,
+    PHYS_ConstraintType_LinearDOFs,
+    PHYS_ConstraintType_Volume,
+    PHYS_ConstraintType_Orientation,
+    PHYS_ConstraintType_Hinge,
+    PHYS_ConstraintType_Swing,
+    PHYS_ConstraintType_Twist,
+    PHYS_ConstraintType_COUNT ENUM_CASE_UNUSED,
+} PHYS_ConstraintType;
+
+typedef struct PHYS_Constraint PHYS_Constraint;
+struct PHYS_Constraint {
+    PHYS_ConstraintType type;
+
+    f32 l;
+    f32 compliance;
+    union {
+        f32 force;
+        vec3_f32 torque;
+    };
+
+    union {
+        PHYS_Constraint_Distance            distance;
+        PHYS_Constraint_AdvancedDistance    advanced_distance;
+        PHYS_Constraint_LinearDOFs          linear_dofs;
+        PHYS_Constraint_Volume              volume;
+        PHYS_Constraint_Orientation         orientation;
+        PHYS_Constraint_Hinge               hinge;
+        PHYS_Constraint_Swing               swing;
+        PHYS_Constraint_Twist               twist;
+    };
+};
+
+// settings
 typedef struct PHYS_ConstraintSolveSettings PHYS_ConstraintSolveSettings;
 struct PHYS_ConstraintSolveSettings {
     PHYS_World* w;
@@ -114,17 +193,13 @@ struct PHYS_ConstraintSolveSettings {
     f64 inv_dt2;
 };
 
-// solvers
-static void phys_constraint_solve_distance(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings);
-static void phys_constraint_solve_volume(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings);
-static void phys_constraint_solve_hinge(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings);
-static void phys_constraint_solve(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings);
-
+// 
 // colliders
+// 
 // @todo static colliders
 typedef union PHYS_collider_id {
     struct {
-        u32 i;
+        u32 idx;
         u32 version;
     };
     u64 v;
@@ -141,6 +216,8 @@ typedef enum PHYS_ColliderLayer {
     PHYS_ColliderLayer_NoSelf,
     PHYS_ColliderLayer_COUNT ENUM_CASE_UNUSED,
 } PHYS_ColliderLayer;
+
+b32 phys_collider_layers_overlap(PHYS_ColliderLayer l1, PHYS_ColliderLayer l2);
 
 typedef struct PHYS_Collider_Base PHYS_Collider_Base;
 struct PHYS_Collider_Base {
@@ -179,25 +256,12 @@ union PHYS_Collider {
     PHYS_Collider_Polytope  polytope;
 };
 
-// helpers
-static void     phys_collision_apply_corrections(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 dC, f32 l);
-static void     phys_collision_apply_velocity_corrections(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 dC, f32 l);
-static f32      phys_collision_generalized_inverse_mass(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 dC);
-static vec3_f32 phys_collision_total_velocity(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2);
-
 typedef struct PHYS_CollisionCheck PHYS_CollisionCheck;
 struct PHYS_CollisionCheck {
     vec3_f32 r1, r2, n;
     f32 d;
     u32 f1, f2;
 };
-b32 phys_collision_check_spheres(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Sphere* s1, PHYS_Collider_Sphere* s2);
-b32 phys_collision_check_polytopes(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Polytope* p1, PHYS_Collider_Polytope* p2);
-b32 phys_collision_check_polytope_sphere(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Polytope* p1, PHYS_Collider_Sphere* s2);
-
-// solvers
-static void phys_collision_solve_narrow(PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2, PHYS_CollisionCheck* check, f32 static_friction, f32 dynamic_friction);
-static void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, PHYS_ConstraintSolveSettings settings);
 
 // coefficients
 typedef enum PHYS_CoefficientCalculation {
@@ -206,9 +270,9 @@ typedef enum PHYS_CoefficientCalculation {
     PHYS_CoefficientCalculation_Max,
 } PHYS_CoefficientCalculation;
 
-static f32 phys_calculate_coeffcient(f32 x1, f32 x2, PHYS_CoefficientCalculation method);
-
+//
 // world
+//
 typedef struct PHYS_CollisionSubstepRecord PHYS_CollisionSubstepRecord;
 struct PHYS_CollisionSubstepRecord {
     f32 dynamic_friction;
@@ -225,35 +289,63 @@ struct PHYS_CollisionSubstepRecordNode {
     PHYS_CollisionSubstepRecord v;
 };
 
+static void phys_world_add_collision_record(PHYS_World* w, PHYS_CollisionSubstepRecord info);
+
+typedef union PHYS_ConstraintNodeValue {
+    PHYS_Constraint constraint;
+    PHYS_DependentConstraint dependent_constraint;
+} PHYS_ConstraintNodeValue;
+
 typedef struct PHYS_ConstraintNode PHYS_ConstraintNode;
 struct PHYS_ConstraintNode {
+    PHYS_ConstraintNode* prev;
     PHYS_ConstraintNode* next;
-    PHYS_Constraint v;
+    PHYS_ConstraintNodeValue v;
     PHYS_constraint_id id;
 };
 
+typedef struct PHYS_ConstraintList PHYS_ConstraintList;
+struct PHYS_ConstraintList {
+    PHYS_ConstraintNode* first;
+    PHYS_ConstraintNode* last;
+};
+
 #define PHYS_CONSTRAINT_MAP_DEFAULT_SLOTS_COUNT 16
+#define PHYS_DEPENDENT_CONSTRAINT_MAP_DEFAULT_SLOTS_COUNT 8
 typedef struct PHYS_ConstraintMap PHYS_ConstraintMap;
 struct PHYS_ConstraintMap {
-    PHYS_ConstraintNode** slots;
+    PHYS_ConstraintList* slots;
     u32 slots_count;
-    u32 max_i;
+    u32 max_idx;
     PHYS_ConstraintNode* free_chain;
+    u32 length;
 };
+
+static PHYS_constraint_id phys_constraint_map_add_value(PHYS_ConstraintMap* map, Arena* arena, PHYS_ConstraintNodeValue v);
+static PHYS_ConstraintNode* phys_constraint_map_get_node(PHYS_ConstraintMap* map, u32 i);
+static PHYS_ConstraintNodeValue* phys_constraint_map_get_value(PHYS_ConstraintMap* map, PHYS_constraint_id id);
+static void phys_constraint_map_delete(PHYS_ConstraintMap* map, PHYS_constraint_id id);
 
 typedef struct PHYS_ColliderNode PHYS_ColliderNode;
 struct PHYS_ColliderNode {
     PHYS_ColliderNode* next;
+    PHYS_ColliderNode* prev;
     PHYS_Collider v;
     PHYS_collider_id id;
+};
+
+typedef struct PHYS_ColliderList PHYS_ColliderList;
+struct PHYS_ColliderList {
+    PHYS_ColliderNode* first;
+    PHYS_ColliderNode* last;
 };
 
 #define PHYS_COLLIDER_MAP_DEFAULT_SLOTS_COUNT 64
 typedef struct PHYS_ColliderMap PHYS_ColliderMap;
 struct PHYS_ColliderMap {
-    PHYS_ColliderNode** slots;
+    PHYS_ColliderList* slots;
     u32 slots_count;
-    u32 max_i;
+    u32 max_idx;
     PHYS_ColliderNode* free_chain;
     u32 length;
 };
@@ -309,6 +401,7 @@ struct PHYS_World {
 
     PHYS_ColliderMap colliders;
     PHYS_ConstraintMap constraints;
+    PHYS_ConstraintMap dependent_constraints;
     PHYS_BodyDynamicArray bodies;
 
     // per step
@@ -326,25 +419,27 @@ struct PHYS_World {
 #define PHYS_PER_FRAME_DYNAMIC_ARRAY_GROWTH_RATE 2
 #define PHYS_HG_TO_QUERY_R_RATIO 1.f
 
-PHYS_World*         phys_make_world(PHYS_WorldSettings settings);
-void                phys_world_cleanup(PHYS_World* w);
-void                phys_world_step(PHYS_World* w, f64 dt);
+// 
+// core api
+// 
+PHYS_World*                     phys_make_world(PHYS_WorldSettings settings);
+void                            phys_world_cleanup(PHYS_World* w);
 
-PHYS_body_id        phys_world_add_body(PHYS_World* w, PHYS_Body b);
-void                phys_world_remove_body(PHYS_World* w, PHYS_body_id dp);
-PHYS_Body*          phys_world_resolve_body(PHYS_World* w, PHYS_body_id dp);
+PHYS_body_id                    phys_world_add_body(PHYS_World* w, PHYS_Body b);
+void                            phys_world_remove_body(PHYS_World* w, PHYS_body_id dp);
+PHYS_Body*                      phys_world_resolve_body(PHYS_World* w, PHYS_body_id dp);
 
-PHYS_collider_id    phys_world_add_collider(PHYS_World* w, PHYS_Collider c);
-void                phys_world_remove_collider(PHYS_World* w, PHYS_collider_id col);
-PHYS_Collider*      phys_world_resolve_collider(PHYS_World* w, PHYS_collider_id col);
+PHYS_collider_id                phys_world_add_collider(PHYS_World* w, PHYS_Collider c);
+void                            phys_world_remove_collider(PHYS_World* w, PHYS_collider_id col);
+PHYS_Collider*                  phys_world_resolve_collider(PHYS_World* w, PHYS_collider_id col);
 
-PHYS_constraint_id  phys_world_add_constraint(PHYS_World* w, PHYS_Constraint c);
-void                phys_world_remove_constraint(PHYS_World* w, PHYS_constraint_id col);
-PHYS_Constraint*    phys_world_resolve_constraint(PHYS_World* w, PHYS_constraint_id col);
+PHYS_constraint_id              phys_world_add_constraint(PHYS_World* w, PHYS_Constraint c);
+void                            phys_world_remove_constraint(PHYS_World* w, PHYS_constraint_id col);
+PHYS_Constraint*                phys_world_resolve_constraint(PHYS_World* w, PHYS_constraint_id col);
 
-// internal
-static void phys_world_substep(PHYS_World* w, f64 dt);
-static void phys_world_add_collision_record(PHYS_World* w, PHYS_CollisionSubstepRecord info);
+PHYS_dependent_constraint_id    phys_world_add_dependent_constraint(PHYS_World* w, PHYS_DependentConstraint c);
+void                            phys_world_remove_dependent_constraint(PHYS_World* w, PHYS_dependent_constraint_id col);
+PHYS_DependentConstraint*       phys_world_resolve_dependent_constraint(PHYS_World* w, PHYS_dependent_constraint_id col);
 
 // asserts
 b32 phys_world_valid_radius(PHYS_World* w, f32 d);

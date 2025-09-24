@@ -53,8 +53,7 @@ int demos_init_hook(DEMOS_CommonState* cs) {
     s.cube_flags = cube.v.flags;
     s.cube_topology = cube.v.topology;
 
-    cs->camera.eye    = (vec3_f32){.x = 0,.y = 2,.z = 10};
-    cs->camera.target = (vec3_f32){.x = 0,.y = 0,.z = 0};
+    cs->camera = demos_make_camera(os_gfx_window_size(cs->window), /*eye*/ make_3f32(0, 2, 10), /*target*/ make_3f32(0, 0, 0));
 
     return 0;
 }

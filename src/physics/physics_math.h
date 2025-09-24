@@ -61,3 +61,20 @@ b32 phys_contact_point_triangles(
     vec3_f32 in_p1[3], vec3_f32 in_n1, vec3_f32 in_p2[3], vec3_f32 in_n2,
     f32* out_d, vec3_f32* out_r1, vec3_f32* out_r2, vec3_f32* out_n
 );
+
+// raycast
+b32 phys_raycast_sphere(
+    vec3_f32 in_origin, vec3_f32 in_direction,
+    vec3_f32 in_sphere_center, f32 in_sphere_radius,
+    f32* out_contact
+);
+b32 phys_raycast_plane(
+    vec3_f32 in_origin, vec3_f32 in_direction,
+    vec3_f32 in_plane_origin, vec3_f32 in_plane_normal,
+    f32* out_contact
+);
+b32 phys_raycast_triangle(
+    vec3_f32 in_origin, vec3_f32 in_direction,
+    vec3_f32 in_tri_a, vec3_f32 in_tri_b, vec3_f32 in_tri_c, // @note ccw
+    f32* out_contact
+);

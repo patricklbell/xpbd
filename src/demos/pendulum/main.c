@@ -39,8 +39,7 @@ int demos_init_hook(DEMOS_CommonState* cs) {
     s.cube_vertices = r_buffer_alloc(R_ResourceKind_Static, R_ResourceHint_Array, res.v.vertices_count*r_vertex_size(s.cube_flags), res.v.vertices);
     s.cube_indices = r_buffer_alloc(R_ResourceKind_Static, R_ResourceHint_Indices, res.v.indices_count*sizeof(*res.v.indices), res.v.indices);
 
-    cs->camera.eye    = (vec3_f32){.x = 0,.y = -1,.z = 5};
-    cs->camera.target = (vec3_f32){.x = 0,.y = -1,.z = 0};
+    cs->camera = demos_make_camera(os_gfx_window_size(cs->window), /*eye*/ make_3f32(0, -1, 5), /*target*/ make_3f32(0, -1, 0));
 
     s.state_arena = arena_alloc();
     return 0;
@@ -73,12 +72,11 @@ void demos_world_start_hook(PHYS_World* w) {
         });
         PHYS_body_id curr_id = s.arms[i].rb.body_id;
         phys_world_add_constraint(w, (PHYS_Constraint){
-            .type=PHYS_ConstraintType_Distance,
-            .distance={
-                .b1=prev_id,
-                .b2=curr_id,
+            .type=PHYS_ConstraintType_AdvancedDistance,
+            .advanced_distance={
+                .body1=prev_id,
+                .body2=curr_id,
                 .d=0.f,
-                .is_offset=true,
                 .offset1=(i == 0) ? make_3f32(0,0,0) : make_3f32(+arm_inner_half_length,0,+z_offset),
                 .offset2=                              make_3f32(-arm_inner_half_length,0,-z_offset),
             },
@@ -86,8 +84,8 @@ void demos_world_start_hook(PHYS_World* w) {
         phys_world_add_constraint(w, (PHYS_Constraint){
             .type=PHYS_ConstraintType_Hinge,
             .hinge={
-                .b1=prev_id,
-                .b2=curr_id,
+                .body1=prev_id,
+                .body2=curr_id,
                 .a1=make_3f32(0,0,1),
                 .a2=make_3f32(0,0,-1),
             },
@@ -96,7 +94,9 @@ void demos_world_start_hook(PHYS_World* w) {
         prev_id = curr_id;
     }
 }
-void demos_world_end_hook(PHYS_World* w) {}
+void demos_world_end_hook(PHYS_World* w) {
+    arena_clear(s.state_arena);
+}
 
 static void d_arm(PHYS_World* w, DEMO_PendulumArm* arm);
 

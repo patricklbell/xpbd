@@ -36,8 +36,7 @@ int demos_init_hook(DEMOS_CommonState* cs) {
         s.bunnies[i].vertices = r_buffer_alloc(R_ResourceKind_Stream, R_ResourceHint_Array, s.bunny_mesh.vertices_count*r_vertex_size(s.bunny_mesh.flags), NULL);
     }
 
-    cs->camera.eye    = (vec3_f32){.x = 0,.y =-2,.z =15};
-    cs->camera.target = (vec3_f32){.x = 0,.y =-2,.z = 0};
+    cs->camera = demos_make_camera(os_gfx_window_size(cs->window), /*eye*/ make_3f32(0, -2, 15), /*target*/ make_3f32(0, -2, 0));
 
     s.state_arena = arena_alloc();
     return 0;

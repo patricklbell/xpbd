@@ -41,6 +41,7 @@ struct PHYS_DBG_ThreadCtx {
     b32 do_collider_normals;
     b32 do_contact_points;
     b32 do_contact_manifold;
+    b32 do_limit_angle;
 };
 
 thread_static PHYS_DBG_ThreadCtx* phys_dbg_d_ctx = NULL;
@@ -54,6 +55,8 @@ static vec3_f32 phys_dbg_d_get_body_color(PHYS_World* w, PHYS_Body* b);
 void phys_dbg_d_constraint_distance(PHYS_World* w, PHYS_Constraint* c);
 void phys_dbg_d_constraint_volume(PHYS_World* w, PHYS_Constraint* c);
 void phys_dbg_d_constraint_hinge(PHYS_World* w, PHYS_Constraint* c);
+void phys_dbg_d_constraint_swing(PHYS_World* w, PHYS_Constraint* c);
+void phys_dbg_d_constraint_twist(PHYS_World* w, PHYS_Constraint* c);
 
 void phys_dbg_d_collider_sphere(PHYS_World* w, PHYS_Collider_Sphere* c);
 void phys_dbg_d_collider_polytope(PHYS_World* w, PHYS_Collider_Polytope* c);
@@ -67,7 +70,11 @@ void phys_dbg_d_colliders(PHYS_World* w, PHYS_ColliderType* blacklist, int black
 void phys_dbg_d_bodies(PHYS_World* w);
 
 // helpers
+static void phys_dbg_d_angle(vec3_f32 origin, vec3_f32 n1, vec3_f32 n2, vec3_f32 n1_color, vec3_f32 n2_color, vec3_f32 angle_color, f32 n_length, f32 angle_length);
+static void phys_dbg_d_sector(vec3_f32 origin, vec3_f32 normal, vec3_f32 axis, f32 angle, vec3_f32 color, f32 radius);
+
 #define PHYS_DBG_D_DRAW_POINT(p,c,r)        {vec3_f32 x = p; vec3_f32 y = c; vec2_f32 z = r; phys_dbg_d_ctx->draw_point_batch(&x,&y,&z,1);}
 #define PHYS_DBG_D_DRAW_DPOINT(p,c)         PHYS_DBG_D_DRAW_POINT(p,c,make_2f32(phys_dbg_d_ctx->default_point_radius,phys_dbg_d_ctx->default_point_radius))
 #define PHYS_DBG_D_DRAW_EDGE(s,e,c)         {vec3_f32 x[2] = {s,e}; vec3_f32 y[2] = {c,c}; phys_dbg_d_ctx->draw_edge_batch(x,y,2);}
 #define PHYS_DBG_D_DRAW_NORMAL(o,n,c)       PHYS_DBG_D_DRAW_EDGE(o,add_3f32(o,mul_3f32(n,phys_dbg_d_ctx->default_normal_length)),c)
+#define PHYS_DBG_D_DRAW_DANGLE(o,n1,n2,c)   phys_dbg_d_angle(o,n1,n2,c,c,c,phys_dbg_d_ctx->default_normal_length,phys_dbg_d_ctx->default_normal_length/2.f)

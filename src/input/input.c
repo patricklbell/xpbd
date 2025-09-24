@@ -50,6 +50,9 @@ void input_update(OS_Events* events) {
 }
 
 // queries
+vec2_f32 input_mouse_position() {
+    return input_state->mouse_position;
+}
 b32 input_mouse_delta(vec2_f32* delta) {
     *delta = input_state->mouse_delta;
     return input_state->is_mouse_moving;
@@ -61,11 +64,17 @@ b32 input_wheel_delta(vec2_f32* delta) {
 }
 
 b32 input_left_mouse_held() {
-    return input_state->held[OS_Key_LeftMouseButton];
+    return input_is_key_held(OS_Key_LeftMouseButton);
+}
+b32 input_right_mouse_held() {
+    return input_is_key_held(OS_Key_RightMouseButton);
 }
 
-b32 input_right_mouse_held() {
-    return input_state->held[OS_Key_RightMouseButton];
+b32 input_left_mouse_pressed() {
+    return input_is_key_pressed(OS_Key_LeftMouseButton);
+}
+b32 input_right_mouse_pressed() {
+    return input_is_key_pressed(OS_Key_RightMouseButton);
 }
 
 b32 input_is_key_held(OS_Key key) {

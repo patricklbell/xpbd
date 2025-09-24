@@ -67,7 +67,7 @@ mat3x3_f32 make_rotate_3x3f32(vec4_f32 nq) {
         {1.0f - 2.0f*nq.y*nq.y - 2.0f*nq.z*nq.z, 2.0f*nq.x*nq.y - 2.0f*nq.z*nq.w,        2.0f*nq.x*nq.z + 2.0f*nq.y*nq.w,      },
         {2.0f*nq.x*nq.y + 2.0f*nq.z*nq.w,        1.0f - 2.0f*nq.x*nq.x - 2.0f*nq.z*nq.z, 2.0f*nq.y*nq.z - 2.0f*nq.x*nq.w,      },
         {2.0f*nq.x*nq.z - 2.0f*nq.y*nq.w,        2.0f*nq.y*nq.z + 2.0f*nq.x*nq.w,        1.0f - 2.0f*nq.x*nq.x - 2.0f*nq.y*nq.y},
-    }}; // @todo transpose?
+    }};
 }
 mat3x3_f32 add_3x3f32(mat3x3_f32 a, mat3x3_f32 b) {
     return (mat3x3_f32) {.v = {
@@ -86,18 +86,18 @@ mat3x3_f32 sub_3x3f32(mat3x3_f32 a, mat3x3_f32 b) {
 vec3_f32 mul_3x3f32(mat3x3_f32 a, vec3_f32 b) {
     vec3_f32 result = zero_struct;
     for(int i = 0; i < 3; i++) {
-        result.v[i] = (a.v[0][i]*b.v[i] +
-                       a.v[1][i]*b.v[i] +
-                       a.v[2][i]*b.v[i]);
+        result.v[i] = (a.v[0][i]*b.v[0] +
+                       a.v[1][i]*b.v[1] +
+                       a.v[2][i]*b.v[2]);
     }
     return result;
 }
 vec3_f32 mullhs_3x3f32(vec3_f32 a, mat3x3_f32 b) {
     vec3_f32 result = zero_struct;
     for(int i = 0; i < 3; i++) {
-        result.v[i] = (b.v[i][0]*a.v[i] +
-                       b.v[i][1]*a.v[i] +
-                       b.v[i][2]*a.v[i]);
+        result.v[i] = (b.v[i][0]*a.v[0] +
+                       b.v[i][1]*a.v[1] +
+                       b.v[i][2]*a.v[2]);
     }
     return result;
 }
@@ -228,20 +228,20 @@ mat4x4_f32 sub_4x4f32(mat4x4_f32 a, mat4x4_f32 b) {
 vec4_f32 mul_4x4f32(mat4x4_f32 a, vec4_f32 b) {
     vec4_f32 result = zero_struct;
     for(int i = 0; i < 4; i++) {
-        result.v[i] = (a.v[0][i]*b.v[i] +
-                       a.v[1][i]*b.v[i] +
-                       a.v[2][i]*b.v[i] +
-                       a.v[3][i]*b.v[i]);
+        result.v[i] = (a.v[0][i]*b.v[0] +
+                       a.v[1][i]*b.v[1] +
+                       a.v[2][i]*b.v[2] +
+                       a.v[3][i]*b.v[3]);
     }
     return result;
 }
 vec4_f32 mullhs_4x4f32(vec4_f32 a, mat4x4_f32 b) {
     vec4_f32 result = zero_struct;
     for(int i = 0; i < 3; i++) {
-        result.v[i] = (b.v[i][0]*a.v[i] +
-                       b.v[i][1]*a.v[i] +
-                       b.v[i][2]*a.v[i] + 
-                       b.v[i][3]*a.v[i]);
+        result.v[i] = (b.v[i][0]*a.v[0] +
+                       b.v[i][1]*a.v[1] +
+                       b.v[i][2]*a.v[2] + 
+                       b.v[i][3]*a.v[3]);
     }
     return result;
 }

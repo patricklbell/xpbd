@@ -177,7 +177,7 @@ union rect_f32 {
 
 rect_f32 make_rect_f32(vec2_f32 tl, vec2_f32 br);
 
-#define PI               (3.1415926535897f)
+#define PI               (3.1415926535897)
 #define EPSILON_F32      (1.1920929E-7f)
 #define MAX_F32          (FLT_MAX)
 #define MAX_F64          (DBL_MAX)

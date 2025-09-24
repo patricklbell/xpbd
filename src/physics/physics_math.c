@@ -310,3 +310,94 @@ b32 phys_contact_point_triangles(
 
     return true;
 }
+
+// raycast
+b32 phys_raycast_sphere(
+    vec3_f32 in_origin, vec3_f32 in_direction,
+    vec3_f32 in_sphere_center, f32 in_sphere_radius,
+    f32* out_contact
+) {
+    // R: x = o + t*d
+    // S: |x - s_o|^2 <= s_r^2
+    // 
+    // (o + t*d - s_o)(o + t*d - s_o)^T <= s_r^2
+    // t^2 |d|^2 + 2*t*d . (o - s_o) + |o - s_o|^2 - s_r^2 <= 0
+    // real sln when D >= 0
+    vec3_f32 diff = sub_3f32(in_origin, in_sphere_center);
+
+    f32 a = length2_3f32(in_direction);
+    f32 b = 2*dot_3f32(in_direction, diff);
+    f32 c = length2_3f32(diff) - in_sphere_radius*in_sphere_radius;
+
+    f32 D = b*b - 4*a*c;
+    if (D <= 0)
+        return false;
+
+    f32 cnst = -b/(2.f*a);
+    f32 pm = sqrt_f32(D)/(2.f*a);
+
+    // behind origin
+    if (cnst + pm < 0 && cnst - pm < 0)
+        return false; 
+    
+    // closest contact
+    *out_contact = (cnst - pm < 0) ? (cnst + pm) : (cnst - pm);
+    return true;
+}
+b32 phys_raycast_plane(
+    vec3_f32 in_origin, vec3_f32 in_direction,
+    vec3_f32 in_plane_origin, vec3_f32 in_plane_normal,
+    f32* out_contact
+) {
+    // R: x = o + t*d
+    // P: (x - p_o) . p_n = 0
+    // 
+    // t*(d.p_n) + (o - p_o).p_n = 0
+    // t = (p_o - o) . p_n / (d.p_n)
+
+    f32 d_dot_pn = dot_3f32(in_direction, in_plane_normal);
+    // parallel
+    if (d_dot_pn == 0.f)
+        return false;
+
+    *out_contact = dot_3f32(sub_3f32(in_plane_origin, in_origin), in_plane_normal)/d_dot_pn;
+    return true;
+}
+// https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+b32 phys_raycast_triangle(
+    vec3_f32 in_origin, vec3_f32 in_direction,
+    vec3_f32 in_tri_a, vec3_f32 in_tri_b, vec3_f32 in_tri_c,
+    f32* out_contact
+) {
+    vec3_f32 edge1 = sub_3f32(in_tri_b, in_tri_a);
+    vec3_f32 edge2 = sub_3f32(in_tri_c, in_tri_a);
+    vec3_f32 ray_cross_e2 = cross_3f32(in_direction, edge2);
+    f32 det = dot_3f32(edge1, ray_cross_e2);
+
+    if (det == 0.f)
+        return false;
+
+    f32 inv_det = 1.f / det;
+    vec3_f32 s = sub_3f32(in_origin, in_tri_a);
+    f32 u = inv_det * dot_3f32(s, ray_cross_e2);
+
+    if ((u < 0 && abs_f32(u) > EPSILON_F32) || (u > 1 && abs_f32(u-1) > EPSILON_F32))
+        return false;
+
+    vec3_f32 s_cross_e1 = cross_3f32(s, edge1);
+    f32 v = inv_det * dot_3f32(in_direction, s_cross_e1);
+
+    if ((v < 0 && abs_f32(v) > EPSILON_F32) || (u + v > 1 && abs_f32(u + v - 1) > EPSILON_F32))
+        return false;
+
+    // At this stage we can compute t to find out where the intersection point is on the line.
+    f32 t = inv_det * dot_3f32(edge2, s_cross_e1);
+
+    if (t > EPSILON_F32) // ray intersection
+    {
+        *out_contact = t;
+        return true;
+    }
+    else // This means that there is a line intersection but not a ray intersection.
+        return false;
+}

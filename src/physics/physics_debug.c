@@ -72,16 +72,10 @@ static vec3_f32 phys_dbg_d_get_body_color(PHYS_World* w, PHYS_Body* b) {
 }
 
 void phys_dbg_d_constraint_distance(PHYS_World* w, PHYS_Constraint* c) {
-    PHYS_Body* b1 = phys_world_resolve_body(w, c->distance.b1);
-    PHYS_Body* b2 = phys_world_resolve_body(w, c->distance.b2);
+    PHYS_Body* b1 = phys_world_resolve_body(w, c->distance.body1);
+    PHYS_Body* b2 = phys_world_resolve_body(w, c->distance.body2);
 
     vec3_f32 edges[] = { b1->position, b2->position };
-    if (c->distance.is_offset) {
-        vec3_f32 r1 = rot_quat(c->distance.offset1, b1->rotation);
-        vec3_f32 r2 = rot_quat(c->distance.offset2, b2->rotation);
-        edges[0] = add_3f32(edges[0], r1);
-        edges[1] = add_3f32(edges[1], r2);
-    }
 
     vec3_f32 color = phys_dbg_d_get_constraint_color(w, c);
     vec3_f32 colors[] = { color, color };
@@ -95,19 +89,19 @@ void phys_dbg_d_constraint_distance(PHYS_World* w, PHYS_Constraint* c) {
     phys_dbg_d_ctx->draw_point_batch(edges, colors, radii, ArrayLength(edges));
 }
 void phys_dbg_d_constraint_volume(PHYS_World* w, PHYS_Constraint* c) {
-    static const int points_count = ArrayLength(c->volume.p)*(ArrayLength(c->volume.p)-1); // 2*(n choose 2)
+    static const int points_count = ArrayLength(c->volume.bodies)*(ArrayLength(c->volume.bodies)-1); // 2*(n choose 2)
     vec3_f32 points[points_count], colors[points_count];
 
     vec3_f32 color = phys_dbg_d_get_constraint_color(w, c);
     
     int offset = 0;
-    for (int i = 0; i < ArrayLength(c->volume.p); i++) {
-        for (int j = i+1; j < ArrayLength(c->volume.p); j++) {
-            points[offset] = phys_world_resolve_body(w, c->volume.p[i])->position;
+    for (int i = 0; i < ArrayLength(c->volume.bodies); i++) {
+        for (int j = i+1; j < ArrayLength(c->volume.bodies); j++) {
+            points[offset] = phys_world_resolve_body(w, c->volume.bodies[i])->position;
             colors[offset] = color;
             offset++;
 
-            points[offset] = phys_world_resolve_body(w, c->volume.p[j])->position;
+            points[offset] = phys_world_resolve_body(w, c->volume.bodies[j])->position;
             colors[offset] = color;
             offset++;
         }
@@ -116,6 +110,12 @@ void phys_dbg_d_constraint_volume(PHYS_World* w, PHYS_Constraint* c) {
     phys_dbg_d_ctx->draw_edge_batch(points, colors, points_count);
 }
 void phys_dbg_d_constraint_hinge(PHYS_World* w, PHYS_Constraint* c) {
+    return; // @todo
+}
+void phys_dbg_d_constraint_swing(PHYS_World* w, PHYS_Constraint* c) {
+    return; // @todo
+}
+void phys_dbg_d_constraint_twist(PHYS_World* w, PHYS_Constraint* c) {
     return; // @todo
 }
 
@@ -224,6 +224,13 @@ void phys_dbg_d_constraint(PHYS_World* w, PHYS_Constraint* c) {
         case PHYS_ConstraintType_Hinge: {
             phys_dbg_d_constraint_hinge(w, c);
         }break;
+        case PHYS_ConstraintType_Swing: {
+            phys_dbg_d_constraint_swing(w, c);
+        }break;
+        case PHYS_ConstraintType_Twist: {
+            phys_dbg_d_constraint_twist(w, c);
+        }break;
+        default: break; // @todo
     }
 }
 void phys_dbg_d_collider(PHYS_World* w, PHYS_Collider* c) {
@@ -275,17 +282,17 @@ static b32 phys_dbg_d_is_blacklisted(int value, int* blacklist, int blacklist_co
 
 void phys_dbg_d_constraints(PHYS_World* w, PHYS_ConstraintType* blacklist, int blacklist_count) {
     for EachIndex(slot, w->constraints.slots_count) {
-        for EachList(constraint_n, PHYS_ConstraintNode, w->constraints.slots[slot]) {
-            PHYS_ConstraintType type = constraint_n->v.type;
+        for EachList(constraint_n, PHYS_ConstraintNode, w->constraints.slots[slot].first) {
+            PHYS_ConstraintType type = constraint_n->v.constraint.type;
             if (!phys_dbg_d_is_blacklisted(type, (int*)blacklist, blacklist_count)) {
-                phys_dbg_d_constraint(w, &constraint_n->v);
+                phys_dbg_d_constraint(w, &constraint_n->v.constraint);
             }
         }
     }
 }
 void phys_dbg_d_colliders(PHYS_World* w, PHYS_ColliderType* blacklist, int blacklist_count) {
     for EachIndex(slot, w->colliders.slots_count) {
-        for EachList(collider_n, PHYS_ColliderNode, w->colliders.slots[slot]) {
+        for EachList(collider_n, PHYS_ColliderNode, w->colliders.slots[slot].first) {
             PHYS_ColliderType type = collider_n->v.base.type;
             if (!phys_dbg_d_is_blacklisted(type, (int*)blacklist, blacklist_count)) {
                 phys_dbg_d_collider(w, &collider_n->v);
@@ -297,5 +304,43 @@ void phys_dbg_d_bodies(PHYS_World* w) {
     for EachIndex(i, w->bodies.length) {
         PHYS_Body* b = &w->bodies.v[i];
         phys_dbg_d_body(w, b);
+    }
+}
+
+// helpers
+static void phys_dbg_d_angle(vec3_f32 origin, vec3_f32 n1, vec3_f32 n2, vec3_f32 n1_color, vec3_f32 n2_color, vec3_f32 angle_color, f32 n_length, f32 angle_length) {
+    PHYS_DBG_D_DRAW_EDGE(origin, add_3f32(origin, mul_3f32(n1, n_length)), n1_color);
+    PHYS_DBG_D_DRAW_EDGE(origin, add_3f32(origin, mul_3f32(n2, n_length)), n2_color);
+
+    vec3_f32 n1_normalized = normalize_3f32(n1);
+    vec3_f32 n2_normalized = normalize_3f32(n2);
+    f32 angle = acos_f32(dot_3f32(n1_normalized, n2_normalized));
+    vec3_f32 axis = normalize_3f32(cross_3f32(n1_normalized, n2_normalized));
+
+    phys_dbg_d_sector(origin, n1, axis, angle, angle_color, angle_length);
+}
+static void phys_dbg_d_sector(vec3_f32 origin, vec3_f32 normal, vec3_f32 axis, f32 angle, vec3_f32 color, f32 radius) {
+    static u32 steps_in_angle = 12;
+    u32 total_points = 2*steps_in_angle;
+
+    vec4_f32 step = make_angle_axis_quat(angle/steps_in_angle, axis);
+
+    DeferResource(Temp scratch = scratch_begin(NULL, 0), scratch_end(scratch)) {
+        vec3_f32* points = push_array(scratch.arena, vec3_f32, total_points);
+        vec3_f32* colors = push_array(scratch.arena, vec3_f32, total_points);
+        u32 offset = 0;
+
+        vec3_f32 prev = normal;
+        for EachIndex(i, steps_in_angle) {
+            vec3_f32 curr = rot_quat(prev, step);
+            
+            points[offset] = add_3f32(origin, mul_3f32(prev, radius)); colors[offset++] = color;
+            points[offset] = add_3f32(origin, mul_3f32(curr, radius)); colors[offset++] = color;
+
+            prev = curr;
+        }
+        
+        Assert(offset == total_points);
+        phys_dbg_d_ctx->draw_edge_batch(points, colors, total_points);
     }
 }

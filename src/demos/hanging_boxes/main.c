@@ -40,8 +40,7 @@ int demos_init_hook(DEMOS_CommonState* cs) {
     s.cube_flags = cube.v.flags;
     s.cube_topology = cube.v.topology;
 
-    cs->camera.eye    = (vec3_f32){.x = 0,.y =-10,.z =40};
-    cs->camera.target = (vec3_f32){.x = 0,.y =-10,.z = 0};
+    cs->camera = demos_make_camera(os_gfx_window_size(cs->window), /*eye*/ make_3f32(0, -10, 40), /*target*/ make_3f32(0, -10, 0));
     cs->show_debug = true;
 
     s.state_arena = arena_alloc();
@@ -66,39 +65,35 @@ void demos_world_start_hook(PHYS_World* w) {
     s.box1.rigid_body = phys_world_add_box(w, box1_settings);
 
     s.anchor_to_box1 = phys_world_add_constraint(w, (PHYS_Constraint){
-        .compliance = 0.05f,
-        .type = PHYS_ConstraintType_Distance,
-        .distance = {
-            .b1 = s.anchor_id,
-            .b2 = s.box1.rigid_body.body_id,
+        .compliance = 0.0005f,
+        .type = PHYS_ConstraintType_AdvancedDistance,
+        .advanced_distance = {
+            .body1 = s.anchor_id,
+            .body2 = s.box1.rigid_body.body_id,
             .d = 5.f,
-
-            .is_offset = true,
             .offset2 = make_3f32(0,1,0),
         }
     });
 
-    s.box2.extents = make_3f32(1,1,1);
+    s.box2.extents = make_3f32(2,2,2);
     PHYS_Box_Settings box2_settings = {
         .arena = s.state_arena,
-        .mass = 1,
+        .mass = 10,
         .center = make_3f32(0,-15,0),
-        .linear_velocity = make_3f32(10,0,0),
         .extents = s.box2.extents,
     };
     s.box2.rigid_body = phys_world_add_box(w, box2_settings);
 
     s.box1_to_box2 = phys_world_add_constraint(w, (PHYS_Constraint){
-        .compliance = 0.05f,
-        .type = PHYS_ConstraintType_Distance,
-        .distance = {
-            .b1 = s.box1.rigid_body.body_id,
-            .b2 = s.box2.rigid_body.body_id,
+        .compliance = 0.0005f,
+        .type = PHYS_ConstraintType_AdvancedDistance,
+        .advanced_distance = {
+            .body1 = s.box1.rigid_body.body_id,
+            .body2 = s.box2.rigid_body.body_id,
             .d = 9.f,
 
-            .is_offset = true,
             .offset1 = make_3f32(0,-1,0),
-            .offset2 = make_3f32(1,1,1),
+            .offset2 = make_3f32(0,2,0),
         }
     });
 

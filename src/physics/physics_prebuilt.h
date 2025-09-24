@@ -1,3 +1,5 @@
+PHYS_body_id phys_world_add_fixed_point(PHYS_World* w, vec3_f32 position);
+
 // rigid bodies
 typedef struct PHYS_RigidBody PHYS_RigidBody;
 struct PHYS_RigidBody {

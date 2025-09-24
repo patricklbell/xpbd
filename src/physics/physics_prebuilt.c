@@ -1,3 +1,12 @@
+PHYS_body_id phys_world_add_fixed_point(PHYS_World* w, vec3_f32 position) {
+    return phys_world_add_body(w, (PHYS_Body){
+        .position=position,
+        .rotation=make_axis_quat(make_up_3f32()),
+        .is_particle=true,
+        .no_gravity=true
+    });
+}
+
 // rigid bodies
 void phys_world_remove_rigid_body(PHYS_World* w, PHYS_RigidBody* object) {
     phys_world_remove_collider(w, object->collider_id);
@@ -259,8 +268,8 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
             .compliance = settings.edge_compliance,
             .type = PHYS_ConstraintType_Distance,
             .distance = {
-                .b1 = result.vertices[v1],
-                .b2 = result.vertices[v2],
+                .body1 = result.vertices[v1],
+                .body2 = result.vertices[v2],
                 .d = d,
             }
         });
@@ -297,7 +306,7 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
             .compliance = settings.volume_compliance,
             .type = PHYS_ConstraintType_Volume,
             .volume = {
-                .p = {
+                .bodies = {
                     result.vertices[v1],
                     result.vertices[v2],
                     result.vertices[v3],
@@ -456,8 +465,8 @@ PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
                     .compliance = n_edge->data,
                     .type = PHYS_ConstraintType_Distance,
                     .distance = {
-                        .b1 = result.vertices[n_edge->hash.i],
-                        .b2 = result.vertices[n_edge->hash.j],
+                        .body1 = result.vertices[n_edge->hash.i],
+                        .body2 = result.vertices[n_edge->hash.j],
                         .d = d,
                     }
                 });

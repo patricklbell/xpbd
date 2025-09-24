@@ -22,10 +22,13 @@ void    input_init();
 void    input_update(OS_Events* events);
 
 // queries
+vec2_f32 input_mouse_position();
 b32 input_mouse_delta(vec2_f32* delta);
 b32 input_wheel_delta(vec2_f32* delta);
 b32 input_left_mouse_held();
 b32 input_right_mouse_held();
+b32 input_left_mouse_pressed();
+b32 input_right_mouse_pressed();
 
 b32 input_is_key_held(OS_Key key);
 b32 input_is_key_pressed(OS_Key key);

@@ -51,6 +51,7 @@ build_demos() {
         [softbody]="bunny.vtk"
         [cloth]="cloth.vtk sphere.obj"
         [pendulum]="cube.obj"
+        [joints]="cube.obj"
     )
 
     if [[ -n "$1" && -n "${dependencies[$1]}" ]]; then

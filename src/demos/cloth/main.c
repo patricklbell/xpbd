@@ -38,9 +38,6 @@ int demos_init_hook(DEMOS_CommonState* cs) {
     }
     s.cloth_vtk = cloth.v;
     
-    cs->camera.eye    = (vec3_f32){.x = 0,.y =-1.3,.z = 1};
-    cs->camera.target = (vec3_f32){.x = 0,.y =-1.8,.z = 0};
-
     // setup visual mesh
     for EachElement(i, s.cloth_mesh) {
         s.cloth_mesh[i].flags = R_VertexFlag_PN;
@@ -56,6 +53,8 @@ int demos_init_hook(DEMOS_CommonState* cs) {
         s.cloth_indices[i] = r_buffer_alloc(R_ResourceKind_Stream, R_ResourceHint_Indices, s.cloth_mesh[i].indices_count*sizeof(*s.cloth_mesh[i].indices), s.cloth_mesh[i].indices);
         s.cloth_vertices[i] = r_buffer_alloc(R_ResourceKind_Stream, R_ResourceHint_Array, s.cloth_mesh[i].vertices_count*r_vertex_size(s.cloth_mesh[i].flags), NULL);
     }
+
+    cs->camera = demos_make_camera(os_gfx_window_size(cs->window), /*eye*/ make_3f32(0, -1.3, 1), /*target*/ make_3f32(0, -1.8, 0));
 
     // allocate state arena
     s.state_arena = arena_alloc();
