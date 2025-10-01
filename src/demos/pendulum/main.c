@@ -1,5 +1,5 @@
-#include "../demos_main.h"
-#include "../demos_main.c"
+#include "demos/demos_main.h"
+#include "demos/demos_main.c"
 
 typedef struct DEMO_PendulumArm DEMO_PendulumArm;
 struct DEMO_PendulumArm {
@@ -18,9 +18,13 @@ struct DEMO_PendulumState {
     
     DEMO_PendulumArm arms[3]; 
 };
-static DEMO_PendulumState s;
 
-int demos_init_hook(DEMOS_CommonState* cs) {
+global DEMO_PendulumState s;
+
+// 
+// initialization/cleanup
+// 
+demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
     phys_dbg_d_ctx->color_mode = PHYS_DBG_DrawColorMode_Type;
     phys_dbg_d_ctx->do_contact_points = true;
     phys_dbg_d_ctx->do_contact_manifold = true;
@@ -44,9 +48,9 @@ int demos_init_hook(DEMOS_CommonState* cs) {
     s.state_arena = arena_alloc();
     return 0;
 }
-void demos_cleanup_hook(DEMOS_CommonState* cs) {}
+demos_hook void demos_cleanup_hook(DEMOS_CommonState* cs) {}
 
-void demos_world_start_hook(PHYS_World* w) {
+demos_hook void demos_world_start_hook(PHYS_World* w) {
     // bodies
     PHYS_body_id anchor_id = phys_world_add_body(w, (PHYS_Body){
         .position=make_3f32(0,0,0),
@@ -64,7 +68,6 @@ void demos_world_start_hook(PHYS_World* w) {
 
         s.arms[i].extents = make_3f32(arm_half_length,arm_half_width,arm_half_depth*0.9f);
         s.arms[i].rb = phys_world_add_box(w, (PHYS_Box_Settings){
-            .arena=s.state_arena,
             .center=make_3f32((2*i+1)*arm_inner_half_length,0,z_offset),
             .extents=s.arms[i].extents,
             .linear_velocity=make_3f32(0,(i-1.f)*5.f,0),
@@ -94,20 +97,23 @@ void demos_world_start_hook(PHYS_World* w) {
         prev_id = curr_id;
     }
 }
-void demos_world_end_hook(PHYS_World* w) {
+demos_hook void demos_world_end_hook(PHYS_World* w) {
     arena_clear(s.state_arena);
 }
 
-static void d_arm(PHYS_World* w, DEMO_PendulumArm* arm);
+// 
+// per-frame
+// 
+internal void d_arm(PHYS_World* w, DEMO_PendulumArm* arm);
 
-void demos_frame_hook(DEMOS_CommonState* cs) {
+demos_hook void demos_frame_hook(DEMOS_CommonState* cs) {
     for EachElement(i, s.arms) {
         d_arm(cs->w, &s.arms[i]);
     }
 }
 
 // helpers
-static void d_arm(PHYS_World* w, DEMO_PendulumArm* arm) {
+internal void d_arm(PHYS_World* w, DEMO_PendulumArm* arm) {
     PHYS_Body* body = phys_world_resolve_body(w, arm->rb.body_id);
 
     mat4x4_f32 t = matmul_4x4f32(matmul_4x4f32(

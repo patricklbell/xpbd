@@ -1,6 +1,7 @@
 #pragma once
 
 #include "physics_core.h"
+#include "physics_internal.h"
 #include "physics_math.h"
 #include "physics_manifold.h"
 #include "physics_raycast.h"

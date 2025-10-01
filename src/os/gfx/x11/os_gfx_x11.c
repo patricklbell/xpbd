@@ -1,12 +1,12 @@
-static Window os_gfx_handle_to_window(OS_Handle handle) {
+internal Window os_gfx_handle_to_window(OS_Handle handle) {
     return (Window)handle.v64[0];
 }
 
-void os_gfx_init() {
+internal void os_gfx_init() {
     os_gfx_x11_state.display = XOpenDisplay(NULL);
 }
 
-void os_gfx_disconnect_from_rendering() {
+internal void os_gfx_disconnect_from_rendering() {
     // see https://www.xfree86.org/4.7.0/DRI11.html, when dynamically loading opengl
     // XCloseDisplay calls callbacks in opengl meaning it can't be unloaded at this point,
     // this messes up the setup -> teardown order so we need to close the display before
@@ -15,20 +15,20 @@ void os_gfx_disconnect_from_rendering() {
     os_gfx_x11_state.display = NULL;
 }
 
-void os_gfx_cleanup() {
+internal void os_gfx_cleanup() {
     if (os_gfx_x11_state.display != NULL) {
         XCloseDisplay(os_gfx_x11_state.display);
     }
 }
 
-OS_Handle os_gfx_handle() {
+internal OS_Handle os_gfx_handle() {
     StaticAssert(sizeof(u64) >= sizeof(os_gfx_x11_state.display), os_handle_large_enough);
     OS_Handle handle = zero_struct;
     handle.v64[0] = (u64)os_gfx_x11_state.display;
     return handle;
 }
 
-OS_Handle os_gfx_open_window() {
+internal OS_Handle os_gfx_open_window() {
     Display* display = os_gfx_x11_state.display;
     Assert(display != NULL);
 
@@ -78,24 +78,24 @@ OS_Handle os_gfx_open_window() {
     return handle;
 }
 
-void os_gfx_close_window(OS_Handle window) {
+internal void os_gfx_close_window(OS_Handle window) {
     XDestroyWindow(os_gfx_x11_state.display, os_gfx_handle_to_window(window));
 }
 
-vec2_f32 os_gfx_window_size(OS_Handle window) {
+internal vec2_f32 os_gfx_window_size(OS_Handle window) {
     XWindowAttributes gwa;
     XGetWindowAttributes(os_gfx_x11_state.display, os_gfx_handle_to_window(window), &gwa);
     return (vec2_f32){.x = (f32)gwa.width, .y = (f32)gwa.height};
 }
 
-static vec2_f32 os_gfx_x11_transform_mouse(OS_Handle window, int x, int y) {
+internal vec2_f32 os_gfx_x11_transform_mouse(OS_Handle window, int x, int y) {
     return (vec2_f32){
         .x = (f32)x,
         .y = os_gfx_window_size(window).y - (f32)y
     };
 }
 
-static b32 os_gfx_x11_button_to_event(OS_Handle window, OS_Event* event, XButtonEvent* xbutton) {
+internal b32 os_gfx_x11_button_to_event(OS_Handle window, OS_Event* event, XButtonEvent* xbutton) {
     s32 wheel_x = 0, wheel_y = 0;
     switch (xbutton->button) {
         case Button1: event->key = OS_Key_LeftMouseButton; break;
@@ -134,21 +134,21 @@ static b32 os_gfx_x11_button_to_event(OS_Handle window, OS_Event* event, XButton
     return true;
 }
 
-static b32 os_gfx_x11_key_pressed_to_event(OS_Handle window, OS_Event* event, XKeyPressedEvent* xkey) {
+internal b32 os_gfx_x11_key_pressed_to_event(OS_Handle window, OS_Event* event, XKeyPressedEvent* xkey) {
     event->type = OS_EventType_Press;
     
     KeySym keysym = XLookupKeysym(xkey, 0);
     return os_gfx_x11_keysym_to_os_key(keysym, &event->key);
 }
 
-static b32 os_gfx_x11_key_released_to_event(OS_Handle window, OS_Event* event, XKeyReleasedEvent* xkey) {
+internal b32 os_gfx_x11_key_released_to_event(OS_Handle window, OS_Event* event, XKeyReleasedEvent* xkey) {
     event->type = OS_EventType_Release;
     
     KeySym keysym = XLookupKeysym(xkey, 0);
     return os_gfx_x11_keysym_to_os_key(keysym, &event->key);
 }
 
-static b32 os_gfx_x11_client_message_to_event(OS_Handle window, OS_Event* event, XClientMessageEvent* xclient) {
+internal b32 os_gfx_x11_client_message_to_event(OS_Handle window, OS_Event* event, XClientMessageEvent* xclient) {
     if (xclient->data.l[0] == os_gfx_x11_state.atom_wm_close) {
         event->type = OS_EventType_Quit;
         return true;
@@ -157,14 +157,14 @@ static b32 os_gfx_x11_client_message_to_event(OS_Handle window, OS_Event* event,
     return false;
 }
 
-static b32 os_gfx_x11_motion_notify_to_event(OS_Handle window, OS_Event* event, XMotionEvent* xmotion) {
+internal b32 os_gfx_x11_motion_notify_to_event(OS_Handle window, OS_Event* event, XMotionEvent* xmotion) {
     event->type = OS_EventType_MouseMove;
     event->mouse_position = os_gfx_x11_transform_mouse(window, xmotion->x, xmotion->y);
 
     return true;
 }
 
-OS_Events os_gfx_window_poll_events(Arena* arena, OS_Handle window) {
+internal OS_Events os_gfx_window_poll_events(Arena* arena, OS_Handle window) {
     OS_Events events = zero_struct;
 
     XEvent xevent;
@@ -206,7 +206,7 @@ OS_Events os_gfx_window_poll_events(Arena* arena, OS_Handle window) {
     return events;
 }
 
-void os_gfx_start_window_event_loop(OS_Handle window, OS_LoopFunction callback, void* data, OS_Events* events) {
+internal void os_gfx_start_window_event_loop(OS_Handle window, OS_LoopFunction callback, void* data, OS_Events* events) {
     Arena* events_arena = arena_alloc();
 
     while (!events->quit) {
@@ -218,7 +218,7 @@ void os_gfx_start_window_event_loop(OS_Handle window, OS_LoopFunction callback, 
 }
 
 // generated functions @todo
-b32 os_gfx_x11_keysym_to_os_key(KeySym k, OS_Key* key) {
+internal b32 os_gfx_x11_keysym_to_os_key(KeySym k, OS_Key* key) {
     // Alphabet
     if (k >= XK_a && k <= XK_z) {
         *key = (OS_Key)(OS_Key_a + (k - XK_a));

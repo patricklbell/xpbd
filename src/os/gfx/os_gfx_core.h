@@ -1,15 +1,5 @@
 #pragma once
 
-// graphics and windowing api
-void        os_gfx_init();
-void        os_gfx_disconnect_from_rendering();
-void        os_gfx_cleanup();
-OS_Handle   os_gfx_handle();
-
-OS_Handle   os_gfx_open_window();
-void        os_gfx_close_window(OS_Handle window);
-vec2_f32    os_gfx_window_size(OS_Handle window);
-
 // events
 typedef enum OS_EventType {
     OS_EventType_Press,
@@ -85,9 +75,19 @@ struct OS_Events {
     b32 quit;
 };
 
-// helpers
-static void os_gfx_window_add_event(Arena* arena, OS_Events* list, OS_Event event);
-static OS_Events os_gfx_window_poll_events(Arena* arena, OS_Handle window);
+// graphics and windowing api
+internal void        os_gfx_init();
+internal void        os_gfx_disconnect_from_rendering();
+internal void        os_gfx_cleanup();
+internal OS_Handle   os_gfx_handle();
+
+internal OS_Handle   os_gfx_open_window();
+internal void        os_gfx_close_window(OS_Handle window);
+internal vec2_f32    os_gfx_window_size(OS_Handle window);
 
 typedef void (*OS_LoopFunction)(void* data);
-void os_gfx_start_window_event_loop(OS_Handle window, OS_LoopFunction callback, void* data, OS_Events* events);
+internal void os_gfx_start_window_event_loop(OS_Handle window, OS_LoopFunction callback, void* data, OS_Events* events);
+
+// helpers
+internal void os_gfx_window_add_event(Arena* arena, OS_Events* list, OS_Event event);
+internal OS_Events os_gfx_window_poll_events(Arena* arena, OS_Handle window);

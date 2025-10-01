@@ -1,8 +1,8 @@
-#include "../demos_main.h"
-#include "../demos_main.c"
+#include "demos/demos_main.h"
+#include "demos/demos_main.c"
 
-typedef struct SoftbodyState SoftbodyState;
-struct SoftbodyState {
+typedef struct DEMO_SoftbodyState DEMO_SoftbodyState;
+struct DEMO_SoftbodyState {
     R_Handle sphere_vertices;
     R_Handle sphere_indices;
     R_VertexFlag sphere_flags;
@@ -18,9 +18,13 @@ struct SoftbodyState {
     PHYS_Cloth cloth_phys;
     PHYS_RigidBody ball_phys;
 };
-static SoftbodyState s;
 
-int demos_init_hook(DEMOS_CommonState* cs) {
+global DEMO_SoftbodyState s;
+
+// 
+// initialization/cleanup
+// 
+demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
     MS_LoadResult sphere = ms_load_obj(cs->arena, ntstr8_lit("./data/sphere.obj"), (MS_LoadSettings){});
     if (sphere.error.length != 0) {
         fprintf(stderr, "%s\n", sphere.error.data);
@@ -60,8 +64,9 @@ int demos_init_hook(DEMOS_CommonState* cs) {
     s.state_arena = arena_alloc();
     return 0;
 }
+demos_hook void demos_cleanup_hook(DEMOS_CommonState* cs) {}
 
-void demos_world_start_hook(PHYS_World* w) {
+demos_hook void demos_world_start_hook(PHYS_World* w) {
     {DeferResource(Temp scratch = scratch_begin_a(s.state_arena), scratch_end(scratch)) {
         u32* edge_indices;
         u32 edge_indices_count;
@@ -119,29 +124,28 @@ void demos_world_start_hook(PHYS_World* w) {
         });
 
         phys_world_add_box_boundary(w, (PHYS_BoxBoundary_Settings){
-            .arena=s.state_arena,
             .extents=make_3f32(0.5,2,0.5),
             .layer=PHYS_ColliderLayer_1_No1, // no raycast and no self collision
         });
     }}
 }
+demos_hook void demos_world_end_hook(PHYS_World* w) {
+    arena_clear(s.state_arena);
+}
 
-static void d_ball(PHYS_World* w, PHYS_RigidBody* ball);
-static void d_cloth(PHYS_World* w, PHYS_Cloth* cloth);
+// 
+// per-frame
+// 
+internal void d_ball(PHYS_World* w, PHYS_RigidBody* ball);
+internal void d_cloth(PHYS_World* w, PHYS_Cloth* cloth);
 
-void demos_frame_hook(DEMOS_CommonState* cs) {
+demos_hook void demos_frame_hook(DEMOS_CommonState* cs) {
     d_ball(cs->w, &s.ball_phys);
     d_cloth(cs->w, &s.cloth_phys);
 }
 
-void demos_world_end_hook(PHYS_World* w) {
-    arena_clear(s.state_arena);
-}
-
-void demos_cleanup_hook(DEMOS_CommonState* cs) {}
-
 // helpers
-static void d_ball(PHYS_World* w, PHYS_RigidBody* ball) {
+internal void d_ball(PHYS_World* w, PHYS_RigidBody* ball) {
     PHYS_Body* center = phys_world_resolve_body(w, ball->body_id);
     PHYS_Collider* collider = phys_world_resolve_collider(w, ball->collider_id);
     f32 radius = collider->base.r;
@@ -156,7 +160,7 @@ static void d_ball(PHYS_World* w, PHYS_RigidBody* ball) {
     );
 }
 
-static void d_cloth(PHYS_World* w, PHYS_Cloth* cloth) {
+internal void d_cloth(PHYS_World* w, PHYS_Cloth* cloth) {
     for EachElement(i, s.cloth_mesh) {
         MS_Mesh* m = &s.cloth_mesh[i];
 

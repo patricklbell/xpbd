@@ -9,5 +9,5 @@
 #include "render_core.h"
 
 #if R_BACKEND == R_BACKEND_OPENGL
-    #include "opengl/render_opengl.h"
+    #include "opengl/render_opengl_inc.h"
 #endif

@@ -1,31 +1,19 @@
-// platform specific backend
-#if OS_WINDOWING_SYSTEM == OS_WINDOWING_SYSTEM_WAYLAND
-    #include "egl/render_opengl_egl.c"
-#elif OS_WINDOWING_SYSTEM == OS_WINDOWING_SYSTEM_WASM
-    #include "wasm/render_opengl_wasm.c"
-#else
-    // @todo WINAPI -> wgl
-    // @todo XWINDOWS -> glx
-    // @todo LINUX -> detect
-    #error Unsupported windowing system.
-#endif
-
 // helpers
-static GLuint r_ogl_handle_to_buffer(R_Handle handle) {
+internal GLuint r_ogl_handle_to_buffer(R_Handle handle) {
     return handle.v32[0];
 }
-static void r_ogl_handle_set_buffer(R_Handle* handle, GLuint buffer) {
+internal void r_ogl_handle_set_buffer(R_Handle* handle, GLuint buffer) {
     handle->v32[0] = buffer;
 }
 
-static u32 r_ogl_handle_to_size(R_Handle handle) {
+internal u32 r_ogl_handle_to_size(R_Handle handle) {
     return handle.v32[1];
 }
-static void r_ogl_handle_set_size(R_Handle* handle, u32 size) {
+internal void r_ogl_handle_set_size(R_Handle* handle, u32 size) {
     handle->v32[1] = size;
 }
 
-static GLuint r_ogl_temp_buffer(u64 size) {
+internal GLuint r_ogl_temp_buffer(u64 size) {
     GLuint buffer = r_ogl_state.shared_buffer;
     if (size > r_ogl_state.shared_buffer_size) {    
         glGenBuffers(1, &buffer);
@@ -40,12 +28,12 @@ static GLuint r_ogl_temp_buffer(u64 size) {
     return buffer;
 }
 
-static void r_ogl_debug_message_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam) {
+internal void r_ogl_debug_message_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam) {
   fprintf(stderr, "[OpenGL] %.*s\n", (int)length, message);
 }
 
 // render implementation section
-void r_init() {
+r_hook void r_init() {
     r_ogl_os_init();
 
     r_ogl_state.per_frame_arena = arena_alloc();
@@ -143,11 +131,11 @@ void r_init() {
 #endif
 }
 
-void r_cleanup() {
+r_hook void r_cleanup() {
     r_ogl_os_cleanup();
 }
 
-void r_window_begin_frame(OS_Handle window, R_Handle rwindow) {
+r_hook void r_window_begin_frame(OS_Handle window, R_Handle rwindow) {
     r_os_select_window(window, rwindow);
     vec2_f32 window_size = os_gfx_window_size(window);
 
@@ -156,7 +144,7 @@ void r_window_begin_frame(OS_Handle window, R_Handle rwindow) {
     glViewport(0, 0, (GLsizei)window_size.x, (GLsizei)window_size.y);
 }
 
-void r_window_end_frame(OS_Handle window, R_Handle rwindow) {
+r_hook void r_window_end_frame(OS_Handle window, R_Handle rwindow) {
     for EachList(n, R_OGL_BufferChain, r_ogl_state.buffer_free_chain) {
         glDeleteBuffers(1, &n->buffer);
     }
@@ -166,7 +154,7 @@ void r_window_end_frame(OS_Handle window, R_Handle rwindow) {
     r_ogl_os_window_swap(window, rwindow);
 }
 
-R_Handle r_buffer_alloc(R_ResourceKind kind, R_ResourceHint hint, u32 size, void *data) {
+r_hook R_Handle r_buffer_alloc(R_ResourceKind kind, R_ResourceHint hint, u32 size, void *data) {
     Assert(kind >= 0 && kind < ArrayLength(r_ogl_resource_kind));
     Assert(hint >= 0 && hint < ArrayLength(r_ogl_resource_hint));
 
@@ -182,25 +170,25 @@ R_Handle r_buffer_alloc(R_ResourceKind kind, R_ResourceHint hint, u32 size, void
     return handle;
 }
 
-void r_buffer_load(R_Handle* handle, u32 offset, u32 size, void *data) {
+r_hook void r_buffer_load(R_Handle* handle, u32 offset, u32 size, void *data) {
     Assert(r_ogl_handle_to_size(*handle) >= size);
 
     glBindBuffer(GL_ARRAY_BUFFER, r_ogl_handle_to_buffer(*handle));
     glBufferSubData(GL_ARRAY_BUFFER, offset, size, data);
 }
 
-R_Handle r_buffer_view(R_Handle src, u32 size) {
+r_hook R_Handle r_buffer_view(R_Handle src, u32 size) {
     R_Handle view = src;
     r_ogl_handle_set_size(&view, size);
     return view;
 }
 
-void r_buffer_release(R_Handle* handle) {
+r_hook void r_buffer_release(R_Handle* handle) {
     GLuint buffer = r_ogl_handle_to_buffer(*handle);
     glDeleteBuffers(1, &buffer);
 }
 
-void r_submit(OS_Handle window, R_PassList *passes) {
+r_hook void r_submit(OS_Handle window, R_PassList *passes) {
     for EachList(pass_n, R_PassNode, passes->first) {
         R_Pass* pass = &pass_n->v;
         switch (pass->kind) {

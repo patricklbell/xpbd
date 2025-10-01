@@ -1,13 +1,9 @@
-PHYS_body_id phys_world_add_fixed_point(PHYS_World* w, vec3_f32 position);
-
 // rigid bodies
 typedef struct PHYS_RigidBody PHYS_RigidBody;
 struct PHYS_RigidBody {
     PHYS_body_id        body_id;
     PHYS_collider_id    collider_id;
 };
-
-void phys_world_remove_rigid_body(PHYS_World* w, PHYS_RigidBody* object);
 
 typedef struct PHYS_Ball_Settings PHYS_Ball_Settings;
 struct PHYS_Ball_Settings {
@@ -21,11 +17,8 @@ struct PHYS_Ball_Settings {
     b32 can_rotate;
 };
 
-PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings);
-
 typedef struct PHYS_Box_Settings PHYS_Box_Settings;
 struct PHYS_Box_Settings {
-    Arena* arena;
     vec3_f32 center;
     vec3_f32 extents;
     vec4_f32 rotation;
@@ -39,8 +32,6 @@ struct PHYS_Box_Settings {
     f32 coefficient_of_static_friction;
 };
 
-PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings);
-
 // box boundary
 typedef struct PHYS_BoxBoundary PHYS_BoxBoundary;
 struct PHYS_BoxBoundary {
@@ -49,16 +40,12 @@ struct PHYS_BoxBoundary {
 };
 typedef struct PHYS_BoxBoundary_Settings PHYS_BoxBoundary_Settings;
 struct PHYS_BoxBoundary_Settings {
-    Arena* arena;
     vec3_f32 center;
     vec3_f32 extents;
     vec4_f32 rotation;
     f32 resitution;
     PHYS_ColliderLayer layer;
 };
-
-PHYS_BoxBoundary    phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Settings settings);
-void                phys_world_remove_box_boundary(PHYS_World* w, PHYS_BoxBoundary* object);
 
 // softbody
 typedef struct PHYS_Softbody PHYS_Softbody;
@@ -77,8 +64,6 @@ struct PHYS_Softbody {
 };
 typedef struct PHYS_TetTriSoftbody_Settings PHYS_TetTriSoftbody_Settings;
 struct PHYS_TetTriSoftbody_Settings {
-    Arena* arena;
-    
     f32 mass;
     f32 edge_compliance;
     f32 volume_compliance;
@@ -98,9 +83,6 @@ struct PHYS_TetTriSoftbody_Settings {
     u32* surface_point_indices;
     u32 surface_point_indices_count;
 };
-
-PHYS_Softbody   phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Settings settings);
-void            phys_world_remove_softbody(PHYS_World* w, PHYS_Softbody object);
 
 // cloth
 typedef struct PHYS_Cloth PHYS_Cloth;
@@ -142,5 +124,13 @@ struct PHYS_Cloth_Settings {
     int fiber_ratio_hint;
 };
 
-PHYS_Cloth  phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings);
-void        phys_world_remove_cloth(PHYS_World* w, PHYS_Cloth object);
+shared_function PHYS_body_id     phys_world_add_fixed_point(PHYS_World* w, vec3_f32 position);
+shared_function void             phys_world_remove_rigid_body(PHYS_World* w, PHYS_RigidBody* object);
+shared_function PHYS_RigidBody   phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings);
+shared_function PHYS_RigidBody   phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings);
+shared_function PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Settings settings);
+shared_function void             phys_world_remove_box_boundary(PHYS_World* w, PHYS_BoxBoundary* object);
+shared_function PHYS_Softbody    phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Settings settings);
+shared_function void             phys_world_remove_softbody(PHYS_World* w, PHYS_Softbody object);
+shared_function PHYS_Cloth       phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings);
+shared_function void             phys_world_remove_cloth(PHYS_World* w, PHYS_Cloth object);

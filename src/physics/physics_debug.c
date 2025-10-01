@@ -1,4 +1,4 @@
-PHYS_DBG_ThreadCtx* phys_dbg_d_init(PHYS_DBG_DrawEdgeBatch draw_edge_batch, PHYS_DBG_DrawPointBatch draw_point_batch) {
+shared_function PHYS_DBG_ThreadCtx* phys_dbg_d_init(PHYS_DBG_DrawEdgeBatch draw_edge_batch, PHYS_DBG_DrawPointBatch draw_point_batch) {
     Assert(phys_dbg_d_ctx == NULL);
 
     Arena* arena = arena_alloc();
@@ -39,11 +39,15 @@ PHYS_DBG_ThreadCtx* phys_dbg_d_init(PHYS_DBG_DrawEdgeBatch draw_edge_batch, PHYS
     return phys_dbg_d_ctx;
 }
 
-static vec3_f32 phys_dbg_d_get_unique_color() {
+shared_function PHYS_DBG_ThreadCtx* phys_dbg_d_get_ctx() {
+    return phys_dbg_d_ctx;
+}
+
+internal vec3_f32 phys_dbg_d_get_unique_color() {
     return hsl_to_rgb(make_3f32(rand_f32(),1,1));
 }
 
-static vec3_f32 phys_dbg_d_get_constraint_color(PHYS_World* w, PHYS_Constraint* c) {
+internal vec3_f32 phys_dbg_d_get_constraint_color(PHYS_World* w, PHYS_Constraint* c) {
     switch (phys_dbg_d_ctx->color_mode) {
         case PHYS_DBG_DrawColorMode_Type: return phys_dbg_d_ctx->constraint_colors[c->type];
         case PHYS_DBG_DrawColorMode_Force: return hsl_to_rgb(
@@ -56,14 +60,14 @@ static vec3_f32 phys_dbg_d_get_constraint_color(PHYS_World* w, PHYS_Constraint* 
         default: return phys_dbg_d_ctx->color;
     }
 }
-static vec3_f32 phys_dbg_d_get_collider_color(PHYS_World* w, PHYS_Collider* c) {
+internal vec3_f32 phys_dbg_d_get_collider_color(PHYS_World* w, PHYS_Collider* c) {
     switch (phys_dbg_d_ctx->color_mode) {
         case PHYS_DBG_DrawColorMode_Type: return phys_dbg_d_ctx->collider_colors[c->base.type];
         case PHYS_DBG_DrawColorMode_Unique: srand((u64)c); return phys_dbg_d_get_unique_color();
         default: return phys_dbg_d_ctx->color;
     }
 }
-static vec3_f32 phys_dbg_d_get_body_color(PHYS_World* w, PHYS_Body* b) {
+internal vec3_f32 phys_dbg_d_get_body_color(PHYS_World* w, PHYS_Body* b) {
     switch (phys_dbg_d_ctx->color_mode) {
         case PHYS_DBG_DrawColorMode_Type: return phys_dbg_d_ctx->body_color;
         case PHYS_DBG_DrawColorMode_Unique: srand((u64)b); return phys_dbg_d_get_unique_color();
@@ -71,19 +75,19 @@ static vec3_f32 phys_dbg_d_get_body_color(PHYS_World* w, PHYS_Body* b) {
     }
 }
 
-void phys_dbg_d_constraint_distance(PHYS_World* w, PHYS_Constraint* c) {
+internal void phys_dbg_d_constraint_distance(PHYS_World* w, PHYS_Constraint* c) {
     PHYS_Body* b1 = phys_world_resolve_body(w, c->distance.body1);
     PHYS_Body* b2 = phys_world_resolve_body(w, c->distance.body2);
     PHYS_DBG_D_DRAW_EDGE(b1->position, b2->position, phys_dbg_d_get_constraint_color(w, c));
 }
-void phys_dbg_d_constraint_advanced_distance(PHYS_World* w, PHYS_Constraint* c) {
+internal void phys_dbg_d_constraint_advanced_distance(PHYS_World* w, PHYS_Constraint* c) {
     PHYS_Body* b1 = phys_world_resolve_body(w, c->advanced_distance.body1);
     PHYS_Body* b2 = phys_world_resolve_body(w, c->advanced_distance.body2);
     vec3_f32 r1 = rot_quat(c->advanced_distance.offset1, b1->rotation);
     vec3_f32 r2 = rot_quat(c->advanced_distance.offset2, b2->rotation);
     PHYS_DBG_D_DRAW_EDGE(add_3f32(b1->position, r1), add_3f32(b2->position, r2), phys_dbg_d_get_constraint_color(w, c));
 }
-void phys_dbg_d_constraint_volume(PHYS_World* w, PHYS_Constraint* c) {
+internal void phys_dbg_d_constraint_volume(PHYS_World* w, PHYS_Constraint* c) {
     static const int points_count = ArrayLength(c->volume.bodies)*(ArrayLength(c->volume.bodies)-1); // 2*(n choose 2)
     vec3_f32 points[points_count], colors[points_count];
 
@@ -104,17 +108,17 @@ void phys_dbg_d_constraint_volume(PHYS_World* w, PHYS_Constraint* c) {
 
     phys_dbg_d_ctx->draw_edge_batch(points, colors, points_count);
 }
-void phys_dbg_d_constraint_hinge(PHYS_World* w, PHYS_Constraint* c) {
+internal void phys_dbg_d_constraint_hinge(PHYS_World* w, PHYS_Constraint* c) {
     return; // @todo
 }
-void phys_dbg_d_constraint_swing(PHYS_World* w, PHYS_Constraint* c) {
+internal void phys_dbg_d_constraint_swing(PHYS_World* w, PHYS_Constraint* c) {
     return; // @todo
 }
-void phys_dbg_d_constraint_twist(PHYS_World* w, PHYS_Constraint* c) {
+internal void phys_dbg_d_constraint_twist(PHYS_World* w, PHYS_Constraint* c) {
     return; // @todo
 }
 
-void phys_dbg_d_collider_sphere(PHYS_World* w, PHYS_Collider_Sphere* c) {
+internal void phys_dbg_d_collider_sphere(PHYS_World* w, PHYS_Collider_Sphere* c) {
     static u32 parallels = 3, points_per_parallel = 16, dims_shown = 3, dims = 3;
 
     f32 r = c->base.r;
@@ -165,7 +169,7 @@ void phys_dbg_d_collider_sphere(PHYS_World* w, PHYS_Collider_Sphere* c) {
         phys_dbg_d_ctx->draw_edge_batch(points, colors, total_points);
     }
 }
-void phys_dbg_d_collider_polytope(PHYS_World* w, PHYS_Collider_Polytope* c) {
+internal void phys_dbg_d_collider_polytope(PHYS_World* w, PHYS_Collider_Polytope* c) {
     DeferResource(Temp scratch = scratch_begin(NULL, 0), scratch_end(scratch)) {
         vec3_f32 color = phys_dbg_d_get_collider_color(w, (PHYS_Collider*)c);
         PHYS_Body* b = phys_world_resolve_body(w, c->base.p);
@@ -208,7 +212,7 @@ void phys_dbg_d_collider_polytope(PHYS_World* w, PHYS_Collider_Polytope* c) {
     }
 }
 
-void phys_dbg_d_constraint(PHYS_World* w, PHYS_Constraint* c) {
+internal void phys_dbg_d_constraint(PHYS_World* w, PHYS_Constraint* c) {
     switch (c->type) {
         case PHYS_ConstraintType_Distance: {
             phys_dbg_d_constraint_distance(w, c);
@@ -231,7 +235,7 @@ void phys_dbg_d_constraint(PHYS_World* w, PHYS_Constraint* c) {
         default: break; // @todo
     }
 }
-void phys_dbg_d_collider(PHYS_World* w, PHYS_Collider* c) {
+internal void phys_dbg_d_collider(PHYS_World* w, PHYS_Collider* c) {
     switch (c->base.type) {
         case PHYS_ColliderType_Sphere: {
             phys_dbg_d_collider_sphere(w, &c->sphere);
@@ -241,7 +245,7 @@ void phys_dbg_d_collider(PHYS_World* w, PHYS_Collider* c) {
         }break;
     }
 }
-void phys_dbg_d_body(PHYS_World* w, PHYS_Body* b) {
+internal void phys_dbg_d_body(PHYS_World* w, PHYS_Body* b) {
     // draw a tetrahedron at body position
     // vec3_f32 offsets[] = {{1, 1, 1},{-1,-1,1},{-1,1,-1},{1,-1,-1}};
     // f32 offset_scale = phys_dbg_d_ctx->body_radius;
@@ -267,7 +271,7 @@ void phys_dbg_d_body(PHYS_World* w, PHYS_Body* b) {
     PHYS_DBG_D_DRAW_POINT(b->position, phys_dbg_d_get_body_color(w, b), make_2f32(phys_dbg_d_ctx->body_radius, phys_dbg_d_ctx->body_radius));
 }
 
-static b32 phys_dbg_d_is_blacklisted(int value, int* blacklist, int blacklist_count) {
+internal b32 phys_dbg_d_is_blacklisted(int value, int* blacklist, int blacklist_count) {
     b32 blacklisted = false;
     for EachIndex(blacklist_i, blacklist_count) {
         if (blacklist[blacklist_i] == value) {
@@ -278,7 +282,7 @@ static b32 phys_dbg_d_is_blacklisted(int value, int* blacklist, int blacklist_co
     return false;
 }
 
-void phys_dbg_d_constraints(PHYS_World* w, PHYS_ConstraintType* blacklist, int blacklist_count) {
+internal void phys_dbg_d_constraints(PHYS_World* w, PHYS_ConstraintType* blacklist, int blacklist_count) {
     for EachIndex(slot, w->constraints.slots_count) {
         for EachList(constraint_n, PHYS_ConstraintNode, w->constraints.slots[slot].first) {
             PHYS_ConstraintType type = constraint_n->v.constraint.type;
@@ -288,7 +292,7 @@ void phys_dbg_d_constraints(PHYS_World* w, PHYS_ConstraintType* blacklist, int b
         }
     }
 }
-void phys_dbg_d_colliders(PHYS_World* w, PHYS_ColliderType* blacklist, int blacklist_count) {
+internal void phys_dbg_d_colliders(PHYS_World* w, PHYS_ColliderType* blacklist, int blacklist_count) {
     for EachIndex(slot, w->colliders.slots_count) {
         for EachList(collider_n, PHYS_ColliderNode, w->colliders.slots[slot].first) {
             PHYS_ColliderType type = collider_n->v.base.type;
@@ -298,7 +302,7 @@ void phys_dbg_d_colliders(PHYS_World* w, PHYS_ColliderType* blacklist, int black
         }
     }
 }
-void phys_dbg_d_bodies(PHYS_World* w) {
+internal void phys_dbg_d_bodies(PHYS_World* w) {
     for EachIndex(i, w->bodies.length) {
         PHYS_Body* b = &w->bodies.v[i];
         phys_dbg_d_body(w, b);
@@ -306,7 +310,7 @@ void phys_dbg_d_bodies(PHYS_World* w) {
 }
 
 // helpers
-static void phys_dbg_d_angle(vec3_f32 origin, vec3_f32 n1, vec3_f32 n2, vec3_f32 n1_color, vec3_f32 n2_color, vec3_f32 angle_color, f32 n_length, f32 angle_length) {
+internal void phys_dbg_d_angle(vec3_f32 origin, vec3_f32 n1, vec3_f32 n2, vec3_f32 n1_color, vec3_f32 n2_color, vec3_f32 angle_color, f32 n_length, f32 angle_length) {
     PHYS_DBG_D_DRAW_EDGE(origin, add_3f32(origin, mul_3f32(n1, n_length)), n1_color);
     PHYS_DBG_D_DRAW_EDGE(origin, add_3f32(origin, mul_3f32(n2, n_length)), n2_color);
 
@@ -317,7 +321,7 @@ static void phys_dbg_d_angle(vec3_f32 origin, vec3_f32 n1, vec3_f32 n2, vec3_f32
 
     phys_dbg_d_sector(origin, n1, axis, angle, angle_color, angle_length);
 }
-static void phys_dbg_d_sector(vec3_f32 origin, vec3_f32 normal, vec3_f32 axis, f32 angle, vec3_f32 color, f32 radius) {
+internal void phys_dbg_d_sector(vec3_f32 origin, vec3_f32 normal, vec3_f32 axis, f32 angle, vec3_f32 color, f32 radius) {
     static u32 steps_in_angle = 12;
     u32 total_points = 2*steps_in_angle;
 

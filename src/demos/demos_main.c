@@ -15,7 +15,7 @@
 
 #include "demos_helpers.c"
 
-static void window_event_loop(void* data);
+internal void window_event_loop(void* data);
 
 int main() {
     ThreadCtx main_ctx;
@@ -50,13 +50,13 @@ int main() {
             .type = EMCONTROLS_ControlType_Button,
             .label = ntstr8_lit("reset"),
             .data = cs,
-            .on_press = &on_demo_button,
+            .on_press = &demos_on_demo_button,
         });
         emcontrols_add((EMCONTROLS_Control){
             .type = EMCONTROLS_ControlType_Slider,
             .label = ntstr8_lit("gravity"),
             .data = cs,
-            .on_slider = &on_slider_gravity,
+            .on_slider = &demos_on_slider_gravity,
             .slider_value = -10,
             .slider_min = -20,
             .slider_max = +20,
@@ -79,7 +79,7 @@ int main() {
     os_gfx_cleanup();
 }
 
-static void window_event_loop(void* data) {
+internal void window_event_loop(void* data) {
     DEMOS_CommonState* cs = (DEMOS_CommonState*)data;
     f64 ntime = os_now_seconds();
     f64 dt = ntime - cs->time;
@@ -133,25 +133,25 @@ static void window_event_loop(void* data) {
 }
 
 // wrappers
-void demos_world_start_wrapper(DEMOS_CommonState* cs) {
+internal void demos_world_start_wrapper(DEMOS_CommonState* cs) {
     cs->w = phys_make_world((PHYS_WorldSettings){});
 
     demos_world_start_hook(cs->w);
     
     cs->time = os_now_seconds();
 }
-void demos_world_end_wrapper(DEMOS_CommonState* cs) {
+internal void demos_world_end_wrapper(DEMOS_CommonState* cs) {
     demos_world_end_hook(cs->w);
     phys_world_cleanup(cs->w);
 }
 
 // emcontrol callbacks
-static void on_demo_button(void* data) {
+no_inline internal void demos_on_demo_button(void* data) {
     DEMOS_CommonState* cs = (DEMOS_CommonState*)data;
     cs->should_reset = true;
 }
 
-static void on_slider_gravity(f32 value, void* data) {
+no_inline internal void demos_on_slider_gravity(f32 value, void* data) {
     DEMOS_CommonState* cs = (DEMOS_CommonState*)data;
     if (cs->w != NULL) {
         cs->w->little_g = value;

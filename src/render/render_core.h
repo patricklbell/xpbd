@@ -1,5 +1,7 @@
 #pragma once
 
+#define r_hook internal
+
 // vertex
 typedef enum R_VertexFlag {
     R_VertexFlag_ZERO = 0,
@@ -26,11 +28,11 @@ typedef vec3_f32 R_VertexType_N;
 typedef vec2_f32 R_VertexType_T;
 typedef vec3_f32 R_VertexType_C;
 
-static force_inline u64 r_vertex_size(R_VertexFlag flags);
-static force_inline u64 r_vertex_align(R_VertexFlag flags);
-static force_inline u64 r_vertex_offset(R_VertexFlag flags, R_VertexFlag flag);
-static force_inline u64 r_vertex_stride(R_VertexFlag flags, R_VertexFlag flag);
-static force_inline u64 r_vertex_i_offset(R_VertexFlag flags, R_VertexFlag flag, u64 i);
+internal force_inline u64 r_vertex_size(R_VertexFlag flags);
+internal force_inline u64 r_vertex_align(R_VertexFlag flags);
+internal force_inline u64 r_vertex_offset(R_VertexFlag flags, R_VertexFlag flag);
+internal force_inline u64 r_vertex_stride(R_VertexFlag flags, R_VertexFlag flag);
+internal force_inline u64 r_vertex_i_offset(R_VertexFlag flags, R_VertexFlag flag, u64 i);
 
 typedef enum R_VertexTopology {
     R_VertexTopology_ZERO = 0,
@@ -73,8 +75,8 @@ union R_Handle {
     u16 v16[4];
 };
 
-b32 r_is_zero_handle(R_Handle handle);
-R_Handle r_zero_handle();
+internal b32 r_is_zero_handle(R_Handle handle);
+internal R_Handle r_zero_handle();
 
 typedef struct R_Batch R_Batch;
 struct R_Batch
@@ -128,8 +130,8 @@ struct R_BatchGroup3DMap
     u64 slots_count;
 };
 
-R_BatchList r_batch_list_make(u64 instance_size);
-void*       r_batch_list_push_inst(Arena *arena, R_BatchList *list, u64 batch_inst_cap);
+internal R_BatchList r_batch_list_make(u64 instance_size);
+internal void*       r_batch_list_push_inst(Arena *arena, R_BatchList *list, u64 batch_inst_cap);
 
 // passes
 typedef struct R_PassParams_3D R_PassParams_3D;
@@ -175,7 +177,7 @@ struct R_PassList
     u64 length;
 };
 
-R_Pass* r_add_pass_of_kind(Arena *arena, R_PassList *list, R_PassKind kind);
+internal R_Pass* r_add_pass_of_kind(Arena *arena, R_PassList *list, R_PassKind kind);
 
 // resources
 typedef enum R_ResourceKind
@@ -193,21 +195,21 @@ typedef enum R_ResourceHint
     R_ResourceHint_COUNT,
 } R_ResourceHint;
 
-R_Handle r_buffer_alloc(R_ResourceKind kind, R_ResourceHint hint, u32 size, void *data);
-void     r_buffer_load(R_Handle* handle, u32 offset, u32 size, void *data);
-R_Handle r_buffer_view(R_Handle src, u32 size); // @todo offset?
-void     r_buffer_release(R_Handle* buffer);
+r_hook R_Handle r_buffer_alloc(R_ResourceKind kind, R_ResourceHint hint, u32 size, void *data);
+r_hook void     r_buffer_load(R_Handle* handle, u32 offset, u32 size, void *data);
+r_hook R_Handle r_buffer_view(R_Handle src, u32 size); // @todo offset?
+r_hook void     r_buffer_release(R_Handle* buffer);
 
 // setup/teardown
-void r_init();
-void r_cleanup();
+r_hook void r_init();
+r_hook void r_cleanup();
 
 // windows
-R_Handle r_os_equip_window(OS_Handle window);
-void     r_os_unequip_window(OS_Handle window, R_Handle rwindow);
-void     r_os_select_window(OS_Handle window, R_Handle rwindow);
+r_hook R_Handle r_os_equip_window(OS_Handle window);
+r_hook void     r_os_unequip_window(OS_Handle window, R_Handle rwindow);
+r_hook void     r_os_select_window(OS_Handle window, R_Handle rwindow);
 
 // draw
-void r_window_begin_frame(OS_Handle window, R_Handle rwindow);
-void r_window_end_frame(OS_Handle window, R_Handle rwindow);
-void r_submit(OS_Handle window, R_PassList *passes);
+r_hook void r_window_begin_frame(OS_Handle window, R_Handle rwindow);
+r_hook void r_window_end_frame(OS_Handle window, R_Handle rwindow);
+r_hook void r_submit(OS_Handle window, R_PassList *passes);

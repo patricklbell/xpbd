@@ -1,22 +1,22 @@
 // helpers
-HG_3s32 hg_3f32_3u32(vec3_f32 x, f32 scale) {
+internal HG_3s32 hg_3f32_3u32(vec3_f32 x, f32 scale) {
     return (HG_3s32){
         .x = floor_f32(x.x / scale),
         .y = floor_f32(x.y / scale),
         .z = floor_f32(x.z / scale),
     };
 }
-u32 hg_hash_3u32(HG_3s32 x, u32 mod) {
+internal u32 hg_hash_3u32(HG_3s32 x, u32 mod) {
     // fantasy function
     u32 h = (u32)((x.x * 92837111) ^ (x.y * 689287499) ^ (x.z * 283923481));
 	return h % mod; 
 }
-u32 hg_hash_3f32(vec3_f32 x, f32 scale, u32 mod) {
+internal u32 hg_hash_3f32(vec3_f32 x, f32 scale, u32 mod) {
     return hg_hash_3u32(hg_3f32_3u32(x, scale), mod);
 }
 
 // hashgrid
-HG_Hashgrid hg_build_hashgrid(
+internal HG_Hashgrid hg_build_hashgrid(
     Arena* arena, f32 scale,
     vec3_f32* positions, u64 positions_stride, u32 positions_count
 ) {
@@ -62,7 +62,7 @@ HG_Hashgrid hg_build_hashgrid(
 }
 
 // queries
-HG_QueryResult hg_hashgrid_query(
+internal HG_QueryResult hg_hashgrid_query(
     HG_Hashgrid* grid, Arena* arena,
     f32 radius, vec3_f32 position
 ) {
@@ -100,7 +100,7 @@ HG_QueryResult hg_hashgrid_query(
     return result;
 }
 
-HG_BatchQueryResult hg_hashgrid_batch_query(
+internal HG_BatchQueryResult hg_hashgrid_batch_query(
     HG_Hashgrid* grid, Arena* arena, u32 expected_hits,
     f32 radius, vec3_f32* positions, u64 positions_stride, u64* data, u64 data_stride, u32 object_count
 ) {

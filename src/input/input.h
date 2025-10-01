@@ -15,20 +15,20 @@ struct INPUT_State {
     b32 held[OS_Key_COUNT];
     b32 pressed[OS_Key_COUNT];
 };
-INPUT_State* input_state = NULL;
+global INPUT_State* input_state = NULL;
 
 // core
-void    input_init();
-void    input_update(OS_Events* events);
+internal void input_init();
+internal void input_update(OS_Events* events);
 
 // queries
-vec2_f32 input_mouse_position();
-b32 input_mouse_delta(vec2_f32* delta);
-b32 input_wheel_delta(vec2_f32* delta);
-b32 input_left_mouse_held();
-b32 input_right_mouse_held();
-b32 input_left_mouse_pressed();
-b32 input_right_mouse_pressed();
+internal vec2_f32 input_mouse_position();
+internal b32 input_mouse_delta(vec2_f32* delta);
+internal b32 input_wheel_delta(vec2_f32* delta);
+internal b32 input_left_mouse_held();
+internal b32 input_right_mouse_held();
+internal b32 input_left_mouse_pressed();
+internal b32 input_right_mouse_pressed();
 
-b32 input_is_key_held(OS_Key key);
-b32 input_is_key_pressed(OS_Key key);
+internal b32 input_is_key_held(OS_Key key);
+internal b32 input_is_key_pressed(OS_Key key);

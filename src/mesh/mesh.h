@@ -22,9 +22,6 @@ struct MS_LoadSettings {
     R_VertexFlag flags;
 };
 
-MS_LoadResult ms_load_obj(Arena* arena, NTString8 path, MS_LoadSettings settings);
-
-// internal
 typedef struct MS_VertexMapHash MS_VertexMapHash;
 struct MS_VertexMapHash {
     u32 indices[3];
@@ -43,3 +40,6 @@ struct MS_VertexMap {
     u64 slots_count;
     u64 vertices_count;
 };
+
+// loaders
+internal MS_LoadResult ms_load_obj(Arena* arena, NTString8 path, MS_LoadSettings settings);

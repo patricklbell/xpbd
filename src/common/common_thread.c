@@ -1,4 +1,4 @@
-void thread_equip(ThreadCtx* ctx) {
+internal void thread_equip(ThreadCtx* ctx) {
     for EachElement(i, ctx->arenas) {
         ctx->arenas[i] = arena_alloc();
     }
@@ -6,7 +6,7 @@ void thread_equip(ThreadCtx* ctx) {
     thread_local_ctx = ctx;
 }
 
-void thread_release() {
+internal void thread_release() {
     ThreadCtx* ctx = thread_get_context();
     if (ctx == NULL) {
         return;
@@ -18,11 +18,11 @@ void thread_release() {
     thread_local_ctx = NULL;
 }
 
-ThreadCtx* thread_get_context() {
+internal ThreadCtx* thread_get_context() {
     return thread_local_ctx;
 }
 
-Arena* thread_get_scratch(Arena** conflicts, u64 count) {
+internal Arena* thread_get_scratch(Arena** conflicts, u64 count) {
     ThreadCtx* ctx = thread_get_context();
 
     for EachElement(i, ctx->arenas) {

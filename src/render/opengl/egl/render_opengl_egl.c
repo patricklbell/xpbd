@@ -1,17 +1,17 @@
-static EGLSurface r_ogl_egl_handle_to_surface(R_Handle handle) {
+internal EGLSurface r_ogl_egl_handle_to_surface(R_Handle handle) {
     return (EGLSurface)handle.v64[0];
 }
 
-static EGLNativeDisplayType r_ogl_egl_native_display() {
+internal EGLNativeDisplayType r_ogl_egl_native_display() {
     return (EGLNativeDisplayType) os_gfx_handle().v64[0];
 }
 
-static EGLNativeWindowType r_ogl_egl_native_window(OS_Handle window) {
+internal EGLNativeWindowType r_ogl_egl_native_window(OS_Handle window) {
     return (EGLNativeWindowType) window.v64[0];
 }
 
-// @todo graceful
-void r_ogl_os_init() {
+// @todo gracefully handle failing to acquire
+internal void r_ogl_os_init() {
     int version = gladLoaderLoadEGL(NULL);
 
     // connect to display and initialize
@@ -64,7 +64,7 @@ void r_ogl_os_init() {
     gladLoadGL((GLADloadfunc)r_ogl_egl_procedure_address);
 }
 
-void r_ogl_os_cleanup() {
+internal void r_ogl_os_cleanup() {
     eglDestroyContext(r_ogl_egl_state.display, r_ogl_egl_state.context);
     r_ogl_egl_state.context = NULL;
 
@@ -79,15 +79,18 @@ void r_ogl_os_cleanup() {
     gladLoaderUnloadEGL();
 }
 
-void r_ogl_os_window_swap(OS_Handle window, R_Handle rwindow) {
+internal void r_ogl_os_window_swap(OS_Handle window, R_Handle rwindow) {
     eglSwapBuffers(r_ogl_egl_state.display, r_ogl_egl_handle_to_surface(rwindow));
 }
 
-static void* r_ogl_egl_procedure_address(char* name) {
+internal void* r_ogl_egl_procedure_address(char* name) {
     return (void*)eglGetProcAddress(name);
 }
 
-R_Handle r_os_equip_window(OS_Handle window) {
+// 
+// OS hooks
+// 
+r_hook R_Handle r_os_equip_window(OS_Handle window) {
     EGLint surfattr[] = {
         EGL_GL_COLORSPACE, EGL_GL_COLORSPACE_SRGB,
         EGL_NONE,
@@ -114,7 +117,7 @@ R_Handle r_os_equip_window(OS_Handle window) {
     return handle;
 }
 
-void r_os_unequip_window(OS_Handle window, R_Handle rwindow) {
+r_hook void r_os_unequip_window(OS_Handle window, R_Handle rwindow) {
     EGLSurface surface = r_ogl_egl_handle_to_surface(rwindow);
     for EachIndex(i, R_OGL_EGL_MAX_SURFACES) {
         if (r_ogl_egl_state.surfaces[i] == surface) {
@@ -126,7 +129,7 @@ void r_os_unequip_window(OS_Handle window, R_Handle rwindow) {
     eglDestroySurface(r_ogl_egl_state.display, surface);
 }
 
-void r_os_select_window(OS_Handle window, R_Handle rwindow) {
+r_hook void r_os_select_window(OS_Handle window, R_Handle rwindow) {
     EGLSurface surface = r_ogl_egl_handle_to_surface(rwindow);
     eglMakeCurrent(r_ogl_egl_state.display, surface, surface, r_ogl_egl_state.context);
 

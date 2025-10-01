@@ -1,4 +1,4 @@
-vec3_f32 hsl_to_rgb(vec3_f32 hsl) {
+internal vec3_f32 hsl_to_rgb(vec3_f32 hsl) {
     f32 h = hsl.h;
     f32 s = hsl.s;
     f32 l = hsl.l;

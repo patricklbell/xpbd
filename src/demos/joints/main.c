@@ -1,5 +1,5 @@
-#include "../demos_main.h"
-#include "../demos_main.c"
+#include "demos/demos_main.h"
+#include "demos/demos_main.c"
 
 typedef struct DEMO_Object DEMO_Object;
 struct DEMO_Object {
@@ -24,9 +24,13 @@ struct DEMO_JointsState {
     
     DEMO_Object objects[7]; 
 };
-static DEMO_JointsState s;
 
-int demos_init_hook(DEMOS_CommonState* cs) {
+global DEMO_JointsState s;
+
+// 
+// initialization/cleanup
+// 
+demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
     phys_dbg_d_ctx->color_mode = PHYS_DBG_DrawColorMode_Type;
     phys_dbg_d_ctx->do_colliders = true;
     phys_dbg_d_ctx->do_limit_angle = true;
@@ -49,9 +53,9 @@ int demos_init_hook(DEMOS_CommonState* cs) {
     s.state_arena = arena_alloc();
     return 0;
 }
-void demos_cleanup_hook(DEMOS_CommonState* cs) {}
+demos_hook void demos_cleanup_hook(DEMOS_CommonState* cs) {}
 
-void demos_world_start_hook(PHYS_World* w) {
+demos_hook void demos_world_start_hook(PHYS_World* w) {
     vec3_f32 offset = make_3f32(-5,3.5,0);
     PHYS_body_id ids[ArrayLength(s.objects)];
     vec3_f32 scales[ArrayLength(s.objects)];
@@ -64,7 +68,6 @@ void demos_world_start_hook(PHYS_World* w) {
         PHYS_body_id pin = phys_world_add_fixed_point(w, offset);
         vec3_f32 hinge_extents = make_3f32(1.0,0.4,0.1);
         PHYS_body_id hinge = phys_world_add_box(w, (PHYS_Box_Settings){
-            .arena=s.state_arena,
             .center=add_3f32(offset, make_3f32(hinge_extents.x,0,0)),
             .extents=hinge_extents,
             .mass=PHYS_UNIT_G(500),
@@ -102,7 +105,6 @@ void demos_world_start_hook(PHYS_World* w) {
         PHYS_body_id pin = phys_world_add_fixed_point(w, offset);
         vec3_f32 hinge_extents = make_3f32(1.0,0.4,0.1);
         PHYS_body_id hinge = phys_world_add_box(w, (PHYS_Box_Settings){
-            .arena=s.state_arena,
             .center=add_3f32(offset, make_3f32(hinge_extents.x,0,0)),
             .extents=hinge_extents,
             .mass=PHYS_UNIT_G(500),
@@ -143,7 +145,6 @@ void demos_world_start_hook(PHYS_World* w) {
         PHYS_body_id socket = phys_world_add_fixed_point(w, offset);
         vec3_f32 arm_extents = make_3f32(0.1,1.0,0.1);
         PHYS_body_id arm = phys_world_add_box(w, (PHYS_Box_Settings){
-            .arena=s.state_arena,
             .center=add_3f32(offset, make_3f32(0,-arm_extents.y,0)),
             .extents=arm_extents,
             .mass=PHYS_UNIT_G(500),
@@ -183,7 +184,6 @@ void demos_world_start_hook(PHYS_World* w) {
         PHYS_body_id socket = phys_world_add_fixed_point(w, offset);
         vec3_f32 arm_extents = make_3f32(0.1,1.0,0.1);
         PHYS_body_id arm = phys_world_add_box(w, (PHYS_Box_Settings){
-            .arena=s.state_arena,
             .center=add_3f32(offset, make_3f32(0,-arm_extents.y,0)),
             .extents=arm_extents,
             .mass=PHYS_UNIT_G(500),
@@ -238,7 +238,6 @@ void demos_world_start_hook(PHYS_World* w) {
         PHYS_body_id bearing = phys_world_add_fixed_point(w, offset);
         vec3_f32 pin_extents = make_3f32(0.1,0.7,0.1);
         PHYS_body_id pin = phys_world_add_box(w, (PHYS_Box_Settings){
-            .arena=s.state_arena,
             .center=offset,
             .extents=pin_extents,
             .mass=PHYS_UNIT_G(500),
@@ -276,7 +275,6 @@ void demos_world_start_hook(PHYS_World* w) {
         PHYS_body_id bearing = phys_world_add_fixed_point(w, offset);
         vec3_f32 pin_extents = make_3f32(0.1,0.7,0.1);
         PHYS_body_id pin = phys_world_add_box(w, (PHYS_Box_Settings){
-            .arena=s.state_arena,
             .center=offset,
             .extents=pin_extents,
             .mass=PHYS_UNIT_G(500),
@@ -327,7 +325,6 @@ void demos_world_start_hook(PHYS_World* w) {
         PHYS_body_id collar = phys_world_add_fixed_point(w, offset);
         vec3_f32 arm_extents = make_3f32(0.1,0.7,0.1);
         PHYS_body_id arm = phys_world_add_box(w, (PHYS_Box_Settings){
-            .arena=s.state_arena,
             .center=offset,
             .extents=arm_extents,
             .mass=PHYS_UNIT_G(500),
@@ -362,20 +359,23 @@ void demos_world_start_hook(PHYS_World* w) {
         s.objects[i].r_indices = s.cube_indices;
     }
 }
-void demos_world_end_hook(PHYS_World* w) {
+demos_hook void demos_world_end_hook(PHYS_World* w) {
     arena_clear(s.state_arena);
 }
 
-static void d_object(PHYS_World* w, DEMO_Object* obj, vec3_f32 color);
+// 
+// per-frame
+// 
+internal void d_object(PHYS_World* w, DEMO_Object* obj, vec3_f32 color);
 
-void demos_frame_hook(DEMOS_CommonState* cs) {
+demos_hook void demos_frame_hook(DEMOS_CommonState* cs) {
     for EachElement(i, s.objects) {
         d_object(cs->w, &s.objects[i], make_3f32(1,0,0));
     }
 }
 
 // helpers
-static void d_object(PHYS_World* w, DEMO_Object* obj, vec3_f32 color) {
+internal void d_object(PHYS_World* w, DEMO_Object* obj, vec3_f32 color) {
     PHYS_Body* body = phys_world_resolve_body(w, obj->body_id);
 
     mat4x4_f32 t = matmul_4x4f32(matmul_4x4f32(

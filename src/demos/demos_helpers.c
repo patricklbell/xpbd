@@ -1,13 +1,13 @@
 // camera
-static void demos_camera_update_instrinsics(DEMOS_Camera* cam) {
+internal void demos_camera_update_instrinsics(DEMOS_Camera* cam) {
     cam->projection = make_perspective_4x4f32(cam->fov, cam->aspect_ratio, cam->near, cam->far);
     cam->inv_projection = inv_4x4f32(cam->projection);
 }
-static void demos_camera_update_extrinsics(DEMOS_Camera* cam) {
+internal void demos_camera_update_extrinsics(DEMOS_Camera* cam) {
     cam->view = make_look_at_4x4f32(cam->eye, cam->target, make_up_3f32());
     cam->inv_view = inv_4x4f32(cam->view);
 }
-DEMOS_Camera demos_make_camera(vec2_f32 window_size, vec3_f32 eye, vec3_f32 target) {
+internal DEMOS_Camera demos_make_camera(vec2_f32 window_size, vec3_f32 eye, vec3_f32 target) {
     DEMOS_Camera cam = {
         .fov=DegreesToRad(45),
         .aspect_ratio=window_size.x / window_size.y,
@@ -21,22 +21,22 @@ DEMOS_Camera demos_make_camera(vec2_f32 window_size, vec3_f32 eye, vec3_f32 targ
 
     return cam;
 }
-void demos_camera_move(DEMOS_Camera* cam, vec3_f32 eye) {
+internal void demos_camera_move(DEMOS_Camera* cam, vec3_f32 eye) {
     cam->eye = eye;
     demos_camera_update_extrinsics(cam);
 }
-void demos_camera_pan(DEMOS_Camera* cam, vec3_f32 pan) {
+internal void demos_camera_pan(DEMOS_Camera* cam, vec3_f32 pan) {
     cam->eye = add_3f32(cam->eye, pan);
     cam->target = add_3f32(cam->target, pan);
     demos_camera_update_extrinsics(cam);
 }
-void demos_camera_resize_window(DEMOS_Camera* cam, vec2_f32 window_size) {
+internal void demos_camera_resize_window(DEMOS_Camera* cam, vec2_f32 window_size) {
     cam->aspect_ratio = window_size.x / window_size.y;
     demos_camera_update_instrinsics(cam);
 }
 
 // controls
-void demos_controls_camera_orbit(OS_Handle window, f32 dt, DEMOS_Camera* camera) {
+internal void demos_controls_camera_orbit(OS_Handle window, f32 dt, DEMOS_Camera* camera) {
     vec2_f32 delta_px;
     if (input_mouse_delta(&delta_px) && (input_left_mouse_held() || input_right_mouse_held())) {
         vec2_f32 window_size = os_gfx_window_size(window);
@@ -90,7 +90,7 @@ void demos_controls_camera_orbit(OS_Handle window, f32 dt, DEMOS_Camera* camera)
     }
 }
 
-static vec3_f32 demos_controls_get_mouse_ray(DEMOS_Camera* camera, OS_Handle window) {
+internal vec3_f32 demos_controls_get_mouse_ray(DEMOS_Camera* camera, OS_Handle window) {
     vec2_f32 window_size = os_gfx_window_size(window);
     vec2_f32 mouse_pos = input_mouse_position();
     
@@ -111,7 +111,7 @@ static vec3_f32 demos_controls_get_mouse_ray(DEMOS_Camera* camera, OS_Handle win
     return normalize_3f32(sub_3f32(mouse_world.xyz, camera->eye));
 }
 
-b32 demos_controls_phys_drag(PHYS_World* w, OS_Handle window, DEMOS_Camera* camera, f32 compliance) {
+internal b32 demos_controls_phys_drag(PHYS_World* w, OS_Handle window, DEMOS_Camera* camera, f32 compliance) {
     static DEMOS_PhysDragState* state = NULL;
     if (state == NULL) {
         Arena* arena = arena_alloc();
@@ -141,11 +141,12 @@ b32 demos_controls_phys_drag(PHYS_World* w, OS_Handle window, DEMOS_Camera* came
                     state->drag_plane_normal = d;
                     state->pin = phys_world_add_fixed_point(w, hit_world);
                     state->drag = phys_world_add_constraint(w, (PHYS_Constraint){
-                        .type=PHYS_ConstraintType_Distance,
+                        .type=PHYS_ConstraintType_AdvancedDistance,
                         .compliance=compliance,
-                        .distance={
+                        .advanced_distance={
                             .body1=hit_collider->base.p,
                             .body2=state->pin,
+                            .offset1=sub_3f32(hit_world, hit_body->position),
                         },
                     });
                 }
@@ -180,7 +181,7 @@ b32 demos_controls_phys_drag(PHYS_World* w, OS_Handle window, DEMOS_Camera* came
 }
 
 // rendering
-R_PassParams_3D* demos_d_begin_3d_pass_camera(OS_Handle window, DEMOS_Camera* camera, b32 debug) {
+internal R_PassParams_3D* demos_d_begin_3d_pass_camera(OS_Handle window, DEMOS_Camera* camera, b32 debug) {
     vec2_f32 window_size = os_gfx_window_size(window);
     rect_f32 viewport = make_rect_f32((vec2_f32){}, window_size);
     demos_camera_resize_window(camera, window_size); // @todo event

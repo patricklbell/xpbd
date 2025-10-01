@@ -1,4 +1,4 @@
-static void vtk_load_points(OS_Handle file, NTString8 line, vec3_f32* points, u32 points_count) {
+internal void vtk_load_points(OS_Handle file, NTString8 line, vec3_f32* points, u32 points_count) {
     {DeferResource(Temp scratch = scratch_begin(NULL, 0), scratch_end(scratch)){
         u32 point_i;
         for (point_i = 0; !os_is_eof(file) && point_i < points_count; point_i++) {
@@ -15,7 +15,7 @@ static void vtk_load_points(OS_Handle file, NTString8 line, vec3_f32* points, u3
     }}
 }
 
-static void vtk_load_cells(OS_Handle file, NTString8 line, u32 cells_count, u32* cells_data, u32 cells_data_count) {
+internal void vtk_load_cells(OS_Handle file, NTString8 line, u32 cells_count, u32* cells_data, u32 cells_data_count) {
     {DeferResource(Temp scratch = scratch_begin(NULL, 0), scratch_end(scratch)){
         u32 cell_i, cell_data_i;
         for (cell_i = 0, cell_data_i = 0; !os_is_eof(file) && cell_i < cells_count; cell_i++) {
@@ -32,7 +32,7 @@ static void vtk_load_cells(OS_Handle file, NTString8 line, u32 cells_count, u32*
     }}
 }
 
-static void vtk_load_cell_types(OS_Handle file, NTString8 line, VTK_CellType* cells_type, u32 cells_count) {
+internal void vtk_load_cell_types(OS_Handle file, NTString8 line, VTK_CellType* cells_type, u32 cells_count) {
     {DeferResource(Temp scratch = scratch_begin(NULL, 0), scratch_end(scratch)){
         u32 cell_i;
         for (cell_i = 0; !os_is_eof(file) && cell_i < cells_count; cell_i++) {
@@ -46,7 +46,7 @@ static void vtk_load_cell_types(OS_Handle file, NTString8 line, VTK_CellType* ce
 }
 
 // loader
-VTK_LoadResult vtk_load(Arena* arena, NTString8 path, VTK_LoadSettings settings) {
+internal VTK_LoadResult vtk_load(Arena* arena, NTString8 path, VTK_LoadSettings settings) {
     OS_Handle file = os_open_readonly_file(path);
     VTK_LoadResult res = zero_struct;
 

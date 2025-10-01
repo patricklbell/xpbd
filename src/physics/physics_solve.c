@@ -4,7 +4,7 @@
 //      - solve constraints on positions,
 //      - determine linear & angular velocity from delta after constraints 
 //        have been applied.
-void phys_world_step(PHYS_World* w, f64 dt) {
+shared_function void phys_world_step(PHYS_World* w, f64 dt) {
     w->hashgrid_info = NULL;
     w->brute_info = NULL;
     arena_clear(w->step_arena);
@@ -105,7 +105,7 @@ void phys_world_step(PHYS_World* w, f64 dt) {
     #endif
 }
 
-static void phys_world_substep(PHYS_World* w, f64 dt) {
+internal void phys_world_substep(PHYS_World* w, f64 dt) {
     w->substep_collision_records = NULL;
     arena_clear(w->substep_arena);
 
@@ -252,17 +252,17 @@ static void phys_world_substep(PHYS_World* w, f64 dt) {
 }
 
 // corrections helpers
-static f32 phys_body_inverse_inertia(PHYS_Body* b, vec3_f32 t_world) {
+internal f32 phys_body_inverse_inertia(PHYS_Body* b, vec3_f32 t_world) {
     if (!b->has_inertia) return 0.f;
     // direction of torque
     vec3_f32 nt = rot_quat(t_world, inv_quat(b->rotation));
     return dot_3f32(nt, elmul_3f32(b->inv_inertia, nt));
 }
-static void phys_body_apply_linear_correction(PHYS_Body* b, vec3_f32 dp_world) {
+internal void phys_body_apply_linear_correction(PHYS_Body* b, vec3_f32 dp_world) {
     if (b->inv_mass <= 0.f) return;
     b->position = add_3f32(b->position, mul_3f32(dp_world, b->inv_mass));
 }
-static void phys_body_apply_angular_correction(PHYS_Body* b, vec3_f32 dt_world) {
+internal void phys_body_apply_angular_correction(PHYS_Body* b, vec3_f32 dt_world) {
     if (!b->has_inertia) return;
 
     // torque in inertial frame
@@ -277,23 +277,23 @@ static void phys_body_apply_angular_correction(PHYS_Body* b, vec3_f32 dt_world) 
 }
 
 // velocity correct helpers
-static void phys_body_apply_linear_velocity_correction(PHYS_Body* b, vec3_f32 corr) {
+internal void phys_body_apply_linear_velocity_correction(PHYS_Body* b, vec3_f32 corr) {
     if (b->inv_mass <= 0.f) return;
     // apply position correction
     b->linear_velocity = add_3f32(b->linear_velocity, mul_3f32(corr, b->inv_mass));
 }
-static void phys_body_apply_angular_velocity_correction(PHYS_Body* b, vec3_f32 corr, vec3_f32 r) {
+internal void phys_body_apply_angular_velocity_correction(PHYS_Body* b, vec3_f32 corr, vec3_f32 r) {
     if (!b->has_inertia) return;
     vec3_f32 t = rot_quat(cross_3f32(r, corr), inv_quat(b->rotation));
     vec3_f32 dw = rot_quat(elmul_3f32(b->inv_inertia, t), b->rotation);
     b->angular_velocity = add_3f32(b->angular_velocity, dw);
 }
 
-static f32 phys_lagrange_delta_no_update(f32 C, f32 w, f32 alpha) {
+internal f32 phys_lagrange_delta_no_update(f32 C, f32 w, f32 alpha) {
     return -C / (w + alpha);
 }
 
-static f32 phys_update_lagrange_multiplier_return_delta(f32 C, f32 w, f32 alpha, f32* l) {
+internal f32 phys_update_lagrange_multiplier_return_delta(f32 C, f32 w, f32 alpha, f32* l) {
     // f32 dl = (-C - alpha*(*l)) / (w + alpha);
     // using l in calculating dl causes the stiffness to become substep dependent,
     // @todo figure out why xpbd paper results don't match this observation.
@@ -302,11 +302,11 @@ static f32 phys_update_lagrange_multiplier_return_delta(f32 C, f32 w, f32 alpha,
     return dl;
 }
 
-static vec3_f32 phys_body_velocity_at_offset(PHYS_Body* b, vec3_f32 r) {
+internal vec3_f32 phys_body_velocity_at_offset(PHYS_Body* b, vec3_f32 r) {
     return add_3f32(b->linear_velocity, cross_3f32(b->angular_velocity, r));
 }
 
-static void phys_constraint_apply_two_bodies_linear_correction(
+internal void phys_constraint_apply_two_bodies_linear_correction(
     f32 compliance, f32* l, f32* force, PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2,
     f32 C, vec3_f32 n, f32 w
 ) {
@@ -321,7 +321,7 @@ static void phys_constraint_apply_two_bodies_linear_correction(
     *force = abs_f32(*l) * settings.inv_dt;
 }
 
-static void phys_constraint_apply_two_bodies_linear_offset_correction(
+internal void phys_constraint_apply_two_bodies_linear_offset_correction(
     f32 compliance, f32* l, f32* force, PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2,
     f32 C, vec3_f32 n, vec3_f32 r1, vec3_f32 r2
 ) {
@@ -343,7 +343,7 @@ static void phys_constraint_apply_two_bodies_linear_offset_correction(
 }
 
 // solvers
-static void phys_constraint_solve_distance(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
+internal void phys_constraint_solve_distance(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
     PHYS_Body* body1 = phys_world_resolve_body(settings.w, c->distance.body1);
     PHYS_Body* body2 = phys_world_resolve_body(settings.w, c->distance.body2);
     f32 w = body1->inv_mass + body2->inv_mass;
@@ -367,7 +367,7 @@ static void phys_constraint_solve_distance(PHYS_Constraint* c, PHYS_ConstraintSo
     );
 }
 
-static void phys_constraint_solve_advanced_distance(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
+internal void phys_constraint_solve_advanced_distance(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
     PHYS_Body* body1 = phys_world_resolve_body(settings.w, c->advanced_distance.body1);
     PHYS_Body* body2 = phys_world_resolve_body(settings.w, c->advanced_distance.body2);
 
@@ -405,7 +405,7 @@ static void phys_constraint_solve_advanced_distance(PHYS_Constraint* c, PHYS_Con
     );
 }
 
-static void phys_constraint_solve_linear_dofs(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
+internal void phys_constraint_solve_linear_dofs(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
     PHYS_Body* body1 = phys_world_resolve_body(settings.w, c->linear_dofs.body1);
     PHYS_Body* body2 = phys_world_resolve_body(settings.w, c->linear_dofs.body2);
     f32 w = body1->inv_mass + body2->inv_mass;
@@ -437,7 +437,7 @@ static void phys_constraint_solve_linear_dofs(PHYS_Constraint* c, PHYS_Constrain
     );
 }
 
-static void phys_constraint_solve_volume(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
+internal void phys_constraint_solve_volume(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
     PHYS_Body* b1 = phys_world_resolve_body(settings.w, c->volume.bodies[0]);
     PHYS_Body* b2 = phys_world_resolve_body(settings.w, c->volume.bodies[1]);
     PHYS_Body* b3 = phys_world_resolve_body(settings.w, c->volume.bodies[2]);
@@ -480,7 +480,7 @@ static void phys_constraint_solve_volume(PHYS_Constraint* c, PHYS_ConstraintSolv
     c->force = abs_f32(c->l) * settings.inv_dt;
 }
 
-static void phys_constraint_apply_two_bodies_angular_correction(
+internal void phys_constraint_apply_two_bodies_angular_correction(
     f32 compliance, f32* l, vec3_f32* torque, PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2,
     vec3_f32 dq
 ) {
@@ -505,7 +505,7 @@ static void phys_constraint_apply_two_bodies_angular_correction(
 
 // https://matthias-research.github.io/pages/publications/PBDBodies.pdf
 // Algorithm 3: Handling joint limits
-static void phys_constraint_apply_two_bodies_limit_angle(
+internal void phys_constraint_apply_two_bodies_limit_angle(
     f32 compliance, f32* l, vec3_f32* torque, PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2,
     vec3_f32 n, vec3_f32 n1, vec3_f32 n2, f32 alpha, f32 beta
 ) {
@@ -545,7 +545,7 @@ static void phys_constraint_apply_two_bodies_limit_angle(
     #endif
 }
 
-static void phys_constraint_solve_orientation(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
+internal void phys_constraint_solve_orientation(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
     PHYS_Body* body1 = phys_world_resolve_body(settings.w, c->orientation.body1);
     PHYS_Body* body2 = phys_world_resolve_body(settings.w, c->orientation.body2);
 
@@ -556,7 +556,7 @@ static void phys_constraint_solve_orientation(PHYS_Constraint* c, PHYS_Constrain
     );
 }
 
-static void phys_constraint_solve_hinge(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
+internal void phys_constraint_solve_hinge(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
     vec3_f32 a1, a2, b1, b2;
     PHYS_Body* body1 = phys_world_resolve_body(settings.w, c->hinge.body1);
     PHYS_Body* body2 = phys_world_resolve_body(settings.w, c->hinge.body2);
@@ -594,7 +594,7 @@ static void phys_constraint_solve_hinge(PHYS_Constraint* c, PHYS_ConstraintSolve
     }
 }
 
-static void phys_constraint_solve_swing(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
+internal void phys_constraint_solve_swing(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
     PHYS_Body* body1 = phys_world_resolve_body(settings.w, c->swing.body1);
     PHYS_Body* body2 = phys_world_resolve_body(settings.w, c->swing.body2);
 
@@ -607,7 +607,7 @@ static void phys_constraint_solve_swing(PHYS_Constraint* c, PHYS_ConstraintSolve
     );
 }
 
-static void phys_constraint_solve_twist(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
+internal void phys_constraint_solve_twist(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
     PHYS_Body* body1 = phys_world_resolve_body(settings.w, c->twist.body1);
     PHYS_Body* body2 = phys_world_resolve_body(settings.w, c->twist.body2);
 
@@ -626,7 +626,7 @@ static void phys_constraint_solve_twist(PHYS_Constraint* c, PHYS_ConstraintSolve
     );
 }
 
-static void phys_constraint_solve(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
+internal void phys_constraint_solve(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
     switch (c->type) {
         case PHYS_ConstraintType_Distance: {
             phys_constraint_solve_distance(c, settings);
@@ -656,7 +656,7 @@ static void phys_constraint_solve(PHYS_Constraint* c, PHYS_ConstraintSolveSettin
 }
 
 // colliders 
-static void phys_collision_apply_corrections(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 n, f32 l) {
+internal void phys_collision_apply_corrections(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 n, f32 l) {
     vec3_f32 corr1 = mul_3f32(n, +l);
     vec3_f32 corr2 = mul_3f32(n, -l);
     
@@ -666,7 +666,7 @@ static void phys_collision_apply_corrections(PHYS_Body* b1, PHYS_Body* b2, vec3_
     phys_body_apply_angular_correction(b2, cross_3f32(r2, corr2));
 }
 
-static void phys_collision_apply_velocity_corrections(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 n, f32 l) {
+internal void phys_collision_apply_velocity_corrections(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 n, f32 l) {
     vec3_f32 corr1 = mul_3f32(n, +l);
     vec3_f32 corr2 = mul_3f32(n, -l);
     
@@ -676,27 +676,27 @@ static void phys_collision_apply_velocity_corrections(PHYS_Body* b1, PHYS_Body* 
     phys_body_apply_angular_velocity_correction(b2, corr2, r2);
 }
 
-static f32 phys_collision_generalized_inverse_mass(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 n) {
+internal f32 phys_collision_generalized_inverse_mass(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2, vec3_f32 n) {
     f32 w1 = b1->inv_mass + phys_body_inverse_inertia(b1, cross_3f32(r1, n));
     f32 w2 = b2->inv_mass + phys_body_inverse_inertia(b2, cross_3f32(r2, n));
     return w1 + w2;
 }
 
-static vec3_f32 phys_collision_total_velocity(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2) {
+internal vec3_f32 phys_collision_total_velocity(PHYS_Body* b1, PHYS_Body* b2, vec3_f32 r1, vec3_f32 r2) {
     return sub_3f32(
         phys_body_velocity_at_offset(b1, r1),
         phys_body_velocity_at_offset(b2, r2)
     );
 }
 
-static b32 phys_collision_check_spheres(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Sphere* s1, PHYS_Collider_Sphere* s2) {
+internal b32 phys_collision_check_spheres(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Sphere* s1, PHYS_Collider_Sphere* s2) {
     return phys_contact_point_spheres(
         b1->position, b2->position, s1->base.r, s2->base.r,
         &out->d, &out->r1, &out->r2, &out->n
     );
 }
 
-static void phys_collision_SAT_min_max(vec3_f32 axis, PHYS_Body* b, PHYS_Collider* c, f32* min, f32* max, u32* min_face, u32* max_face) {
+internal void phys_collision_SAT_min_max(vec3_f32 axis, PHYS_Body* b, PHYS_Collider* c, f32* min, f32* max, u32* min_face, u32* max_face) {
     switch (c->base.type) {
         case PHYS_ColliderType_Sphere: {
             phys_SAT_sphere_min_max(axis, c->base.r, min, max);
@@ -719,13 +719,13 @@ static void phys_collision_SAT_min_max(vec3_f32 axis, PHYS_Body* b, PHYS_Collide
     *max += proj_position;
 }
 
-static void phys_copy_indexed_buffer_to_polgyon(vec3_f32* in_points, u32* in_indices, GEO_Topology in_topology, GEO_Polygon* out_face) {
+internal void phys_copy_indexed_buffer_to_polgyon(vec3_f32* in_points, u32* in_indices, GEO_Topology in_topology, GEO_Polygon* out_face) {
     out_face->topology = in_topology;
     for EachIndex(i, in_topology) {
         out_face->data[i] = in_points[in_indices[i]];
     }
 }
-static GEO_Polygon phys_collision_SAT_get_supporting_face(vec3_f32 penetration_axis, u32 f, PHYS_Body* b, PHYS_Collider* c) {
+internal GEO_Polygon phys_collision_SAT_get_supporting_face(vec3_f32 penetration_axis, u32 f, PHYS_Body* b, PHYS_Collider* c) {
     GEO_Polygon support = {.topology=0};
 
     switch (c->base.type) {
@@ -742,7 +742,7 @@ static GEO_Polygon phys_collision_SAT_get_supporting_face(vec3_f32 penetration_a
 
     return support;
 }
-static void phys_collision_manifold_solve_narrow(PHYS_CollisionCheck* in_out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider* c1, PHYS_Collider* c2, PHYS_ConstraintSolveSettings settings, f32 static_friction, f32 dynamic_friction) {
+internal void phys_collision_manifold_solve_narrow(PHYS_CollisionCheck* in_out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider* c1, PHYS_Collider* c2, PHYS_ConstraintSolveSettings settings, f32 static_friction, f32 dynamic_friction) {
     in_out->r1 = make_3f32(0.f,0.f,0.f);
     in_out->r2 = make_3f32(0.f,0.f,0.f);
 
@@ -788,7 +788,7 @@ static void phys_collision_manifold_solve_narrow(PHYS_CollisionCheck* in_out, PH
     phys_collision_solve_narrow(settings, b1, b2, in_out, static_friction, dynamic_friction);
 }
 
-static b32 phys_collision_SAT_check_axis(PHYS_CollisionCheck* out, vec3_f32 axis, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider* c1, PHYS_Collider* c2) {
+internal b32 phys_collision_SAT_check_axis(PHYS_CollisionCheck* out, vec3_f32 axis, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider* c1, PHYS_Collider* c2) {
     f32 min1, max1, min2, max2;
     u32 minf1, maxf1, minf2, maxf2;
 
@@ -812,7 +812,7 @@ static b32 phys_collision_SAT_check_axis(PHYS_CollisionCheck* out, vec3_f32 axis
     return false;
 }
 
-static b32 phys_collision_check_polytopes(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Polytope* p1, PHYS_Collider_Polytope* p2) {
+internal b32 phys_collision_check_polytopes(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Polytope* p1, PHYS_Collider_Polytope* p2) {
     out->d = MAX_F32;
     for EachIndex(ni, p1->normals_count) {
         if (!phys_collision_SAT_check_axis(out, rot_quat(p1->normals[ni], b1->rotation), b1, b2, (PHYS_Collider*)p1, (PHYS_Collider*)p2))
@@ -839,7 +839,7 @@ static b32 phys_collision_check_polytopes(PHYS_CollisionCheck* out, PHYS_Body* b
 
     return true;
 }
-static b32 phys_collision_check_polytope_sphere(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Polytope* p1, PHYS_Collider_Sphere* s2) {
+internal b32 phys_collision_check_polytope_sphere(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Polytope* p1, PHYS_Collider_Sphere* s2) {
     out->d = MAX_F32;
     for EachIndex(ni, p1->normals_count) {
         if (!phys_collision_SAT_check_axis(out, rot_quat(p1->normals[ni], b1->rotation), b1, b2, (PHYS_Collider*)p1, (PHYS_Collider*)s2))
@@ -850,7 +850,7 @@ static b32 phys_collision_check_polytope_sphere(PHYS_CollisionCheck* out, PHYS_B
 }
 
 // solvers
-static void phys_collision_solve_narrow(PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2, PHYS_CollisionCheck* check, f32 static_friction, f32 dynamic_friction) {
+internal void phys_collision_solve_narrow(PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2, PHYS_CollisionCheck* check, f32 static_friction, f32 dynamic_friction) {
     #if PHYS_DBG_D_STEP
         if (phys_dbg_d_ctx->do_contact_points) {
             vec3_f32 r1w = add_3f32(check->r1, b1->position);
@@ -875,7 +875,7 @@ static void phys_collision_solve_narrow(PHYS_ConstraintSolveSettings settings, P
     f32 w_n = phys_collision_generalized_inverse_mass(b1, b2, check->r1, check->r2, check->n);
     f32 l_n = phys_lagrange_delta_no_update(check->d, w_n, 0.f);
 
-    // apply static friction
+    // apply internal friction
     if (static_friction > 0.f) {
         vec3_f32 pc1 = add_3f32(b1->position, check->r1);
         vec3_f32 pc2 = add_3f32(b2->position, check->r2);
@@ -924,7 +924,7 @@ static void phys_collision_solve_narrow(PHYS_ConstraintSolveSettings settings, P
         .v_n = v_n,
     });
 }
-static void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, PHYS_ConstraintSolveSettings settings) {
+internal void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, PHYS_ConstraintSolveSettings settings) {
     if (id1.v == id2.v)
         return;
 
@@ -986,7 +986,7 @@ static void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, PHY
 }
 
 // coefficients
-static f32 phys_calculate_coeffcient(f32 x1, f32 x2, PHYS_CoefficientCalculation method) {
+internal f32 phys_calculate_coeffcient(f32 x1, f32 x2, PHYS_CoefficientCalculation method) {
     switch (method) {
         case PHYS_CoefficientCalculation_Average:   return (x1 + x2)/2.f;
         case PHYS_CoefficientCalculation_Min:       return Min(x1,x2);

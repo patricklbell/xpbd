@@ -1,13 +1,13 @@
 
 // edge map
-static b32 geo_hash_is_eq(GEO_EdgeMapHash a, GEO_EdgeMapHash b) {
+internal b32 geo_hash_is_eq(GEO_EdgeMapHash a, GEO_EdgeMapHash b) {
     return (
         ((a.i == b.i) && (a.j == b.j)) ||
         ((a.i == b.j) && (a.j == b.i))
     );
 }
 
-GEO_EdgeMap geo_make_edge_map(Arena* arena, u64 slots_count) {
+internal GEO_EdgeMap geo_make_edge_map(Arena* arena, u64 slots_count) {
     return (GEO_EdgeMap) {
         .arena = arena,
         .slots_count = slots_count,
@@ -16,7 +16,7 @@ GEO_EdgeMap geo_make_edge_map(Arena* arena, u64 slots_count) {
     };
 }
 
-GEO_EdgeMapNode* geo_edge_map_add_edge(GEO_EdgeMap* map, GEO_EdgeMapHash hash) {
+internal GEO_EdgeMapNode* geo_edge_map_add_edge(GEO_EdgeMap* map, GEO_EdgeMapHash hash) {
     // order independent hashing so i,j and j,i overlap
     u64 slot = (
         hash_u64((u8*)&hash.i, sizeof(hash.i)) + 
@@ -38,7 +38,7 @@ GEO_EdgeMapNode* geo_edge_map_add_edge(GEO_EdgeMap* map, GEO_EdgeMapHash hash) {
     return n_edge;
 }
 
-void geo_edge_map_extract_edges(Arena* arena, GEO_EdgeMap* map, u32** edge_indices, u32* edge_indices_count) {
+internal void geo_edge_map_extract_edges(Arena* arena, GEO_EdgeMap* map, u32** edge_indices, u32* edge_indices_count) {
     *edge_indices_count = map->edge_count*2;
     *edge_indices = push_array(arena, u32, *edge_indices_count);
 
@@ -52,7 +52,7 @@ void geo_edge_map_extract_edges(Arena* arena, GEO_EdgeMap* map, u32** edge_indic
 }
 
 // neighbor map
-GEO_NeighborMap geo_make_neighbor_map(Arena* arena, u32 points_count) {
+internal GEO_NeighborMap geo_make_neighbor_map(Arena* arena, u32 points_count) {
     return (GEO_NeighborMap) {
         .arena = arena,
         .points = push_array(arena, GEO_NeighborMapNode*, points_count),
@@ -60,19 +60,19 @@ GEO_NeighborMap geo_make_neighbor_map(Arena* arena, u32 points_count) {
     };
 }
 
-void geo_neighbor_map_add_directed_edge(GEO_NeighborMap* map, u32 src, u32 dst) {
+internal void geo_neighbor_map_add_directed_edge(GEO_NeighborMap* map, u32 src, u32 dst) {
     GEO_NeighborMapNode* n = push_array(map->arena, GEO_NeighborMapNode, 1);
     n->v = dst;
     stack_push(map->points[src], n);
     map->directed_edge_count++;
 }
 
-void geo_neighbor_map_add_edge(GEO_NeighborMap* map, u32 i, u32 j) {
+internal void geo_neighbor_map_add_edge(GEO_NeighborMap* map, u32 i, u32 j) {
     geo_neighbor_map_add_directed_edge(map, i, j);
     geo_neighbor_map_add_directed_edge(map, j, i);
 }
 
-void geo_neighbor_map_add_indices(GEO_NeighborMap* map, GEO_Topology topology, const GEO_Connected connected, u32* indices, u32 indices_count) {
+internal void geo_neighbor_map_add_indices(GEO_NeighborMap* map, GEO_Topology topology, const GEO_Connected connected, u32* indices, u32 indices_count) {
     Assert(connected == GEO_Connected_Strongly || connected == GEO_Connected_Ring);
     Assert(!(connected == GEO_Connected_Ring && topology <= GEO_Topology_Line));
 
@@ -91,7 +91,7 @@ void geo_neighbor_map_add_indices(GEO_NeighborMap* map, GEO_Topology topology, c
 }
 
 // processing
-void geo_calculate_edges(
+internal void geo_calculate_edges(
     Arena* arena, u32 approx_edges, GEO_Topology topology, const GEO_Connected connected,
     u32* in_indices, u32 in_indices_count,
     u32** out_indices, u32* out_count
@@ -120,7 +120,7 @@ void geo_calculate_edges(
     }}
 }
 
-void geo_calculate_points(
+internal void geo_calculate_points(
     Arena* arena, u32 in_point_count,
     u32* in_indices, u32 in_indices_count,
     u32** out_indices, u32* out_count
@@ -149,7 +149,7 @@ void geo_calculate_points(
 }
 
 // @note assume CCW winding order
-void geo_calculate_flat_normals(
+internal void geo_calculate_flat_normals(
     vec3_f32* in_p, u64 in_p_stride, u64 in_p_count,
     vec3_f32* out_n, u64 in_n_stride
 ) {
@@ -172,7 +172,7 @@ void geo_calculate_flat_normals(
 
 // @note assumes normals are zeroed
 // @note assume CCW winding order
-void geo_calculate_smooth_normals(
+internal void geo_calculate_smooth_normals(
     GEO_Topology topology,
     vec3_f32* in_p, u64 in_p_stride, u64 in_p_count, u32* in_indices, u32 in_indices_count,
     vec3_f32* out_n, u64 in_n_stride
@@ -216,7 +216,7 @@ void geo_calculate_smooth_normals(
     }
 }
 
-void geo_triangulate(
+internal void geo_triangulate(
     Arena* arena, GEO_Topology topology, b32 cw,
     u32* in_indices, u32 in_indices_count,
     u32** out_indices, u32* out_indices_count
@@ -244,7 +244,7 @@ void geo_triangulate(
 }
 
 // clip polygon to lie inside positive halfspace of plane
-GEO_Polygon geo_clip_polygon_against_plane(GEO_Polygon* in_to_clip, vec3_f32 in_origin, vec3_f32 in_normal) {
+internal GEO_Polygon geo_clip_polygon_against_plane(GEO_Polygon* in_to_clip, vec3_f32 in_origin, vec3_f32 in_normal) {
     Assert(in_to_clip->topology >= GEO_Topology_Edge);
     GEO_Polygon clipped = {0};
 
@@ -282,7 +282,7 @@ GEO_Polygon geo_clip_polygon_against_plane(GEO_Polygon* in_to_clip, vec3_f32 in_
 }
 
 // clip a polygon against each of edge planes of another polygon, tangent to the normal
-GEO_Polygon geo_clip_polygon_against_polygon(GEO_Polygon* in_to_clip, GEO_Polygon* in_clip, vec3_f32 in_normal) {
+internal GEO_Polygon geo_clip_polygon_against_polygon(GEO_Polygon* in_to_clip, GEO_Polygon* in_clip, vec3_f32 in_normal) {
     GEO_Polygon ping_pong[2] = {0};
     u32 src_idx = 0;
     ping_pong[src_idx] = *in_to_clip;
@@ -302,7 +302,7 @@ GEO_Polygon geo_clip_polygon_against_polygon(GEO_Polygon* in_to_clip, GEO_Polygo
     return ping_pong[src_idx];
 }
 
-GEO_Polygon geo_clip_polygon_against_edge(GEO_Polygon* in_to_clip, vec3_f32 in_clip_start, vec3_f32 in_clip_end, vec3_f32 in_normal) {
+internal GEO_Polygon geo_clip_polygon_against_edge(GEO_Polygon* in_to_clip, vec3_f32 in_clip_start, vec3_f32 in_clip_end, vec3_f32 in_normal) {
     Assert(in_to_clip->topology >= GEO_Topology_Triangle);
     GEO_Polygon clipped = {0};
 

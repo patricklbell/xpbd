@@ -1,4 +1,4 @@
-PHYS_body_id phys_world_add_fixed_point(PHYS_World* w, vec3_f32 position) {
+shared_function PHYS_body_id phys_world_add_fixed_point(PHYS_World* w, vec3_f32 position) {
     return phys_world_add_body(w, (PHYS_Body){
         .position=position,
         .rotation=make_axis_quat(make_up_3f32()),
@@ -8,12 +8,12 @@ PHYS_body_id phys_world_add_fixed_point(PHYS_World* w, vec3_f32 position) {
 }
 
 // rigid bodies
-void phys_world_remove_rigid_body(PHYS_World* w, PHYS_RigidBody* object) {
+shared_function void phys_world_remove_rigid_body(PHYS_World* w, PHYS_RigidBody* object) {
     phys_world_remove_collider(w, object->collider_id);
     phys_world_remove_body(w, object->body_id);
 }
 
-PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings) {
+shared_function PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings) {
     Assert(phys_world_valid_radius(w, settings.radius));
 
     PHYS_Body body = {
@@ -46,9 +46,7 @@ PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings) {
     };
 }
 
-PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings) {
-    Assert(settings.arena != NULL);
-
+shared_function PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings) {
     PHYS_Body body = {
         .position = settings.center,
         .linear_velocity = settings.linear_velocity,
@@ -75,11 +73,11 @@ PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings) {
                 .static_friction = settings.coefficient_of_static_friction,
             },
             .topology = GEO_Topology_Quad,
-            .points = push_array(settings.arena, vec3_f32, 8),
+            .points = push_array(w->prebuilt_arena, vec3_f32, 8),
             .points_count = 8,
-            .indices = push_array(settings.arena, u32, GEO_Topology_Quad*6),
+            .indices = push_array(w->prebuilt_arena, u32, GEO_Topology_Quad*6),
             .indices_count = GEO_Topology_Quad*6,
-            .normals = push_array(settings.arena, vec3_f32, 6),
+            .normals = push_array(w->prebuilt_arena, vec3_f32, 6),
             .normals_count = 6,
         }
     };
@@ -119,8 +117,7 @@ PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings) {
 }
 
 // box boundary
-PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Settings settings){
-    Assert(settings.arena != NULL);
+shared_function PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Settings settings){
     PHYS_BoxBoundary result;
 
     if (length_4f32(settings.rotation) == 0.f) {
@@ -155,11 +152,11 @@ PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Set
                         .layer = settings.layer,
                     },
                     .topology = GEO_Topology_Quad,
-                    .points = push_array(settings.arena, vec3_f32, GEO_Topology_Quad),
+                    .points = push_array(w->prebuilt_arena, vec3_f32, GEO_Topology_Quad),
                     .points_count = GEO_Topology_Quad,
-                    .indices = push_array(settings.arena, u32, GEO_Topology_Quad),
+                    .indices = push_array(w->prebuilt_arena, u32, GEO_Topology_Quad),
                     .indices_count = GEO_Topology_Quad,
-                    .normals = push_array(settings.arena, vec3_f32, 1),
+                    .normals = push_array(w->prebuilt_arena, vec3_f32, 1),
                     .normals_count = 1,
                 }
             };
@@ -198,7 +195,7 @@ PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Set
     return result;
 }
 
-void phys_world_remove_box_boundary(PHYS_World* w, PHYS_BoxBoundary* object){
+shared_function void phys_world_remove_box_boundary(PHYS_World* w, PHYS_BoxBoundary* object){
     for EachElement(i, object->polytopes) {
         phys_world_remove_collider(w, object->polytopes[i]);
     }
@@ -209,7 +206,7 @@ void phys_world_remove_box_boundary(PHYS_World* w, PHYS_BoxBoundary* object){
 
 // softbody
 // @note all surface points must have an edge or the collider will be MAX_F32
-PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Settings settings) {
+shared_function PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Settings settings) {
     PHYS_Softbody result;
 
     // @todo angular velocity
@@ -223,7 +220,7 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
 
     // vertices
     result.vertices_count = settings.vertices_count;
-    result.vertices = push_array(settings.arena, PHYS_body_id, result.vertices_count);
+    result.vertices = push_array(w->prebuilt_arena, PHYS_body_id, result.vertices_count);
     for EachIndex(vert_i, result.vertices_count) {
         result.vertices[vert_i] = phys_world_add_body(w, (PHYS_Body){
             .position = phys_scale_rotate_translate(settings.vertices[vert_i], settings.scale, settings.rotation, settings.center),
@@ -234,7 +231,7 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
     }
 
     // @todo scratch settings for vertices_count
-    {DeferResource(Temp scratch = scratch_begin_a(settings.arena), scratch_end(scratch)) {
+    {DeferResource(Temp scratch = scratch_begin_a(w->prebuilt_arena), scratch_end(scratch)) {
         // store the minimum radius for each vertex
         f32* min_radii = push_array_no_zero(scratch.arena, f32, result.vertices_count);
         for EachIndex(idx, result.vertices_count)
@@ -243,7 +240,7 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
         // edge constraints
         const static int edge_size = 2;
         result.distance_constraints_count = settings.tetrahedron_edge_indices_count / edge_size;
-        result.distance_constraints = push_array(settings.arena, PHYS_constraint_id, result.distance_constraints_count);
+        result.distance_constraints = push_array(w->prebuilt_arena, PHYS_constraint_id, result.distance_constraints_count);
         for (int edge_i = 0; edge_i < result.distance_constraints_count; edge_i++) {
             u32 v1 = settings.tetrahedron_edge_indices[edge_i*edge_size + 0];
             u32 v2 = settings.tetrahedron_edge_indices[edge_i*edge_size + 1];
@@ -272,7 +269,7 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
     
         // surface sphere colliders
         result.sphere_colliders_count = settings.surface_point_indices_count;
-        result.sphere_colliders = push_array(settings.arena, PHYS_collider_id, result.sphere_colliders_count);
+        result.sphere_colliders = push_array(w->prebuilt_arena, PHYS_collider_id, result.sphere_colliders_count);
         for (int surf_i = 0; surf_i < result.sphere_colliders_count; surf_i++) {
             u32 v = settings.surface_point_indices[surf_i];
     
@@ -294,7 +291,7 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
     // volume constraints
     const static int tetrahedron_size = 4;
     result.volume_constraints_count = settings.tetrahedron_indices_count / tetrahedron_size;
-    result.volume_constraints = push_array(settings.arena, PHYS_constraint_id, result.volume_constraints_count);
+    result.volume_constraints = push_array(w->prebuilt_arena, PHYS_constraint_id, result.volume_constraints_count);
     for (int tetrahedron_i = 0; tetrahedron_i < result.volume_constraints_count; tetrahedron_i++) {
         u32 v1 = settings.tetrahedron_indices[tetrahedron_i*tetrahedron_size + 0];
         u32 v2 = settings.tetrahedron_indices[tetrahedron_i*tetrahedron_size + 1];
@@ -340,7 +337,7 @@ PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Setting
     return result;
 }
 
-void phys_world_remove_softbody(PHYS_World* w, PHYS_Softbody object) {
+shared_function void phys_world_remove_softbody(PHYS_World* w, PHYS_Softbody object) {
     for EachIndex(i, object.volume_constraints_count) {
         phys_world_remove_constraint(w, object.volume_constraints[i]);
     }
@@ -356,7 +353,7 @@ void phys_world_remove_softbody(PHYS_World* w, PHYS_Softbody object) {
 }
 
 // cloth
-static void phys_world_add_cloth_build_fiber_constraints(PHYS_World* w, PHYS_Cloth_Settings settings, GEO_EdgeMap* edges, GEO_NeighborMap* map, u32 root, u32 node, int depth) {
+internal void phys_world_add_cloth_build_fiber_constraints(PHYS_World* w, PHYS_Cloth_Settings settings, GEO_EdgeMap* edges, GEO_NeighborMap* map, u32 root, u32 node, int depth) {
     if (depth >= settings.fiber_depth)
         return;
 
@@ -395,7 +392,7 @@ static void phys_world_add_cloth_build_fiber_constraints(PHYS_World* w, PHYS_Clo
     }
 }
 
-PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
+shared_function PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
     PHYS_Cloth result;
 
     // solve settings
@@ -418,8 +415,8 @@ PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
     // vertices + colliders
     result.vertices_count = settings.vertices_count;
     result.sphere_colliders_count = settings.vertices_count;
-    result.vertices = push_array(settings.arena, PHYS_body_id, result.vertices_count);
-    result.sphere_colliders = push_array(settings.arena, PHYS_collider_id, result.sphere_colliders_count);
+    result.vertices = push_array(w->prebuilt_arena, PHYS_body_id, result.vertices_count);
+    result.sphere_colliders = push_array(w->prebuilt_arena, PHYS_collider_id, result.sphere_colliders_count);
     for EachIndex(vert_i, result.vertices_count) {
         result.vertices[vert_i] = phys_world_add_body(w, (PHYS_Body){
             .position = add_3f32(
@@ -443,7 +440,7 @@ PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
         });
     }
 
-    {DeferResource(Temp scratch = scratch_begin_a(settings.arena), scratch_end(scratch)){
+    {DeferResource(Temp scratch = scratch_begin_a(w->prebuilt_arena), scratch_end(scratch)){
         // build neighbor map from edges
         GEO_NeighborMap neighbors = geo_make_neighbor_map(scratch.arena, settings.vertices_count);
         geo_neighbor_map_add_indices(
@@ -462,7 +459,7 @@ PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
 
         // create deduplicated constraints
         result.distance_constraints_count = edges.edge_count;
-        result.distance_constraints = push_array(settings.arena, PHYS_constraint_id, result.distance_constraints_count);
+        result.distance_constraints = push_array(w->prebuilt_arena, PHYS_constraint_id, result.distance_constraints_count);
 
         u32 distance_constraint_offset = 0;
         for EachIndex(slot, edges.slots_count) {
@@ -493,7 +490,7 @@ PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
     return result;
 }
 
-void phys_world_remove_cloth(PHYS_World* w, PHYS_Cloth object) {
+shared_function void phys_world_remove_cloth(PHYS_World* w, PHYS_Cloth object) {
     for EachIndex(i, object.distance_constraints_count) {
         phys_world_remove_constraint(w, object.distance_constraints[i]);
     }

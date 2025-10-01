@@ -1,5 +1,5 @@
-#include "../demos_main.h"
-#include "../demos_main.c"
+#include "demos/demos_main.h"
+#include "demos/demos_main.c"
 
 typedef struct DEMO_SoftbodyBunny DEMO_SoftbodyBunny;
 struct DEMO_SoftbodyBunny {
@@ -17,9 +17,13 @@ struct DEMO_SoftbodyState {
 
     DEMO_SoftbodyBunny bunnies[1];
 };
-static DEMO_SoftbodyState s;
 
-int demos_init_hook(DEMOS_CommonState* cs) {
+global DEMO_SoftbodyState s;
+
+// 
+// initialization/cleanup
+// 
+demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
     phys_dbg_d_ctx->do_bodies = true;
     phys_dbg_d_ctx->do_constraints = true;
 
@@ -44,9 +48,9 @@ int demos_init_hook(DEMOS_CommonState* cs) {
     s.state_arena = arena_alloc();
     return 0;
 }
-void demos_cleanup_hook(DEMOS_CommonState* cs) {}
+demos_hook void demos_cleanup_hook(DEMOS_CommonState* cs) {}
 
-void demos_world_start_hook(PHYS_World* w) {
+demos_hook void demos_world_start_hook(PHYS_World* w) {
     w->min_r = 0.01f;
     w->hashgrid_cell_r = 10.f*w->min_r;
     w->hashgrid_obj_r = w->min_r;
@@ -71,7 +75,6 @@ void demos_world_start_hook(PHYS_World* w) {
         f32 compliances[ArrayLength(s.bunnies)] = { 0.3f }; // {0.1f,0.3f,0.7f,1.f};
         for EachElement(i, s.bunnies) {
             s.bunnies[i].sb = phys_world_add_softbody(w, (PHYS_TetTriSoftbody_Settings){
-                .arena = s.state_arena,
                 .mass = 0.5f,
                 .edge_compliance = compliances[i],
                 .volume_compliance = 0.001f,
@@ -89,26 +92,28 @@ void demos_world_start_hook(PHYS_World* w) {
         }
 
         phys_world_add_box_boundary(w, (PHYS_BoxBoundary_Settings){
-            .arena=s.state_arena,
             .extents=make_3f32(10,4,4),
             .layer=PHYS_ColliderLayer_1_No1, // no raycasting and no self collision
         });
     }}
 }
-void demos_world_end_hook(PHYS_World* w) {
+demos_hook void demos_world_end_hook(PHYS_World* w) {
     arena_clear(s.state_arena);
 }
 
-static void d_bunny(PHYS_World* w, DEMO_SoftbodyBunny* bunny);
+// 
+// per-frame
+// 
+internal void d_bunny(PHYS_World* w, DEMO_SoftbodyBunny* bunny);
 
-void demos_frame_hook(DEMOS_CommonState* cs) {
+demos_hook void demos_frame_hook(DEMOS_CommonState* cs) {
     for EachElement(i, s.bunnies) {
         d_bunny(cs->w, &s.bunnies[i]);
     }
 }
 
 // helpers
-static void d_bunny(PHYS_World* w, DEMO_SoftbodyBunny* bunny) {
+internal void d_bunny(PHYS_World* w, DEMO_SoftbodyBunny* bunny) {
     MS_Mesh* m = &s.bunny_mesh;
 
     void* p_start = m->vertices + r_vertex_offset(m->flags, R_VertexFlag_P);

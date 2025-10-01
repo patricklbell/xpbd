@@ -1,7 +1,9 @@
+internal void emcontrols_notify_update(void);
+
 // 
 // C API
 // 
-void emcontrols_init(Arena* arena) {
+internal void emcontrols_init(Arena* arena) {
     if (arena == NULL) {
         arena = arena_alloc();
     }
@@ -11,12 +13,12 @@ void emcontrols_init(Arena* arena) {
 
     emcontrols_ctx->arena = arena;
 }
-void emcontrols_clear() {
+internal void emcontrols_clear() {
     emcontrols_ctx->count = 0;
     emcontrols_notify_update();
 }
 
-int emcontrols_add(EMCONTROLS_Control button) {
+internal int emcontrols_add(EMCONTROLS_Control button) {
     Assert(emcontrols_ctx->count < EMCONTROLS_MAX_CONTROLS);
 
     int id = emcontrols_ctx->count;
@@ -26,7 +28,7 @@ int emcontrols_add(EMCONTROLS_Control button) {
 
     return id;
 }
-void emcontrols_update(int id, EMCONTROLS_Control button) {
+internal void emcontrols_update(int id, EMCONTROLS_Control button) {
     Assert(id >= 0 && id < emcontrols_ctx->count);
     emcontrols_ctx->controls[id] = button;
     emcontrols_notify_update();
@@ -35,15 +37,16 @@ void emcontrols_update(int id, EMCONTROLS_Control button) {
 // 
 // binding code
 //
-static void (*emcontrols_js_update_callback)(void) = NULL;
-EMSCRIPTEN_KEEPALIVE
-void emcontrols_set_update_callback(void (*callback)(void)) {
-    emcontrols_js_update_callback = callback;
-}
-static void emcontrols_notify_update(void) {
+global void (*emcontrols_js_update_callback)(void) = NULL;
+
+internal void emcontrols_notify_update(void) {
     if (emcontrols_js_update_callback) {
         (*emcontrols_js_update_callback)();
     }
+}
+EMSCRIPTEN_KEEPALIVE
+void emcontrols_set_update_callback(void (*callback)(void)) {
+    emcontrols_js_update_callback = callback;
 }
 
 // general

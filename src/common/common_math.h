@@ -10,15 +10,16 @@ union vec2_f32 {
     f32 v[2];
 };
 
-vec2_f32 make_2f32(f32 x, f32 y);
-vec2_f32 add_2f32(vec2_f32 a, vec2_f32 b);
-vec2_f32 sub_2f32(vec2_f32 a, vec2_f32 b);
-vec2_f32 mul_2f32(vec2_f32 a, f32 b);
-vec2_f32 elmul_2f32(vec2_f32 a, vec2_f32 b);
-f32 dot_2f32(vec2_f32 a, vec2_f32 b);
-f32 length_2f32(vec2_f32 a);
+internal vec2_f32 make_2f32(f32 x, f32 y);
+internal vec2_f32 add_2f32(vec2_f32 a, vec2_f32 b);
+internal vec2_f32 sub_2f32(vec2_f32 a, vec2_f32 b);
+internal vec2_f32 mul_2f32(vec2_f32 a, f32 b);
+internal vec2_f32 elmul_2f32(vec2_f32 a, vec2_f32 b);
+internal f32 dot_2f32(vec2_f32 a, vec2_f32 b);
+internal f32 length_2f32(vec2_f32 a);
+internal vec2_f32 normalize_2f32(vec2_f32 a);
+
 #define length2_2f32(a) dot_2f32(a,a)
-vec2_f32 normalize_2f32(vec2_f32 a);
 
 typedef union vec3_f32 vec3_f32;
 union vec3_f32 {
@@ -49,24 +50,25 @@ union vec3_f32 {
     f32 v[3];
 };
 
-vec3_f32 make_3f32(f32 x, f32 y, f32 z);
-vec3_f32 make_scale_3f32(f32 s);
-vec3_f32 make_up_3f32();
-vec3_f32 add_3f32(vec3_f32 a, vec3_f32 b);
-vec3_f32 sub_3f32(vec3_f32 a, vec3_f32 b);
-vec3_f32 mul_3f32(vec3_f32 a, f32 b);
-vec3_f32 elmul_3f32(vec3_f32 a, vec3_f32 b);
-vec3_f32 eldiv_3f32(vec3_f32 a, vec3_f32 b);
-f32 dot_3f32(vec3_f32 a, vec3_f32 b);
-f32 length_3f32(vec3_f32 a);
+internal vec3_f32 make_3f32(f32 x, f32 y, f32 z);
+internal vec3_f32 make_scale_3f32(f32 s);
+internal vec3_f32 make_up_3f32();
+internal vec3_f32 add_3f32(vec3_f32 a, vec3_f32 b);
+internal vec3_f32 sub_3f32(vec3_f32 a, vec3_f32 b);
+internal vec3_f32 mul_3f32(vec3_f32 a, f32 b);
+internal vec3_f32 elmul_3f32(vec3_f32 a, vec3_f32 b);
+internal vec3_f32 eldiv_3f32(vec3_f32 a, vec3_f32 b);
+internal f32      dot_3f32(vec3_f32 a, vec3_f32 b);
+internal f32      length_3f32(vec3_f32 a);
+internal vec3_f32 normalize_3f32(vec3_f32 a);
+internal vec3_f32 cross_3f32(vec3_f32 a, vec3_f32 b);
+internal vec3_f32 reflect_3f32(vec3_f32 i, vec3_f32 n);
+internal vec3_f32 lerp_3f32(vec3_f32 x, vec3_f32 y, f32 a);
+internal vec3_f32 max_3f32(vec3_f32 a, vec3_f32 b);
+internal vec3_f32 min_3f32(vec3_f32 a, vec3_f32 b);
+internal vec3_f32 addscl_3f32(vec3_f32 a, f32 b);
+
 #define length2_3f32(a) dot_3f32(a,a)
-vec3_f32 normalize_3f32(vec3_f32 a);
-vec3_f32 cross_3f32(vec3_f32 a, vec3_f32 b);
-vec3_f32 reflect_3f32(vec3_f32 i, vec3_f32 n);
-vec3_f32 lerp_3f32(vec3_f32 x, vec3_f32 y, f32 a);
-vec3_f32 max_3f32(vec3_f32 a, vec3_f32 b);
-vec3_f32 min_3f32(vec3_f32 a, vec3_f32 b);
-vec3_f32 addscl_3f32(vec3_f32 a, f32 b);
 
 typedef union vec4_f32 vec4_f32;
 union vec4_f32 {
@@ -98,23 +100,24 @@ union vec4_f32 {
     f32 v[4];
 };
 
-vec4_f32 make_angle_axis_quat(f64 t, vec3_f32 a);
-vec4_f32 make_axis_quat(vec3_f32 a);
-vec4_f32 make_identity_quat();
-vec4_f32 inv_quat(vec4_f32 q);
-vec3_f32 rot_quat(vec3_f32 a, vec4_f32 q);
-vec4_f32 mul_quat(vec4_f32 q1, vec4_f32 q2);
+internal vec4_f32 make_angle_axis_quat(f64 t, vec3_f32 a);
+internal vec4_f32 make_axis_quat(vec3_f32 a);
+internal vec4_f32 make_identity_quat();
+internal vec4_f32 inv_quat(vec4_f32 q);
+internal vec3_f32 rot_quat(vec3_f32 a, vec4_f32 q);
+internal vec4_f32 mul_quat(vec4_f32 q1, vec4_f32 q2);
 
-vec4_f32 make_4f32(f32 x, f32 y, f32 z, f32 w);
-vec4_f32 add_4f32(vec4_f32 a, vec4_f32 b);
-vec4_f32 sub_4f32(vec4_f32 a, vec4_f32 b);
-vec4_f32 mul_4f32(vec4_f32 a, f32 b);
-vec4_f32 elmul_4f32(vec4_f32 a, vec4_f32 b);
-vec4_f32 eldiv_4f32(vec4_f32 a, vec4_f32 b);
-f32 dot_4f32(vec4_f32 a, vec4_f32 b);
-f32 length_4f32(vec4_f32 a);
+internal vec4_f32 make_4f32(f32 x, f32 y, f32 z, f32 w);
+internal vec4_f32 add_4f32(vec4_f32 a, vec4_f32 b);
+internal vec4_f32 sub_4f32(vec4_f32 a, vec4_f32 b);
+internal vec4_f32 mul_4f32(vec4_f32 a, f32 b);
+internal vec4_f32 elmul_4f32(vec4_f32 a, vec4_f32 b);
+internal vec4_f32 eldiv_4f32(vec4_f32 a, vec4_f32 b);
+internal f32      dot_4f32(vec4_f32 a, vec4_f32 b);
+internal f32      length_4f32(vec4_f32 a);
+internal vec4_f32 normalize_4f32(vec4_f32 a);
+
 #define length2_4f32(a) dot_4f32(a,a)
-vec4_f32 normalize_4f32(vec4_f32 a);
 
 // @note all matrices are stored column major and multiplication with a column
 // vector to the right
@@ -128,17 +131,17 @@ union mat3x3_f32 {
     f32 v[3][3];
 };
 
-mat3x3_f32 make_diagonal_3x3f32(f32 d);
-mat3x3_f32 make_scale_3x3f32(vec3_f32 s);
-mat3x3_f32 make_rotate_3x3f32(vec4_f32 nq);
-mat3x3_f32 add_3x3f32(mat3x3_f32 a, mat3x3_f32 b);
-mat3x3_f32 sub_3x3f32(mat3x3_f32 a, mat3x3_f32 b);
-vec3_f32   mul_3x3f32(mat3x3_f32 a, vec3_f32 b);
-vec3_f32   mullhs_3x3f32(vec3_f32 a, mat3x3_f32 b);
-mat3x3_f32 matmul_3x3f32(mat3x3_f32 a, mat3x3_f32 b);
-mat3x3_f32 scale_3x3f32(mat3x3_f32 a, f32 b);
-mat3x3_f32 inv_3x3f32(mat3x3_f32 m);
-mat3x3_f32 transpose_3x3f32(mat3x3_f32 m);
+internal mat3x3_f32 make_diagonal_3x3f32(f32 d);
+internal mat3x3_f32 make_scale_3x3f32(vec3_f32 s);
+internal mat3x3_f32 make_rotate_3x3f32(vec4_f32 nq);
+internal mat3x3_f32 add_3x3f32(mat3x3_f32 a, mat3x3_f32 b);
+internal mat3x3_f32 sub_3x3f32(mat3x3_f32 a, mat3x3_f32 b);
+internal vec3_f32   mul_3x3f32(mat3x3_f32 a, vec3_f32 b);
+internal vec3_f32   mullhs_3x3f32(vec3_f32 a, mat3x3_f32 b);
+internal mat3x3_f32 matmul_3x3f32(mat3x3_f32 a, mat3x3_f32 b);
+internal mat3x3_f32 scale_3x3f32(mat3x3_f32 a, f32 b);
+internal mat3x3_f32 inv_3x3f32(mat3x3_f32 m);
+internal mat3x3_f32 transpose_3x3f32(mat3x3_f32 m);
 
 typedef union mat4x4_f32 mat4x4_f32;
 union mat4x4_f32 {
@@ -152,20 +155,20 @@ union mat4x4_f32 {
 };
 
 // @note assumes right handed coordinate system
-mat4x4_f32 make_diagonal_4x4f32(f32 d);
-mat4x4_f32 make_scale_4x4f32(vec3_f32 s);
-mat4x4_f32 make_translate_4x4f32(vec3_f32 t);
-mat4x4_f32 make_rotate_4x4f32(vec4_f32 nq);
-mat4x4_f32 make_perspective_4x4f32(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z);
-mat4x4_f32 make_look_at_4x4f32(vec3_f32 eye, vec3_f32 center, vec3_f32 up);
-mat4x4_f32 add_4x4f32(mat4x4_f32 a, mat4x4_f32 b);
-mat4x4_f32 sub_4x4f32(mat4x4_f32 a, mat4x4_f32 b);
-vec4_f32   mul_4x4f32(mat4x4_f32 a, vec4_f32 b);
-vec4_f32   mullhs_4x4f32(vec4_f32 a, mat4x4_f32 b);
-mat4x4_f32 matmul_4x4f32(mat4x4_f32 a, mat4x4_f32 b);
-mat4x4_f32 scale_4x4f32(mat4x4_f32 a, f32 b);
-mat4x4_f32 inv_4x4f32(mat4x4_f32 m);
-mat4x4_f32 transpose_4x4f32(mat4x4_f32 m);
+internal mat4x4_f32 make_diagonal_4x4f32(f32 d);
+internal mat4x4_f32 make_scale_4x4f32(vec3_f32 s);
+internal mat4x4_f32 make_translate_4x4f32(vec3_f32 t);
+internal mat4x4_f32 make_rotate_4x4f32(vec4_f32 nq);
+internal mat4x4_f32 make_perspective_4x4f32(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z);
+internal mat4x4_f32 make_look_at_4x4f32(vec3_f32 eye, vec3_f32 center, vec3_f32 up);
+internal mat4x4_f32 add_4x4f32(mat4x4_f32 a, mat4x4_f32 b);
+internal mat4x4_f32 sub_4x4f32(mat4x4_f32 a, mat4x4_f32 b);
+internal vec4_f32   mul_4x4f32(mat4x4_f32 a, vec4_f32 b);
+internal vec4_f32   mullhs_4x4f32(vec4_f32 a, mat4x4_f32 b);
+internal mat4x4_f32 matmul_4x4f32(mat4x4_f32 a, mat4x4_f32 b);
+internal mat4x4_f32 scale_4x4f32(mat4x4_f32 a, f32 b);
+internal mat4x4_f32 inv_4x4f32(mat4x4_f32 m);
+internal mat4x4_f32 transpose_4x4f32(mat4x4_f32 m);
 
 typedef union rect_f32 rect_f32;
 union rect_f32 {
@@ -176,7 +179,7 @@ union rect_f32 {
     vec2_f32 v[2];
 };
 
-rect_f32 make_rect_f32(vec2_f32 tl, vec2_f32 br);
+internal rect_f32 make_rect_f32(vec2_f32 tl, vec2_f32 br);
 
 #define PI               (3.1415926535897)
 #define EPSILON_F32      (1.1920929E-7f)
@@ -203,7 +206,7 @@ rect_f32 make_rect_f32(vec2_f32 tl, vec2_f32 br);
 #define sgn_f32(v)    (((v) < 0.f) ? -1.f : 1.f)
 #define rand_f32()    ((f32)rand()/(f32)RAND_MAX)
 
-f32 smoothstep_f32(f32 edge_0, f32 edge_1, f32 x);
+internal f32 smoothstep_f32(f32 edge_0, f32 edge_1, f32 x);
 
 #define sqrt_f64(v)   sqrt(v)
 #define cbrt_f64(v)   cbrt(v)
@@ -224,4 +227,4 @@ f32 smoothstep_f32(f32 edge_0, f32 edge_1, f32 x);
 #define sgn_f64(v)    (((v) < 0.) ? -1. : 1.)
 #define rand_f64()    ((f64)rand()/(f64)RAND_MAX)
 
-u64 hash_u64(u8* buffer, u64 size);
+internal u64 hash_u64(u8* buffer, u64 size);

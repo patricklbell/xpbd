@@ -1,4 +1,4 @@
-void r_ogl_os_init() {
+internal void r_ogl_os_init() {
     EmscriptenWebGLContextAttributes attributes;
     emscripten_webgl_init_context_attributes(&attributes);
     attributes.alpha = true;
@@ -20,26 +20,29 @@ void r_ogl_os_init() {
     Assert(res == EMSCRIPTEN_RESULT_SUCCESS);
 }
 
-void r_ogl_os_cleanup() {}
+internal void r_ogl_os_cleanup() {}
 
-void r_ogl_os_window_swap(OS_Handle window, R_Handle rwindow) {
+internal void r_ogl_os_window_swap(OS_Handle window, R_Handle rwindow) {
     Assert(window.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
     Assert(rwindow.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
 }
 
-R_Handle r_os_equip_window(OS_Handle window) {
+// 
+// OS hooks
+// 
+r_hook R_Handle r_os_equip_window(OS_Handle window) {
     Assert(window.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
     R_Handle handle = zero_struct;
     handle.v64[0] = OS_GFX_WASM_MAGIC_HANDLE;
     return handle;
 }
 
-void r_os_unequip_window(OS_Handle window, R_Handle rwindow) {
+r_hook void r_os_unequip_window(OS_Handle window, R_Handle rwindow) {
     Assert(window.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
     Assert(rwindow.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
 }
 
-void r_os_select_window(OS_Handle window, R_Handle rwindow) {
+r_hook void r_os_select_window(OS_Handle window, R_Handle rwindow) {
     Assert(window.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
     Assert(rwindow.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
 }

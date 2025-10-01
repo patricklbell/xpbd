@@ -35,22 +35,22 @@ struct Temp
     u64 offset;
 };
 
-static u64 arena_default_page_size = KB(1);
+global u64 arena_default_page_size = KB(1);
 
-Arena *arena_alloc_(ArenaParams params);
+internal Arena *arena_alloc_(ArenaParams params);
 #define arena_alloc()               arena_alloc_((ArenaParams){.page_size = arena_default_page_size, .optional_backing_buffer = NULL, .allocation_site_file = (char*)__FILE__, .allocation_site_line = __LINE__})
 #define arena_alloc_ps(ps)          arena_alloc_((ArenaParams){.page_size = ps, .optional_backing_buffer = NULL, .allocation_site_file = (char*)__FILE__, .allocation_site_line = __LINE__})
-void arena_release(Arena *arena);
+internal void arena_release(Arena *arena);
 
-void *arena_push(Arena *arena, u64 size, u64 align);
-u64   arena_offset(Arena *arena);
-void  arena_pop_to(Arena *arena, u64 offset);
-void  arena_pop(Arena *arena, u64 size);
+internal void *arena_push(Arena *arena, u64 size, u64 align);
+internal u64   arena_offset(Arena *arena);
+internal void  arena_pop_to(Arena *arena, u64 offset);
+internal void  arena_pop(Arena *arena, u64 size);
 
-void  arena_clear(Arena *arena);
+internal void  arena_clear(Arena *arena);
 
-Temp temp_begin(Arena *arena);
-void temp_end(Temp temp);
+internal Temp temp_begin(Arena *arena);
+internal void temp_end(Temp temp);
 
 // push helper macros
 #define push_array_no_zero_aligned(a, T, c, align)  (T*)arena_push((a), sizeof(T)*(c), (align))

@@ -33,13 +33,10 @@ struct EMCONTROLS_ThreadCtx {
     int count;
 };
 
-thread_static EMCONTROLS_ThreadCtx* emcontrols_ctx = NULL;
+global EMCONTROLS_ThreadCtx* emcontrols_ctx = NULL;
 
-void emcontrols_init(Arena* arena);
-void emcontrols_clear();
+internal void emcontrols_init(Arena* arena);
+internal void emcontrols_clear();
 
-int  emcontrols_add(EMCONTROLS_Control button);
-void emcontrols_update(int id, EMCONTROLS_Control button);
-
-// internal
-static void emcontrols_notify_update(void);
+internal int  emcontrols_add(EMCONTROLS_Control button);
+internal void emcontrols_update(int id, EMCONTROLS_Control button);

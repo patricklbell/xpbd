@@ -80,6 +80,11 @@ typedef double   f64;
 #define Max(A,B)     (((A)>(B))?(A):(B))
 #define Clamp(X,A,B) (((X)<(A))?(A):((X)>(B))?(B):(X))
 
+// codebase
+#define internal      static
+#define global        static
+#define local_persist static
+
 #if COMPILER_MSVC
     #define thread_static __declspec(thread)
 #elif COMPILER_CLANG
@@ -98,6 +103,32 @@ typedef double   f64;
     #define force_inline inline __attribute__((always_inline))
 #else
     #define force_inline
+#endif
+
+// linkage
+
+#if OS_WINDOWS
+    #define shared_function C_LINKAGE __declspec(dllexport)
+#else
+    #define shared_function C_LINKAGE
+#endif
+
+#if LANG_CPP
+    #define C_LINKAGE_BEGIN extern "C"{
+    #define C_LINKAGE_END }
+    #define C_LINKAGE extern "C"
+#else
+    #define C_LINKAGE_BEGIN
+    #define C_LINKAGE_END
+    #define C_LINKAGE
+#endif
+
+#if COMPILER_MSVC
+    #define no_inline __declspec(noinline)
+#elif COMPILER_CLANG || COMPILER_GCC
+    #define no_inline __attribute__((noinline))
+#else
+    #error no_inline not defined for this compiler.
 #endif
 
 #if COMPILER_CLANG
@@ -186,5 +217,5 @@ typedef double   f64;
 #define DeferResource(begin, end)       begin; for(int _i_ = 0; !_i_; _i_ += 1, (end))
 
 // bit bashing
-int count_ones_u64(u64 x);
-int first_set_bit_u64(u64 x);
+internal int count_ones_u64(u64 x);
+internal int first_set_bit_u64(u64 x);

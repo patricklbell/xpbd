@@ -1,4 +1,4 @@
-Arena* arena_alloc_(ArenaParams params) {
+internal Arena* arena_alloc_(ArenaParams params) {
   u64 page_size = params.page_size;
   
   // allocate initial block
@@ -22,7 +22,7 @@ Arena* arena_alloc_(ArenaParams params) {
   return arena;
 }
 
-void arena_release(Arena* arena) {
+internal void arena_release(Arena* arena) {
     // @note assumes free pages are only marked on bottom
     for (Arena *x = arena->free_stack, *prev = NULL; x != NULL && x != arena; x = prev) {
         prev = x->prev;
@@ -35,7 +35,7 @@ void arena_release(Arena* arena) {
     }
 }
 
-void* arena_push(Arena* arena, u64 size, u64 align) {
+internal void* arena_push(Arena* arena, u64 size, u64 align) {
     Arena* current = arena->current;
     u64 page_offset_before = AlignPow2(current->page_offset, align);
     u64 page_offset_after = page_offset_before + size;
@@ -80,11 +80,11 @@ void* arena_push(Arena* arena, u64 size, u64 align) {
     return (u8*)current + page_offset_before;
 }
 
-u64 arena_offset(Arena *arena) {
+internal u64 arena_offset(Arena *arena) {
     return arena->current->base_offset + arena->current->page_offset;
 }
 
-void arena_pop_to(Arena* arena, u64 offset) {
+internal void arena_pop_to(Arena* arena, u64 offset) {
     Arena* current = arena->current;
 
     // free pages if needed @note assumes free pages are only marked on bottom
@@ -99,13 +99,13 @@ void arena_pop_to(Arena* arena, u64 offset) {
     current->page_offset = Max(offset - current->base_offset, ARENA_HEADER_SIZE);
 }
 
-void arena_pop(Arena* arena, u64 size) {
+internal void arena_pop(Arena* arena, u64 size) {
     // @todo consider page header sizes + alignment? currently this is not 
     // guaranteed to reverse a push of the same size
     arena_pop_to(arena, arena_offset(arena) - size);
 }
 
-void arena_clear(Arena* arena) {
+internal void arena_clear(Arena* arena) {
     arena->page_offset = ARENA_HEADER_SIZE;
     // memset((u8*)arena + ARENA_HEADER_SIZE, 0, arena->page_size - ARENA_HEADER_SIZE);
 
@@ -117,13 +117,13 @@ void arena_clear(Arena* arena) {
 }
 
 // temporary arena scopes
-Temp temp_begin(Arena* arena) {
+internal Temp temp_begin(Arena* arena) {
     return (Temp) {
         .arena = arena,
         .offset = arena_offset(arena),
     };
 }
 
-void temp_end(Temp temp) {
+internal void temp_end(Temp temp) {
     arena_pop_to(temp.arena, temp.offset);
 }

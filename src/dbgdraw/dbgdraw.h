@@ -31,8 +31,8 @@ struct DBGDRAW_ThreadCtx {
 
 thread_static DBGDRAW_ThreadCtx* dbgdraw_thread_ctx = NULL;
 
-void dbgdraw_clear();
-void dbgdraw_draw();
+internal void dbgdraw_clear();
+internal void dbgdraw_draw();
 
-void dbgdraw_edge_batch(vec3_f32* vertices, vec3_f32* colors, u32 count);
-void dbgdraw_point_batch(vec3_f32* points, vec3_f32* colors, vec2_f32* radii, u32 count);
+internal void dbgdraw_edge_batch(vec3_f32* vertices, vec3_f32* colors, u32 count);
+internal void dbgdraw_point_batch(vec3_f32* points, vec3_f32* colors, vec2_f32* radii, u32 count);

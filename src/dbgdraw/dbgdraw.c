@@ -1,4 +1,4 @@
-void dbgdraw_clear() {
+internal void dbgdraw_clear() {
     Arena* arena;
     if (dbgdraw_thread_ctx == NULL) {
         arena = arena_alloc();
@@ -13,7 +13,7 @@ void dbgdraw_clear() {
     }
 }
 
-static void dbgdraw_load_into_rbuffer(R_Handle* buffer, u32* buffer_size, u32 size, void* data) {
+internal void dbgdraw_load_into_rbuffer(R_Handle* buffer, u32* buffer_size, u32 size, void* data) {
     if (*buffer_size < size) {
         if (!r_is_zero_handle(*buffer)) {
             r_buffer_release(buffer); // @todo resize?
@@ -25,7 +25,7 @@ static void dbgdraw_load_into_rbuffer(R_Handle* buffer, u32* buffer_size, u32 si
     }
 }
 
-void dbgdraw_draw() {
+internal void dbgdraw_draw() {
     if (dbgdraw_thread_ctx->edges.total_count) {
         // convert edges into flat vertex array
         R_VertexFlag edge_flags = R_VertexFlag_PC;
@@ -84,7 +84,7 @@ void dbgdraw_draw() {
     }
 }
 
-void dbgdraw_edge_batch(vec3_f32* vertices, vec3_f32* colors, u32 count) {
+internal void dbgdraw_edge_batch(vec3_f32* vertices, vec3_f32* colors, u32 count) {
     DBGDRAW_BatchNode* n = dbgdraw_thread_ctx->edges.last;
 
     if (n == NULL || n->count + count > ArrayLength(n->vertices)) {
@@ -98,7 +98,7 @@ void dbgdraw_edge_batch(vec3_f32* vertices, vec3_f32* colors, u32 count) {
     n->count+=count;
     dbgdraw_thread_ctx->edges.total_count+=count; 
 }
-void dbgdraw_point_batch(vec3_f32* points, vec3_f32* colors, vec2_f32* radii, u32 count) {
+internal void dbgdraw_point_batch(vec3_f32* points, vec3_f32* colors, vec2_f32* radii, u32 count) {
     DBGDRAW_BatchNode* n = dbgdraw_thread_ctx->points.last;
 
     if (n == NULL || n->count + count > ArrayLength(n->vertices)) {

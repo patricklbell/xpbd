@@ -1,14 +1,14 @@
-#include "../demos_main.h"
-#include "../demos_main.c"
+#include "demos/demos_main.h"
+#include "demos/demos_main.c"
 
-typedef struct HangingBox HangingBox;
-struct HangingBox {
+typedef struct DEMO_HangingBox DEMO_HangingBox;
+struct DEMO_HangingBox {
     PHYS_RigidBody rigid_body;
     vec3_f32 extents;
 };
 
-typedef struct HangingBoxesState HangingBoxesState;
-struct HangingBoxesState {
+typedef struct DEMO_HangingBoxesState DEMO_HangingBoxesState;
+struct DEMO_HangingBoxesState {
     Arena* state_arena;
     R_Handle cube_vertices;
     R_Handle cube_indices;
@@ -17,13 +17,17 @@ struct HangingBoxesState {
 
     PHYS_body_id anchor_id;
     PHYS_constraint_id anchor_to_box1;
-    HangingBox box1;
+    DEMO_HangingBox box1;
     PHYS_constraint_id box1_to_box2;
-    HangingBox box2;
+    DEMO_HangingBox box2;
 };
-static HangingBoxesState s;
 
-int demos_init_hook(DEMOS_CommonState* cs) {
+global DEMO_HangingBoxesState s;
+
+// 
+// initialization/cleanup
+// 
+demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
     phys_dbg_d_ctx->color_mode = PHYS_DBG_DrawColorMode_Force;
     phys_dbg_d_ctx->do_constraints = true;
     phys_dbg_d_ctx->do_colliders = true;
@@ -46,9 +50,9 @@ int demos_init_hook(DEMOS_CommonState* cs) {
     s.state_arena = arena_alloc();
     return 0;
 }
-void demos_cleanup_hook(DEMOS_CommonState* cs) {}
+demos_hook void demos_cleanup_hook(DEMOS_CommonState* cs) {}
 
-void demos_world_start_hook(PHYS_World* w) {
+demos_hook void demos_world_start_hook(PHYS_World* w) {
     s.anchor_id = phys_world_add_body(w, (PHYS_Body){
         .position = make_3f32(0,0,0),
         .inv_mass = 0.f,
@@ -57,7 +61,6 @@ void demos_world_start_hook(PHYS_World* w) {
 
     s.box1.extents = make_3f32(1,1,1);
     PHYS_Box_Settings box1_settings = {
-        .arena = s.state_arena,
         .mass = 1,
         .center = make_3f32(0,-4,0),
         .extents = s.box1.extents,
@@ -77,7 +80,6 @@ void demos_world_start_hook(PHYS_World* w) {
 
     s.box2.extents = make_3f32(2,2,2);
     PHYS_Box_Settings box2_settings = {
-        .arena = s.state_arena,
         .mass = 10,
         .center = make_3f32(0,-15,0),
         .extents = s.box2.extents,
@@ -96,30 +98,23 @@ void demos_world_start_hook(PHYS_World* w) {
             .offset2 = make_3f32(0,2,0),
         }
     });
-
-    // s.box3.extents = make_3f32(10,1,10);
-    // PHYS_Box_Settings box3_settings = {
-    //     .arena = s.state_arena,
-    //     .center = make_3f32(0,-20,0),
-    //     .extents = s.box3.extents,
-    //     .mass = 0,
-    //     .no_gravity = true,
-    // };
-    // s.box3.rigid_body = phys_world_add_box(w, box3_settings);
 }
-void demos_world_end_hook(PHYS_World* w) {
+demos_hook void demos_world_end_hook(PHYS_World* w) {
     arena_clear(s.state_arena);
 }
 
-static void d_hanging_box(PHYS_World* w, HangingBox* hanging_box);
+// 
+// per-frame
+// 
+internal void d_hanging_box(PHYS_World* w, DEMO_HangingBox* hanging_box);
 
-void demos_frame_hook(DEMOS_CommonState* cs) {
+demos_hook void demos_frame_hook(DEMOS_CommonState* cs) {
     d_hanging_box(cs->w, &s.box1);
     d_hanging_box(cs->w, &s.box2);
 }
 
 // helpers
-static void d_hanging_box(PHYS_World* w, HangingBox* hanging_box) {
+internal void d_hanging_box(PHYS_World* w, DEMO_HangingBox* hanging_box) {
     PHYS_Body* body = phys_world_resolve_body(w, hanging_box->rigid_body.body_id);
 
     mat4x4_f32 t = matmul_4x4f32(matmul_4x4f32(

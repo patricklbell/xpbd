@@ -20,6 +20,8 @@
 #include "demos_helpers.h"
 #include "demos_main.h"
 
+#define demos_hook internal
+
 typedef struct DEMOS_CommonState DEMOS_CommonState;
 struct DEMOS_CommonState {
     Arena* arena;
@@ -40,16 +42,16 @@ struct DEMOS_CommonState {
 };
 
 // hooks implemented by each demo
-int  demos_init_hook(DEMOS_CommonState*);
-void demos_world_start_hook(PHYS_World*);
-void demos_frame_hook(DEMOS_CommonState*);
-void demos_world_end_hook(PHYS_World*);
-void demos_cleanup_hook(DEMOS_CommonState*);
+demos_hook int  demos_init_hook(DEMOS_CommonState*);
+demos_hook void demos_world_start_hook(PHYS_World*);
+demos_hook void demos_frame_hook(DEMOS_CommonState*);
+demos_hook void demos_world_end_hook(PHYS_World*);
+demos_hook void demos_cleanup_hook(DEMOS_CommonState*);
 
 // wrappers
-void demos_world_start_wrapper(DEMOS_CommonState*);
-void demos_world_end_wrapper(DEMOS_CommonState*);
+internal void demos_world_start_wrapper(DEMOS_CommonState*);
+internal void demos_world_end_wrapper(DEMOS_CommonState*);
 
 // emcontrol callbacks
-static void on_demo_button(void* data);
-static void on_slider_gravity(f32 value, void* data);
+no_inline internal void demos_on_demo_button(void* data);
+no_inline internal void demos_on_slider_gravity(f32 value, void* data);

@@ -1,9 +1,3 @@
-static void phys_manifold_add_contact_pair(PHYS_ContactPairs* pairs, vec3_f32 p1, vec3_f32 p2) {
-    pairs->bodies[0][pairs->count] = p1;
-    pairs->bodies[1][pairs->count] = p2;
-    pairs->count++;
-}
-
 // clipping method between faces using Sutherland-Hodgman clipping.
 // See https://research.ncl.ac.uk/game/mastersdegree/gametechnologies/previousinformation/physics5collisionmanifolds/
 // 
@@ -11,7 +5,7 @@ static void phys_manifold_add_contact_pair(PHYS_ContactPairs* pairs, vec3_f32 p1
 // that the penetration axis is relative to collider 1. The faces should also be
 // chosen should containt the vertex furthest along the penetration axis and be
 // best aligned with the penetration axis.
-PHYS_ContactPairs phys_manifold_between_faces(vec3_f32 penetration_axis, f32 max_penetration, GEO_Polygon* face1, GEO_Polygon* face2) {
+internal PHYS_ContactPairs phys_manifold_between_faces(vec3_f32 penetration_axis, f32 max_penetration, GEO_Polygon* face1, GEO_Polygon* face2) {
     PHYS_ContactPairs pairs = {.count=0};
 
     if (face1->topology == GEO_Topology_Point) {
@@ -98,4 +92,10 @@ PHYS_ContactPairs phys_manifold_between_faces(vec3_f32 penetration_axis, f32 max
     }
 
     return pairs;
+}
+
+internal void phys_manifold_add_contact_pair(PHYS_ContactPairs* pairs, vec3_f32 p1, vec3_f32 p2) {
+    pairs->bodies[0][pairs->count] = p1;
+    pairs->bodies[1][pairs->count] = p2;
+    pairs->count++;
 }

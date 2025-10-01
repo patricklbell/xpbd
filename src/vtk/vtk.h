@@ -39,4 +39,4 @@ struct VTK_LoadResult {
 typedef struct VTK_LoadSettings VTK_LoadSettings;
 struct VTK_LoadSettings {};
 
-VTK_LoadResult vtk_load(Arena* arena, NTString8 path, VTK_LoadSettings settings);
+internal VTK_LoadResult vtk_load(Arena* arena, NTString8 path, VTK_LoadSettings settings);

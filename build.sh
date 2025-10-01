@@ -39,12 +39,13 @@ build_demo() {
 
 # Function to clean build directory
 clean() {
+    echo "cleaning ${BUILD_DIR} and docs/demos"
     rm -rf "${BUILD_DIR}"/*
     rm -rf docs/demos
 }
 
 # Function to build all demos
-build_demos() {
+build_demo_wrapper() {
     declare -A dependencies=(
         [balls]="sphere.obj cube.obj"
         [hanging_boxes]="cube.obj"
@@ -64,7 +65,7 @@ build_demos() {
 }
 
 # Emscripten configuration
-build_emcc() {
+build_demo_emcc() {
     CC="emcc"
     LDFLAGS="${LDFLAGS} -sINITIAL_MEMORY=1024mb -sALLOW_MEMORY_GROWTH -sTOTAL_STACK=512mb"
     LDFLAGS="${LDFLAGS} -sFETCH"
@@ -75,40 +76,33 @@ build_emcc() {
     BUILD_EXT=".html"
     CFLAGS="${CFLAGS} --shell-file docs/emcc-template.html --pre-js docs/emcc-pre.js"
     
-    build_demos $1
+    build_demo_wrapper $1
 }
 
-# Main command handling
-# Filter flags
-filtered_main_args=()
+# Lib configuration
+build_libphys() {
+    LIB_NAME="lib-xpbd.so"
+    build_command="${CC} -fPIC -Wl,-soname,${LIB_NAME} -shared ${CFLAGS} src/libphys/libphys.c ${LDFLAGS} -o ${BUILD_DIR}/${LIB_NAME}"
+    echo ${build_command}
+    eval ${build_command}
+}
 
-RELEASE=0
+
+# Filter flags
+actions=()
 for arg in "$@"; do
-    case "$arg" in
-        --release)
-            RELEASE=1
-            ;;
-        *)
-            filtered_main_args+=("$arg")
-            ;;
+    case "$arg" in --release)   release=1;;
+    *)                          actions+=("$arg");;
     esac
 done
 
-# handle flags
-if [[ $RELEASE -eq 1 ]]; then
-    CFLAGS="${CFLAGS} -O3"
-else
-    CFLAGS="${CFLAGS} -g -O0"
-fi
+# Handle flags
+if [[ -v $release ]];       then echo "[release mode]"; CFLAGS="${CFLAGS} -O3"; fi
+if [[ ! -v $release ]];     then echo "[debug mode]"; CFLAGS="${CFLAGS} -g -O0"; fi
 
-case "${filtered_main_args[0]}" in
-    clean)
-        clean
-        ;;
-    emcc)
-        build_emcc "${filtered_main_args[@]:1}"
-        ;;
-    *)
-        build_demos "${filtered_main_args[@]}"
-        ;;
+case "${actions[0]}" in
+    clean)  clean;;
+    lib)    build_libphys;;
+    demo)   build_demo_wrapper "${actions[@]:1}";;
+    emcc)   build_demo_emcc "${actions[@]:1}";;
 esac
