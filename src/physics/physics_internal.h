@@ -16,73 +16,41 @@ struct PHYS_CollisionSubstepRecordNode {
 
 static void phys_world_add_collision_record(PHYS_World* w, PHYS_CollisionSubstepRecord info);
 
-typedef union PHYS_ConstraintNodeValue {
-    PHYS_Constraint constraint;
-    PHYS_DependentConstraint dependent_constraint;
-} PHYS_ConstraintNodeValue;
-
-typedef struct PHYS_ConstraintNode PHYS_ConstraintNode;
-struct PHYS_ConstraintNode {
-    PHYS_ConstraintNode* prev;
-    PHYS_ConstraintNode* next;
-    PHYS_ConstraintNodeValue v;
-    PHYS_constraint_id id;
+typedef struct PHYS_U32Node PHYS_U32Node;
+struct PHYS_U32Node {
+    PHYS_U32Node* next;
+    u32 v;
 };
 
-typedef struct PHYS_ConstraintList PHYS_ConstraintList;
-struct PHYS_ConstraintList {
-    PHYS_ConstraintNode* first;
-    PHYS_ConstraintNode* last;
-};
+typedef union PHYS_pooled_array_id {
+    struct {
+        u32 idx;
+        s32 version;
+    };
+    u64 v;
+} PHYS_pooled_array_id;
 
-#define PHYS_CONSTRAINT_MAP_DEFAULT_SLOTS_COUNT 16
-#define PHYS_DEPENDENT_CONSTRAINT_MAP_DEFAULT_SLOTS_COUNT 8
-typedef struct PHYS_ConstraintMap PHYS_ConstraintMap;
-struct PHYS_ConstraintMap {
-    PHYS_ConstraintList* slots;
-    u32 slots_count;
-    u32 max_idx;
-    PHYS_ConstraintNode* free_chain;
+typedef struct PHYS_PooledArray PHYS_PooledArray;
+struct PHYS_PooledArray {
+    void* v;
+    s32* versions;
     u32 length;
+    u32 capacity;
+    u32 growth;
+    u32 item_size;
+    Arena* free_arena;
+    PHYS_U32Node* free;
 };
 
-internal PHYS_constraint_id phys_constraint_map_add_value(PHYS_ConstraintMap* map, Arena* arena, PHYS_ConstraintNodeValue v);
-internal PHYS_ConstraintNode* phys_constraint_map_get_node(PHYS_ConstraintMap* map, u32 i);
-internal PHYS_ConstraintNodeValue* phys_constraint_map_get_value(PHYS_ConstraintMap* map, PHYS_constraint_id id);
-internal void phys_constraint_map_delete(PHYS_ConstraintMap* map, PHYS_constraint_id id);
+internal void phys_pooled_array_alloc(PHYS_PooledArray* pa, u32 item_size, u32 growth, u32 inital_capacity);
+internal void phys_pooled_array_release(PHYS_PooledArray* pa);
+internal void phys_pooled_array_adjust_allocation(PHYS_PooledArray* pa);
+internal PHYS_pooled_array_id phys_pooled_array_add(PHYS_PooledArray* pa);
+internal void phys_pooled_array_remove(PHYS_PooledArray* pa, PHYS_pooled_array_id id);
 
-typedef struct PHYS_ColliderNode PHYS_ColliderNode;
-struct PHYS_ColliderNode {
-    PHYS_ColliderNode* next;
-    PHYS_ColliderNode* prev;
-    PHYS_Collider v;
-    PHYS_collider_id id;
-};
-
-typedef struct PHYS_ColliderList PHYS_ColliderList;
-struct PHYS_ColliderList {
-    PHYS_ColliderNode* first;
-    PHYS_ColliderNode* last;
-};
-
-#define PHYS_COLLIDER_MAP_DEFAULT_SLOTS_COUNT 64
-typedef struct PHYS_ColliderMap PHYS_ColliderMap;
-struct PHYS_ColliderMap {
-    PHYS_ColliderList* slots;
-    u32 slots_count;
-    u32 max_idx;
-    PHYS_ColliderNode* free_chain;
-    u32 length;
-};
-
-#define PHYS_BODY_DYNAMIC_ARRAY_INITIAL_CAPACITY 16
-#define PHYS_BODY_DYNAMIC_ARRAY_GROWTH 2
-typedef struct PHYS_BodyDynamicArray PHYS_BodyDynamicArray;
-struct PHYS_BodyDynamicArray {
-    PHYS_Body* v;
-    PHYS_body_id length;
-    PHYS_body_id capacity;
-};
+#define PHYS_EachPA(array) (u32 idx = 0; idx < array.length; idx++) 
+#define PHYS_EachPADef(array, obj_type, name)               if (array.versions[idx] < 0) {continue;} obj_type* name = &((obj_type*)array.v)[idx];
+#define PHYS_EachPADefId(array, obj_type, id_type, name)    PHYS_EachPADef(array, obj_type, name); id_type name##_id = {.idx=idx, .version=(u32)array.versions[idx]};
 
 typedef struct PHYS_CachedHashgridInfo PHYS_CachedHashgridInfo;
 struct PHYS_CachedHashgridInfo {
@@ -106,18 +74,23 @@ struct PHYS_World {
     u64 substeps;    
     f32 little_g;
 
+    // @todo
+    b32 enable_particle_ground_plane;
+    f32 particle_ground_plane_height;
+
     PHYS_CoefficientCalculation restitution_calculation;
     PHYS_CoefficientCalculation static_friction_calculation;
     PHYS_CoefficientCalculation dynamic_friction_calculation;
 
     f32 min_r;
-    f32 hashgrid_cell_r;
-    f32 hashgrid_obj_r;
+    f32 min_v_mult;
+    f32 hashgrid_cell_size;
+    f32 hashgrid_obj_size;
 
-    PHYS_ColliderMap colliders;
-    PHYS_ConstraintMap constraints;
-    PHYS_ConstraintMap dependent_constraints;
-    PHYS_BodyDynamicArray bodies;
+    PHYS_PooledArray bodies;
+    PHYS_PooledArray colliders;
+    PHYS_PooledArray constraints;
+    PHYS_PooledArray dependent_constraints;
 
     // per step
     HG_Hashgrid hashgrid;

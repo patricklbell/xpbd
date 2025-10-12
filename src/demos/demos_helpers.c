@@ -134,8 +134,8 @@ internal b32 demos_controls_phys_drag(PHYS_World* w, OS_Handle window, DEMOS_Cam
 
                 if (closest_node != NULL) {
                     vec3_f32 hit_world = add_3f32(o, mul_3f32(d, closest_node->data.contact));
-                    PHYS_Collider* hit_collider = phys_world_resolve_collider(w, closest_node->id);
-                    PHYS_Body* hit_body = phys_world_resolve_body(w, hit_collider->base.p);
+                    PHYS_Collider* hit_collider = phys_world_resolve_collider_unchecked(w, closest_node->id);
+                    PHYS_Body* hit_body = phys_world_resolve_body_unchecked(w, hit_collider->base.p);
 
                     state->drag_active = true;
                     state->drag_plane_normal = d;
@@ -169,7 +169,7 @@ internal b32 demos_controls_phys_drag(PHYS_World* w, OS_Handle window, DEMOS_Cam
         vec3_f32 o = camera->eye;
         vec3_f32 d = demos_controls_get_mouse_ray(camera, window);
 
-        PHYS_Body* pin = phys_world_resolve_body(w, state->pin);
+        PHYS_Body* pin = phys_world_resolve_body_unchecked(w, state->pin);
 
         f32 t;
         if (phys_raycast_plane(o, d, pin->position, state->drag_plane_normal, &t)) {
@@ -181,9 +181,10 @@ internal b32 demos_controls_phys_drag(PHYS_World* w, OS_Handle window, DEMOS_Cam
 }
 
 // rendering
-internal R_PassParams_3D* demos_d_begin_3d_pass_camera(OS_Handle window, DEMOS_Camera* camera, b32 debug) {
+internal R_PassParams_3D* demos_d_begin_3d_pass_camera(OS_Handle window, DEMOS_Camera* camera, b32 debug, b32 back_face) {
     vec2_f32 window_size = os_gfx_window_size(window);
     rect_f32 viewport = make_rect_f32((vec2_f32){}, window_size);
     demos_camera_resize_window(camera, window_size); // @todo event
-    return d_make_3d_pass(viewport, camera->view, camera->projection, debug);   
+
+    return d_make_3d_pass(viewport, camera->view, camera->projection, /*debug*/ debug, /*back_face*/ back_face);
 }

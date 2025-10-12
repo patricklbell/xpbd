@@ -66,7 +66,6 @@ demos_hook void demos_cleanup_hook(DEMOS_CommonState* cs) {}
 demos_hook void demos_world_start_hook(PHYS_World* w) {
     w->restitution_calculation = PHYS_CoefficientCalculation_Max;
     w->dynamic_friction_calculation = PHYS_CoefficientCalculation_Max;
-    w->little_g = -0.1f;
     
     srand(31415);
 
@@ -86,20 +85,24 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
         PHYS_body_id center_id;
         if (i % 2 == 0) {
             PHYS_Ball_Settings settings = {
-                .radius=radius,
-                .mass=radius*radius*radius*(3.f/4.f)*PI*density,
-                .resitution = resitution,
+                .mass=radius*radius*radius*(3.f/4.f)*(f32)PI*density,
                 .center=ball_center,
+
+                .radius=radius,
                 .can_rotate=true,
+
+                .resitution=resitution,
             };
             center_id = phys_world_add_ball(w, settings).body_id;
         } else {
             radius *= 0.8;
             PHYS_Box_Settings settings = {
+                .mass=radius*radius*radius*density,
                 .center=ball_center,
                 .rotation=normalize_4f32(make_axis_quat(make_3f32(1.f-2.f*rand_f32(), 1.f-2.f*rand_f32(), 1.f-2.f*rand_f32()))),
+
                 .extents=make_3f32(radius,radius,radius),
-                .mass=radius*radius*radius*density,
+
                 .resitution=resitution,
             };
             center_id = phys_world_add_box(w, settings).body_id;
@@ -107,9 +110,9 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
 
         s.balls[idx] = (DEMO_Ball){
             .is_cube = i % 2 != 0,
-            .center_id = center_id,
-            .color = hsl_to_rgb(make_3f32(resitution,1.0,1.0)),
             .radius = radius,
+            .color = hsl_to_rgb(make_3f32(resitution,1.0,1.0)),
+            .center_id = center_id,
         };
     }
     phys_world_add_box_boundary(w, (PHYS_BoxBoundary_Settings){
@@ -134,7 +137,7 @@ demos_hook void demos_frame_hook(DEMOS_CommonState* cs) {
 
 // helpers
 internal void d_ball(PHYS_World* w, DEMO_Ball* ball) {
-    PHYS_Body* center = phys_world_resolve_body(w, ball->center_id);
+    PHYS_Body* center = phys_world_resolve_body_unchecked(w, ball->center_id);
 
     mat4x4_f32 t = matmul_4x4f32(matmul_4x4f32(
         make_translate_4x4f32(center->position),

@@ -79,7 +79,7 @@ int main() {
     os_gfx_cleanup();
 }
 
-internal void window_event_loop(void* data) {
+internal void window_event_loop(void* data) {ZoneScoped;
     DEMOS_CommonState* cs = (DEMOS_CommonState*)data;
     f64 ntime = os_now_seconds();
     f64 dt = ntime - cs->time;
@@ -88,7 +88,7 @@ internal void window_event_loop(void* data) {
 
     input_update(&cs->events);
 
-    if (!demos_controls_phys_drag(cs->w, cs->window, &cs->camera, /*compliance*/ 0.001)) {
+    if (cs->is_paused || !demos_controls_phys_drag(cs->w, cs->window, &cs->camera, /*compliance*/ 0.001)) {
         demos_controls_camera_orbit(cs->window, dt, &cs->camera);
     }
     if (cs->should_reset || input_is_key_pressed(OS_Key_r)) {
@@ -116,16 +116,16 @@ internal void window_event_loop(void* data) {
 
     DeferCall(r_window_begin_frame(cs->window, cs->rwindow), r_window_end_frame(cs->window, cs->rwindow)) {
         DeferCall(d_begin_pipeline(), d_submit_pipeline(cs->window, cs->rwindow)) {
-            demos_d_begin_3d_pass_camera(cs->window, &cs->camera, /*debug*/ false);
+            demos_d_begin_3d_pass_camera(cs->window, &cs->camera, /*debug*/ false, /*back_face*/ false);
             if (!cs->dont_show_frame)
-                demos_frame_hook(cs);
+                demos_frame_hook_wrapper(cs);
                 
             if (!cs->is_paused || single_step) {
                 dbgdraw_clear();
                 phys_world_step(cs->w, pdt);
             }
             if (cs->show_debug) {
-                demos_d_begin_3d_pass_camera(cs->window, &cs->camera, /*debug*/ true);
+                demos_d_begin_3d_pass_camera(cs->window, &cs->camera, /*debug*/ true, /*back_face*/ false);
                 dbgdraw_draw();
             }
         }
@@ -143,6 +143,9 @@ internal void demos_world_start_wrapper(DEMOS_CommonState* cs) {
 internal void demos_world_end_wrapper(DEMOS_CommonState* cs) {
     demos_world_end_hook(cs->w);
     phys_world_cleanup(cs->w);
+}
+internal force_inline void demos_frame_hook_wrapper(DEMOS_CommonState* cs) {
+    demos_frame_hook(cs);
 }
 
 // emcontrol callbacks

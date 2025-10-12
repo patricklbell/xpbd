@@ -10,8 +10,8 @@ internal b32 geo_hash_is_eq(GEO_EdgeMapHash a, GEO_EdgeMapHash b) {
 internal GEO_EdgeMap geo_make_edge_map(Arena* arena, u64 slots_count) {
     return (GEO_EdgeMap) {
         .arena = arena,
-        .slots_count = slots_count,
         .slots = push_array(arena, GEO_EdgeMapNode*, slots_count),
+        .slots_count = slots_count,
         .edge_count = 0,
     };
 }
@@ -197,7 +197,7 @@ internal void geo_calculate_smooth_normals(
             // @todo check validity
             f32 a1 = acos_f32(Clamp(dot_3f32(u, v), -1.f, 1.f));
             f32 a3 = acos_f32(Clamp(dot_3f32(v, x), -1.f, 1.f));
-            f32 a2 = PI - a1 - a2;
+            f32 a2 = PI - a1 - a3;
     
             vec3_f32* n1 = OffsetPtr(out_n, i1*in_n_stride, vec3_f32);
             vec3_f32* n2 = OffsetPtr(out_n, i2*in_n_stride, vec3_f32);
@@ -242,11 +242,48 @@ internal void geo_triangulate(
         }
     }
 }
+internal void geo_triangulate_quad(
+    Arena* arena, b32 cw,
+    u32 x, u32 y,
+    u32** out_indices, u32* out_indices_count
+) {
+    Assert(x > 0 && y > 0);
+    *out_indices_count = 2*(x-1)*(y-1)*GEO_Topology_Triangle;
+    *out_indices = push_array(arena, u32, *out_indices_count);
+
+    u32 i = 0;
+    for EachIndex(xi, x-1) {
+        for EachIndex(yi, y-1) {
+            u32 i0 = y*(xi  ) + yi;
+            u32 i1 = y*(xi+1) + yi;
+            u32 i2 = y*(xi+1) + yi+1;
+            u32 i3 = y*(xi  ) + yi+1;
+
+            if (cw) {
+                (*out_indices)[i++] = i0;
+                (*out_indices)[i++] = i3;
+                (*out_indices)[i++] = i2;
+
+                (*out_indices)[i++] = i2;
+                (*out_indices)[i++] = i1;
+                (*out_indices)[i++] = i0;
+            } else {
+                (*out_indices)[i++] = i0;
+                (*out_indices)[i++] = i1;
+                (*out_indices)[i++] = i2;
+
+                (*out_indices)[i++] = i2;
+                (*out_indices)[i++] = i3;
+                (*out_indices)[i++] = i0;
+            }
+        }
+    }
+}
 
 // clip polygon to lie inside positive halfspace of plane
 internal GEO_Polygon geo_clip_polygon_against_plane(GEO_Polygon* in_to_clip, vec3_f32 in_origin, vec3_f32 in_normal) {
     Assert(in_to_clip->topology >= GEO_Topology_Edge);
-    GEO_Polygon clipped = {0};
+    GEO_Polygon clipped = zero_struct;
 
     vec3_f32 prev_v = in_to_clip->data[in_to_clip->topology - 1];
     f32 prev_num = dot_3f32(sub_3f32(in_origin, prev_v), in_normal);
@@ -265,14 +302,17 @@ internal GEO_Polygon geo_clip_polygon_against_plane(GEO_Polygon* in_to_clip, vec
             f32 denom = dot_3f32(d, in_normal);
             if (denom != 0.f) {
                 f32 t = prev_num / denom;
-                clipped.data[clipped.topology++] = add_3f32(prev_v, mul_3f32(d, t));
+                clipped.data[clipped.topology] = add_3f32(prev_v, mul_3f32(d, t));
+                clipped.topology = IntToEnum(GEO_Topology, clipped.topology+1);
             } else {
                 cur_inside = prev_inside; // segment is parallel, no transition could have occurred
             }
         }
 
-        if (cur_inside)
-            clipped.data[clipped.topology++] = cur_v;
+        if (cur_inside) {
+            clipped.data[clipped.topology] = cur_v;
+            clipped.topology = IntToEnum(GEO_Topology, clipped.topology+1);
+        }
 
         prev_v = cur_v; prev_num = cur_num; prev_inside = cur_inside;
     }
@@ -283,7 +323,7 @@ internal GEO_Polygon geo_clip_polygon_against_plane(GEO_Polygon* in_to_clip, vec
 
 // clip a polygon against each of edge planes of another polygon, tangent to the normal
 internal GEO_Polygon geo_clip_polygon_against_polygon(GEO_Polygon* in_to_clip, GEO_Polygon* in_clip, vec3_f32 in_normal) {
-    GEO_Polygon ping_pong[2] = {0};
+    GEO_Polygon ping_pong[2] = zero_struct;
     u32 src_idx = 0;
     ping_pong[src_idx] = *in_to_clip;
 
@@ -294,8 +334,10 @@ internal GEO_Polygon geo_clip_polygon_against_polygon(GEO_Polygon* in_to_clip, G
         ping_pong[src_idx^1] = geo_clip_polygon_against_plane(src, edge_start, edge_normal);
         src_idx = src_idx^1;
 
-        if (ping_pong[src_idx].topology < GEO_Topology_Triangle)
-            return (GEO_Polygon){0};
+        if (ping_pong[src_idx].topology < GEO_Topology_Triangle) {
+            GEO_Polygon empty = zero_struct;
+            return empty;
+        }
     } GEO_EachEdge_Ring_Close;
 
     Assert(ping_pong[src_idx].topology < GEO_MAX_CLIPPED_TOPOLOGY);
@@ -304,7 +346,7 @@ internal GEO_Polygon geo_clip_polygon_against_polygon(GEO_Polygon* in_to_clip, G
 
 internal GEO_Polygon geo_clip_polygon_against_edge(GEO_Polygon* in_to_clip, vec3_f32 in_clip_start, vec3_f32 in_clip_end, vec3_f32 in_normal) {
     Assert(in_to_clip->topology >= GEO_Topology_Triangle);
-    GEO_Polygon clipped = {0};
+    GEO_Polygon clipped = zero_struct;
 
     vec3_f32 clipping_edge_dir = sub_3f32(in_clip_start, in_clip_end);
     vec3_f32 clipping_edge_normal = cross_3f32(clipping_edge_dir, in_normal);
@@ -337,11 +379,12 @@ internal GEO_Polygon geo_clip_polygon_against_edge(GEO_Polygon* in_to_clip, vec3
             // now check which side of the edge x lies on
             f32 proj = dot_3f32(sub_3f32(x, proj_clipping_edge_start), proj_clipping_edge_dir);
             if (proj < 0.f)
-                clipped.data[clipped.topology++] = prev_v;
+                clipped.data[clipped.topology] = prev_v;
             else if (proj > proj_clipping_edge_dir_l2)
-                clipped.data[clipped.topology++] = cur_v;
+                clipped.data[clipped.topology] = cur_v;
             else
-                clipped.data[clipped.topology++] = x;
+                clipped.data[clipped.topology] = x;
+            clipped.topology = IntToEnum(GEO_Topology, clipped.topology+1);
         }
 
         prev_v = cur_v; prev_num = cur_num; prev_inside = cur_inside;

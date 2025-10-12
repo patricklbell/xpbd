@@ -25,7 +25,7 @@ shared_function PHYS_HitListNode* phys_hit_list_closest(PHYS_HitList* hl) {
 }
 
 shared_function void phys_raycast_collider(PHYS_World* w, PHYS_Collider* c, PHYS_collider_id id, vec3_f32 origin, vec3_f32 direction, PHYS_HitList* out_hits) {
-    PHYS_Body* body = phys_world_resolve_body(w, c->base.p);
+    PHYS_Body* body = phys_world_resolve_body_unchecked(w, c->base.p);
 
     PHYS_HitListData data;
     switch (c->base.type) {
@@ -55,11 +55,11 @@ shared_function void phys_raycast_collider(PHYS_World* w, PHYS_Collider* c, PHYS
     }
 }
 shared_function void phys_world_raycast(PHYS_World* w, vec3_f32 origin, vec3_f32 direction, PHYS_ColliderLayer layer, PHYS_HitList* out_hits) {
-    for EachIndex(slot, w->colliders.slots_count) {
-        for EachList(collider_n, PHYS_ColliderNode, w->colliders.slots[slot].first) {
-            if (!phys_collider_layers_overlap(collider_n->v.base.layer, layer))
-                continue;
-            phys_raycast_collider(w, &collider_n->v, collider_n->id, origin, direction, out_hits);
-        }
+    for PHYS_EachPA(w->colliders) {
+        PHYS_EachPADefId(w->colliders, PHYS_Collider, PHYS_collider_id, collider);
+
+        if (!phys_collider_layers_overlap(collider->base.layer, layer))
+            continue;
+        phys_raycast_collider(w, collider, collider_id, origin, direction, out_hits);
     }
 }

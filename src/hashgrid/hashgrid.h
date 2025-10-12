@@ -32,6 +32,9 @@ struct HG_Hashgrid {
 
     u32 cells_count;
     HG_Cell* cells;
+
+    u32* query_result_buffer;
+    u32 query_result_buffer_count;
 };
 
 #define HG_OBJECT_TO_TABLE_RATIO 5
@@ -42,22 +45,13 @@ internal HG_Hashgrid hg_build_hashgrid(
 );
 
 // queries
-typedef struct HG_QueryResultNode HG_QueryResultNode;
-struct HG_QueryResultNode {
-    HG_QueryResultNode* next;
-    u32 id;
-};
-
 typedef struct HG_QueryResult HG_QueryResult;
 struct HG_QueryResult {
-    HG_QueryResultNode* first;
+    u32* ids;
     u32 length;
 };
 
-internal HG_QueryResult hg_hashgrid_query(
-    HG_Hashgrid* grid, Arena* arena,
-    f32 radius, vec3_f32 position
-);
+internal HG_QueryResult hg_hashgrid_query(HG_Hashgrid* grid, f32 radius, vec3_f32 position);
 
 typedef struct HG_BatchQueryResult HG_BatchQueryResult;
 struct HG_BatchQueryResult {
@@ -65,7 +59,6 @@ struct HG_BatchQueryResult {
     u32 object_count;
 
     u64* hits_data;
-    u32 hits_capacity;
     u32 hits_count;
 };
 

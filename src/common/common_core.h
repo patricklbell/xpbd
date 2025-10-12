@@ -57,13 +57,20 @@ typedef double   f64;
 #define MemberFromOffset(T,ptr,off)     (T)((((u8 *)ptr)+(off)))
 #define CastFromMember(T,m,ptr)         (T*)(((u8*)ptr) - OffsetOf(T,m))
 
-#define OffsetPtr(base, offset, type)   ((type*)(((void*)base) + offset))
+#define OffsetPtr(base, offset, type)   ((type*)(((u8*)base) + offset))
 
 #if LANG_CPP
     #define zero_struct {}
 #else
     #define zero_struct {0}
 #endif
+
+#if LANG_CPP
+    #define IntToEnum(Enum, value) static_cast<Enum>(value)
+#else
+    #define IntToEnum(Enum, value) ((Enum)(value))
+#endif
+
 
 // unitsM, r_ogl
 #define KB(n)  (((u64)(n)) << 10)
@@ -209,6 +216,7 @@ typedef double   f64;
 
 // loop helpers
 #define EachIndex(var, length)          (int var = 0; var < length; var++)
+#define EachIndexU32(var, length)       (u32 var = 0; var < length; var++)
 #define EachElement(var, arr)           (int var = 0; var < ArrayLength(arr); var++)
 #define EachList_N(node, type, f, n)    (type* node = f; node != NULL; node = node->n)
 #define EachList(node, type, f)         EachList_N(node, type, f, next)

@@ -9,7 +9,6 @@ struct DEMO_HangingBox {
 
 typedef struct DEMO_HangingBoxesState DEMO_HangingBoxesState;
 struct DEMO_HangingBoxesState {
-    Arena* state_arena;
     R_Handle cube_vertices;
     R_Handle cube_indices;
     R_VertexFlag cube_flags;
@@ -47,7 +46,6 @@ demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
     cs->camera = demos_make_camera(os_gfx_window_size(cs->window), /*eye*/ make_3f32(0, -10, 40), /*target*/ make_3f32(0, -10, 0));
     cs->show_debug = true;
 
-    s.state_arena = arena_alloc();
     return 0;
 }
 demos_hook void demos_cleanup_hook(DEMOS_CommonState* cs) {}
@@ -55,53 +53,52 @@ demos_hook void demos_cleanup_hook(DEMOS_CommonState* cs) {}
 demos_hook void demos_world_start_hook(PHYS_World* w) {
     s.anchor_id = phys_world_add_body(w, (PHYS_Body){
         .position = make_3f32(0,0,0),
-        .inv_mass = 0.f,
         .no_gravity = true,
+        .inv_mass = 0.f,
     });
 
     s.box1.extents = make_3f32(1,1,1);
-    PHYS_Box_Settings box1_settings = {
-        .mass = 1,
+    s.box1.rigid_body = phys_world_add_box(w, (PHYS_Box_Settings){
+        .mass = PHYS_UNIT_KG(1),
         .center = make_3f32(0,-4,0),
         .extents = s.box1.extents,
-    };
-    s.box1.rigid_body = phys_world_add_box(w, box1_settings);
+    });
 
     s.anchor_to_box1 = phys_world_add_constraint(w, (PHYS_Constraint){
-        .compliance = 0.0005f,
         .type = PHYS_ConstraintType_AdvancedDistance,
+        .compliance = PHYS_UNIT_NM(0.0005),
         .advanced_distance = {
             .body1 = s.anchor_id,
             .body2 = s.box1.rigid_body.body_id,
-            .d = 5.f,
+
             .offset2 = make_3f32(0,1,0),
+
+            .d = 5.f,
         }
     });
 
     s.box2.extents = make_3f32(2,2,2);
-    PHYS_Box_Settings box2_settings = {
-        .mass = 10,
+    s.box2.rigid_body = phys_world_add_box(w, (PHYS_Box_Settings) {
+        .mass = PHYS_UNIT_KG(10),
         .center = make_3f32(0,-15,0),
         .extents = s.box2.extents,
-    };
-    s.box2.rigid_body = phys_world_add_box(w, box2_settings);
+    });
 
     s.box1_to_box2 = phys_world_add_constraint(w, (PHYS_Constraint){
-        .compliance = 0.0005f,
         .type = PHYS_ConstraintType_AdvancedDistance,
+        .compliance = PHYS_UNIT_NM(0.0005),
         .advanced_distance = {
             .body1 = s.box1.rigid_body.body_id,
             .body2 = s.box2.rigid_body.body_id,
-            .d = 9.f,
-
+            
             .offset1 = make_3f32(0,-1,0),
             .offset2 = make_3f32(0,2,0),
+
+            .d = 9.f,
         }
     });
 }
-demos_hook void demos_world_end_hook(PHYS_World* w) {
-    arena_clear(s.state_arena);
-}
+demos_hook void demos_world_end_hook(PHYS_World* w) {}
 
 // 
 // per-frame
@@ -115,7 +112,7 @@ demos_hook void demos_frame_hook(DEMOS_CommonState* cs) {
 
 // helpers
 internal void d_hanging_box(PHYS_World* w, DEMO_HangingBox* hanging_box) {
-    PHYS_Body* body = phys_world_resolve_body(w, hanging_box->rigid_body.body_id);
+    PHYS_Body* body = phys_world_resolve_body_unchecked(w, hanging_box->rigid_body.body_id);
 
     mat4x4_f32 t = matmul_4x4f32(matmul_4x4f32(
         make_translate_4x4f32(body->position),

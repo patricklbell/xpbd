@@ -10,7 +10,7 @@ internal void     phys_body_apply_linear_velocity_correction(PHYS_Body* b, vec3_
 internal void     phys_body_apply_angular_velocity_correction(PHYS_Body* b, vec3_f32 corr, vec3_f32 r);
 internal vec3_f32 phys_body_velocity_at_offset(PHYS_Body* b, vec3_f32 r);
 
-internal f32 phys_lagrange_delta_no_update(f32 C, f32 w, f32 alpha);
+force_inline internal f32 phys_lagrange_delta_no_update(f32 C, f32 w, f32 alpha);
 internal f32 phys_update_lagrange_multiplier_return_delta(f32 C, f32 w, f32 alpha, f32* l);
 
 internal f32 phys_calculate_coeffcient(f32 x1, f32 x2, PHYS_CoefficientCalculation method);
@@ -24,6 +24,7 @@ internal void phys_constraint_solve_distance(PHYS_Constraint* c, PHYS_Constraint
 internal void phys_constraint_solve_advanced_distance(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings);
 internal void phys_constraint_solve_linear_dofs(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings);
 internal void phys_constraint_solve_volume(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings);
+internal void phys_constraint_solve_global_volume(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings);
 internal void phys_constraint_solve_orientation(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings);
 internal void phys_constraint_solve_hinge(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings);
 internal void phys_constraint_solve_swing(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings);
@@ -53,6 +54,7 @@ internal void phys_collision_solve_narrow(PHYS_ConstraintSolveSettings settings,
 
 // solver
 internal void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, PHYS_ConstraintSolveSettings settings);
+internal void phys_collision_ground_plane_solve(PHYS_World* w);
 
 // 
 // substep

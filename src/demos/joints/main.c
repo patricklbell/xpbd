@@ -68,9 +68,9 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
         PHYS_body_id pin = phys_world_add_fixed_point(w, offset);
         vec3_f32 hinge_extents = make_3f32(1.0,0.4,0.1);
         PHYS_body_id hinge = phys_world_add_box(w, (PHYS_Box_Settings){
+            .mass=PHYS_UNIT_G(500),
             .center=add_3f32(offset, make_3f32(hinge_extents.x,0,0)),
             .extents=hinge_extents,
-            .mass=PHYS_UNIT_G(500),
         }).body_id;
 
         // attach top of hinge to pin
@@ -79,8 +79,8 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
             .advanced_distance={
                 .body1=pin,
                 .body2=hinge,
-                .d=0,
                 .offset2=make_3f32(-hinge_extents.x,0,0),
+                .d=0,
             }
         });
         // allow rotation only in z-axis
@@ -105,9 +105,9 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
         PHYS_body_id pin = phys_world_add_fixed_point(w, offset);
         vec3_f32 hinge_extents = make_3f32(1.0,0.4,0.1);
         PHYS_body_id hinge = phys_world_add_box(w, (PHYS_Box_Settings){
+            .mass=PHYS_UNIT_G(500),
             .center=add_3f32(offset, make_3f32(hinge_extents.x,0,0)),
             .extents=hinge_extents,
-            .mass=PHYS_UNIT_G(500),
         }).body_id;
     
         // attach top of hinge to pin
@@ -116,8 +116,8 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
             .advanced_distance={
                 .body1=pin,
                 .body2=hinge,
-                .d=0,
                 .offset2=make_3f32(-hinge_extents.x,0,0),
+                .d=0,
             }
         });
         // allow rotation only in z axis and limit y axis to [-45,90] degrees
@@ -145,9 +145,9 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
         PHYS_body_id socket = phys_world_add_fixed_point(w, offset);
         vec3_f32 arm_extents = make_3f32(0.1,1.0,0.1);
         PHYS_body_id arm = phys_world_add_box(w, (PHYS_Box_Settings){
+            .mass=PHYS_UNIT_G(500),
             .center=add_3f32(offset, make_3f32(0,-arm_extents.y,0)),
             .extents=arm_extents,
-            .mass=PHYS_UNIT_G(500),
         }).body_id;
     
         // attach top of arm to socket
@@ -156,8 +156,8 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
             .advanced_distance={
                 .body1=socket,
                 .body2=arm,
-                .d=0,
                 .offset2=make_3f32(0,arm_extents.y,0),
+                .d=0,
             }
         });
         // restrict swing to 45 degrees from vertical
@@ -184,9 +184,9 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
         PHYS_body_id socket = phys_world_add_fixed_point(w, offset);
         vec3_f32 arm_extents = make_3f32(0.1,1.0,0.1);
         PHYS_body_id arm = phys_world_add_box(w, (PHYS_Box_Settings){
+            .mass=PHYS_UNIT_G(500),
             .center=add_3f32(offset, make_3f32(0,-arm_extents.y,0)),
             .extents=arm_extents,
-            .mass=PHYS_UNIT_G(500),
         }).body_id;
     
         // conenct top of arm to the socket
@@ -195,8 +195,8 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
             .advanced_distance={
                 .body1=socket,
                 .body2=arm,
-                .d=0,
                 .offset2=make_3f32(0,arm_extents.y,0),
+                .d=0,
             }
         });
         // restrict swinging and twisting to certain limits
@@ -238,9 +238,9 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
         PHYS_body_id bearing = phys_world_add_fixed_point(w, offset);
         vec3_f32 pin_extents = make_3f32(0.1,0.7,0.1);
         PHYS_body_id pin = phys_world_add_box(w, (PHYS_Box_Settings){
+            .mass=PHYS_UNIT_G(500),
             .center=offset,
             .extents=pin_extents,
-            .mass=PHYS_UNIT_G(500),
         }).body_id;
     
         // only allow movement in y-axis [-0.7,+0.7]
@@ -275,9 +275,9 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
         PHYS_body_id bearing = phys_world_add_fixed_point(w, offset);
         vec3_f32 pin_extents = make_3f32(0.1,0.7,0.1);
         PHYS_body_id pin = phys_world_add_box(w, (PHYS_Box_Settings){
+            .mass=PHYS_UNIT_G(500),
             .center=offset,
             .extents=pin_extents,
-            .mass=PHYS_UNIT_G(500),
         }).body_id;
     
         // only allow movement in y-axis
@@ -298,9 +298,11 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
             .advanced_distance={
                 .body1=bearing,
                 .body2=pin,
-                .d=0.f,
+
                 .is_projected=true,
                 .axis=make_3f32(0,1,0),
+
+                .d=0.f,
             }
         });
         // lock rotation to y-axis
@@ -325,9 +327,9 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
         PHYS_body_id collar = phys_world_add_fixed_point(w, offset);
         vec3_f32 arm_extents = make_3f32(0.1,0.7,0.1);
         PHYS_body_id arm = phys_world_add_box(w, (PHYS_Box_Settings){
+            .mass=PHYS_UNIT_G(500),
             .center=offset,
             .extents=arm_extents,
-            .mass=PHYS_UNIT_G(500),
         }).body_id;
     
         // lock orientations
@@ -376,7 +378,7 @@ demos_hook void demos_frame_hook(DEMOS_CommonState* cs) {
 
 // helpers
 internal void d_object(PHYS_World* w, DEMO_Object* obj, vec3_f32 color) {
-    PHYS_Body* body = phys_world_resolve_body(w, obj->body_id);
+    PHYS_Body* body = phys_world_resolve_body_unchecked(w, obj->body_id);
 
     mat4x4_f32 t = matmul_4x4f32(matmul_4x4f32(
         make_translate_4x4f32(body->position),

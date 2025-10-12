@@ -97,8 +97,13 @@ internal void geo_calculate_smooth_normals(
 );
 
 internal void geo_triangulate(
-    Arena* arena, GEO_Topology topology, b32 double_sided,
+    Arena* arena, GEO_Topology topology, b32 cw,
     u32* in_indices, u32 in_indices_count,
+    u32** out_indices, u32* out_indices_count
+);
+internal void geo_triangulate_quad(
+    Arena* arena, b32 cw,
+    u32 x, u32 y,
     u32** out_indices, u32* out_indices_count
 );
 

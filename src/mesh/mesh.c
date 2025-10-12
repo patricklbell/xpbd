@@ -37,11 +37,11 @@ internal u32 ms_add_to_vertex_map(Arena* arena, MS_VertexMap* map, MS_VertexMapH
 }
 
 internal void* ms_vertex_map_data(Arena* arena, MS_VertexMap* map, vec3_f32* positions, vec3_f32* normals, vec2_f32* uvs, R_VertexFlag flags) {
-    void* result = arena_push(arena, r_vertex_size(flags)*map->vertices_count, r_vertex_align(flags));
+    u8* result = (u8*)arena_push(arena, r_vertex_size(flags)*map->vertices_count, r_vertex_align(flags));
     for EachIndex(slot, map->slots_count) {
         for EachList(vn, MS_VertexMapNode, map->slots[slot]) {
             for EachElement(indice_i, vn->hash.indices) {
-                R_VertexFlag flag = (1 << indice_i);
+                R_VertexFlag flag = IntToEnum(R_VertexFlag, 1 << indice_i);
                 u32 index = vn->hash.indices[indice_i];
 
                 // @note change from 1 -> 0 indexing
@@ -83,7 +83,7 @@ internal MS_LoadResult ms_load_obj(Arena* arena, NTString8 path, MS_LoadSettings
         settings.topology = R_VertexTopology_Triangles;
     }
     if (settings.flags == R_VertexFlag_ZERO) {
-        settings.flags = R_VertexFlag_P | R_VertexFlag_T | R_VertexFlag_N;
+        settings.flags = IntToEnum(R_VertexFlag, R_VertexFlag_P | R_VertexFlag_T | R_VertexFlag_N);
     }
     switch (settings.topology) {
         case R_VertexTopology_Lines:         vertices_per_face = 2; break;

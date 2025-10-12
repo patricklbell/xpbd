@@ -9,8 +9,6 @@ struct DEMO_PendulumArm {
 
 typedef struct DEMO_PendulumState DEMO_PendulumState;
 struct DEMO_PendulumState {
-    Arena* state_arena;
-
     R_VertexFlag cube_flags;
     R_VertexTopology cube_topology;
     R_Handle cube_vertices;
@@ -44,8 +42,6 @@ demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
     s.cube_indices = r_buffer_alloc(R_ResourceKind_Static, R_ResourceHint_Indices, res.v.indices_count*sizeof(*res.v.indices), res.v.indices);
 
     cs->camera = demos_make_camera(os_gfx_window_size(cs->window), /*eye*/ make_3f32(0, -1, 5), /*target*/ make_3f32(0, -1, 0));
-
-    s.state_arena = arena_alloc();
     return 0;
 }
 demos_hook void demos_cleanup_hook(DEMOS_CommonState* cs) {}
@@ -68,10 +64,11 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
 
         s.arms[i].extents = make_3f32(arm_half_length,arm_half_width,arm_half_depth*0.9f);
         s.arms[i].rb = phys_world_add_box(w, (PHYS_Box_Settings){
-            .center=make_3f32((2*i+1)*arm_inner_half_length,0,z_offset),
-            .extents=s.arms[i].extents,
-            .linear_velocity=make_3f32(0,(i-1.f)*5.f,0),
             .mass=PHYS_UNIT_G(50),
+            .center=make_3f32((2*i+1)*arm_inner_half_length,0,z_offset),
+            .linear_velocity=make_3f32(0,(i-1.f)*5.f,0),
+
+            .extents=s.arms[i].extents,
         });
         PHYS_body_id curr_id = s.arms[i].rb.body_id;
         phys_world_add_constraint(w, (PHYS_Constraint){
@@ -79,9 +76,9 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
             .advanced_distance={
                 .body1=prev_id,
                 .body2=curr_id,
-                .d=0.f,
                 .offset1=(i == 0) ? make_3f32(0,0,0) : make_3f32(+arm_inner_half_length,0,+z_offset),
                 .offset2=                              make_3f32(-arm_inner_half_length,0,-z_offset),
+                .d=0.f,
             },
         });
         phys_world_add_constraint(w, (PHYS_Constraint){
@@ -97,9 +94,7 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
         prev_id = curr_id;
     }
 }
-demos_hook void demos_world_end_hook(PHYS_World* w) {
-    arena_clear(s.state_arena);
-}
+demos_hook void demos_world_end_hook(PHYS_World* w) {}
 
 // 
 // per-frame
@@ -114,7 +109,7 @@ demos_hook void demos_frame_hook(DEMOS_CommonState* cs) {
 
 // helpers
 internal void d_arm(PHYS_World* w, DEMO_PendulumArm* arm) {
-    PHYS_Body* body = phys_world_resolve_body(w, arm->rb.body_id);
+    PHYS_Body* body = phys_world_resolve_body_unchecked(w, arm->rb.body_id);
 
     mat4x4_f32 t = matmul_4x4f32(matmul_4x4f32(
         make_translate_4x4f32(body->position),

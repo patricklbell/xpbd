@@ -4,13 +4,13 @@
 //      - solve constraints on positions,
 //      - determine linear & angular velocity from delta after constraints 
 //        have been applied.
-shared_function void phys_world_step(PHYS_World* w, f64 dt) {
+shared_function void phys_world_step(PHYS_World* w, f64 dt) {ZoneScoped;
     w->hashgrid_info = NULL;
     w->brute_info = NULL;
     arena_clear(w->step_arena);
 
-    f64 sdt = dt / (f64)w->substeps;
-    f32 max_lin_v = w->min_r / sdt;
+    f64 sdt = dt/(f64)w->substeps;
+    f32 max_lin_v = w->min_v_mult*w->min_r/sdt;
 
     // build cached queries
     // use previous frame's count for allocating or just split evenly
@@ -27,45 +27,44 @@ shared_function void phys_world_step(PHYS_World* w, f64 dt) {
     w->hashgrid_info_count = 0;
     w->brute_info_count = 0;
 
-    for EachIndex(slot, w->colliders.slots_count) {
-        for EachList(collider_n, PHYS_ColliderNode, w->colliders.slots[slot].first) {
-            PHYS_Collider* collider = &collider_n->v;
+    // @todo sorting inplace now that colliders are stored flat
+    {ZoneScopedN("sorting colliders");
+    for PHYS_EachPA(w->colliders) {
+        PHYS_EachPADefId(w->colliders, PHYS_Collider, PHYS_collider_id, collider);
 
-            // if collider is small enough, put it in the hashgrid
-            if (collider->base.r <= w->hashgrid_obj_r) {
-                if (w->hashgrid_info_count >= hashgrid_info_capacity) {
-                    hashgrid_info_capacity *= PHYS_PER_FRAME_DYNAMIC_ARRAY_GROWTH_RATE;
-                    PHYS_CachedHashgridInfo* tmp = push_array(w->step_arena, PHYS_CachedHashgridInfo, hashgrid_info_capacity);
-                    memcpy(tmp, w->hashgrid_info, sizeof(*tmp)*w->hashgrid_info_count);
-                    w->hashgrid_info = tmp;
-                }
-                w->hashgrid_info[w->hashgrid_info_count] = (PHYS_CachedHashgridInfo){
-                    .position = phys_world_resolve_body(w, collider->base.p)->position,
-                    .collider = collider_n->id,
-                };
-                w->hashgrid_info_count++;
-            // otherwise put it in brute
-            } else {
-                if (w->brute_info_count >= brute_info_capacity) {
-                    brute_info_capacity *= PHYS_PER_FRAME_DYNAMIC_ARRAY_GROWTH_RATE;
-                    PHYS_CachedBruteInfo* tmp = push_array(w->step_arena, PHYS_CachedBruteInfo, brute_info_capacity);
-                    memcpy(tmp, w->brute_info, sizeof(*tmp)*w->brute_info_count);
-                    w->brute_info = tmp;
-                }
-                w->brute_info[w->brute_info_count] = (PHYS_CachedBruteInfo){
-                    .collider = collider_n->id,
-                };
-                w->brute_info_count++;
+        // if collider is small enough, put it in the hashgrid
+        if (collider->base.r <= w->hashgrid_obj_size) {
+            if (w->hashgrid_info_count >= hashgrid_info_capacity) {
+                hashgrid_info_capacity *= PHYS_PER_FRAME_DYNAMIC_ARRAY_GROWTH_RATE;
+                PHYS_CachedHashgridInfo* tmp = push_array(w->step_arena, PHYS_CachedHashgridInfo, hashgrid_info_capacity);
+                memcpy(tmp, w->hashgrid_info, sizeof(*tmp)*w->hashgrid_info_count);
+                w->hashgrid_info = tmp;
             }
+            w->hashgrid_info[w->hashgrid_info_count] = (PHYS_CachedHashgridInfo){
+                .position = phys_world_resolve_body(w, collider->base.p)->position,
+                .collider = collider_id,
+            };
+            w->hashgrid_info_count++;
+        // otherwise put it in brute
+        } else {
+            if (w->brute_info_count >= brute_info_capacity) {
+                brute_info_capacity *= PHYS_PER_FRAME_DYNAMIC_ARRAY_GROWTH_RATE;
+                PHYS_CachedBruteInfo* tmp = push_array(w->step_arena, PHYS_CachedBruteInfo, brute_info_capacity);
+                memcpy(tmp, w->brute_info, sizeof(*tmp)*w->brute_info_count);
+                w->brute_info = tmp;
+            }
+            w->brute_info[w->brute_info_count] = (PHYS_CachedBruteInfo){
+                .collider = collider_id,
+            };
+            w->brute_info_count++;
         }
-    }
+    }}
 
     // build hashgrid and query self collisions (broadphase)
     if (w->hashgrid_info_count) {
         w->hashgrid = hg_build_hashgrid(
-            w->step_arena, w->hashgrid_cell_r,
-            &w->hashgrid_info->position, sizeof(*w->hashgrid_info),
-            w->hashgrid_info_count
+            w->step_arena, w->hashgrid_cell_size,
+            &w->hashgrid_info->position, sizeof(*w->hashgrid_info), w->hashgrid_info_count
         );
         w->hashgrid_self_collisions = hg_hashgrid_batch_query(
             &w->hashgrid, w->step_arena, Max(w->hashgrid_self_collisions.hits_count, 64),
@@ -80,16 +79,15 @@ shared_function void phys_world_step(PHYS_World* w, f64 dt) {
     }
 
     // set constraint lagrange multipliers back to zero (Gauss-seidel)
-    for EachIndex(slot, w->constraints.slots_count) {
-        for EachList(constraint_n, PHYS_ConstraintNode, w->constraints.slots[slot].first) {
-            constraint_n->v.constraint.l = 0.f;
-        }
+    {ZoneScopedN("lagrange multiplier");
+    for PHYS_EachPA(w->constraints) {
+        PHYS_EachPADef(w->constraints, PHYS_Constraint, constraint);
+        constraint->l = 0.f;
     }
-    for EachIndex(slot, w->dependent_constraints.slots_count) {
-        for EachList(constraint_n, PHYS_ConstraintNode, w->dependent_constraints.slots[slot].first) {
-            constraint_n->v.dependent_constraint.l = 0.f;
-        }
-    }
+    for PHYS_EachPA(w->dependent_constraints) {
+        PHYS_EachPADef(w->dependent_constraints, PHYS_DependentConstraint, dependent_constraint);
+        dependent_constraint->l = 0.f;
+    }}
 
     for EachIndex(i, w->substeps) {
         phys_world_substep(w, sdt);
@@ -105,18 +103,20 @@ shared_function void phys_world_step(PHYS_World* w, f64 dt) {
     #endif
 }
 
-internal void phys_world_substep(PHYS_World* w, f64 dt) {
+internal void phys_world_substep(PHYS_World* w, f64 dt) {ZoneScoped;
     w->substep_collision_records = NULL;
     arena_clear(w->substep_arena);
 
     f64 inv_dt = 1.f / dt;
-    f32 max_lin_v = w->min_r*inv_dt;
+    f32 max_lin_v = w->min_v_mult*w->min_r*inv_dt;
     f32 max_lin_v2 = max_lin_v*max_lin_v;
 
-    // step 1: apply external forces
     const vec3_f32 a_gravity = {.x = 0, .y = w->little_g, .z = 0};
-    for EachIndex(i, w->bodies.length) {
-        PHYS_Body* b = &w->bodies.v[i];
+    
+    // step 1: apply external forces
+    {ZoneScopedN("step 1");
+    for PHYS_EachPA(w->bodies) {
+        PHYS_EachPADef(w->bodies, PHYS_Body, b);
 
         b->prev_position = b->position;
         b->prev_rotation = b->rotation;
@@ -139,7 +139,7 @@ internal void phys_world_substep(PHYS_World* w, f64 dt) {
 
         // enforce maximum velocity to avoid skipping collisions
         if (w->min_r) {
-            f32 lin_v2 = dot_3f32(b->linear_velocity, b->linear_velocity);
+            f32 lin_v2 = length2_3f32(b->linear_velocity);
             if (lin_v2 > max_lin_v2) {
                 // @todo logging
                 // fprintf(stderr, "[body %.4d] exceeded max linear velocity\n", i);
@@ -154,7 +154,7 @@ internal void phys_world_substep(PHYS_World* w, f64 dt) {
             // @note linearized approximation
             b->rotation = normalize_4f32(add_4f32(b->rotation, mul_4f32(dr, 0.5f)));
         }
-    }
+    }}
 
     // step 2: solve constraints (including collisions)
     PHYS_ConstraintSolveSettings settings = (PHYS_ConstraintSolveSettings){
@@ -162,15 +162,19 @@ internal void phys_world_substep(PHYS_World* w, f64 dt) {
         .inv_dt = inv_dt,
         .inv_dt2 = inv_dt*inv_dt,
     };
-
-    // brute x brute
-    // @todo bvh or octree
-    for EachIndex(slot, w->constraints.slots_count) {
-        for EachList(constraint_n, PHYS_ConstraintNode, w->constraints.slots[slot].first) {
-            phys_constraint_solve(&constraint_n->v.constraint, settings);
-        }
+    {ZoneScopedN("step 2");
+    for PHYS_EachPA(w->constraints) {
+        PHYS_EachPADef(w->constraints, PHYS_Constraint, constraint);
+        phys_constraint_solve(constraint, settings);
     }
 
+    // @todo ad-hoc group plane for particles with no restitution
+    if (w->enable_particle_ground_plane) {
+        phys_collision_ground_plane_solve(w);
+    }
+        
+    // brute x brute
+    // @todo bvh or octree
     for EachIndex(i, w->brute_info_count) {
         for (int j = i+1; j < w->brute_info_count; j++) {
             phys_collision_solve(w->brute_info[i].collider, w->brute_info[j].collider, settings);
@@ -184,21 +188,21 @@ internal void phys_world_substep(PHYS_World* w, f64 dt) {
         }
     }
     // hashgrid x hashgrid
-    {
     HG_BatchQueryResult* q = &w->hashgrid_self_collisions;
     for EachIndex(object_i, q->object_count) {
         u32 hits_beg = q->object_hits_start[object_i  ];
         u32 hits_end = q->object_hits_start[object_i+1];
 
         for (u32 hit_j = hits_beg; hit_j < hits_end; hit_j++) {
-            phys_collision_solve(w->hashgrid_info[object_i].collider, (PHYS_collider_id)q->hits_data[hit_j], settings);
+            phys_collision_solve(w->hashgrid_info[object_i].collider, (PHYS_collider_id){.v=q->hits_data[hit_j]}, settings);
         }
     }
     }
 
     // step 3: set linear & angular velocities to resultant velocity
-    for EachIndex(i, w->bodies.length) {
-        PHYS_Body* b = &w->bodies.v[i];
+    {ZoneScopedN("step 3");
+    for PHYS_EachPA(w->bodies) {
+        PHYS_EachPADef(w->bodies, PHYS_Body, b);
 
         if (b->inv_mass > 0.f) {
             b->linear_velocity = mul_3f32(sub_3f32(b->position, b->prev_position), inv_dt);
@@ -208,9 +212,10 @@ internal void phys_world_substep(PHYS_World* w, f64 dt) {
                 b->angular_velocity = mul_3f32(dr.xyz, 2.0*inv_dt*sgn_f32(dr.w));
             }
         }
-    }
+    }}
 
     // step 4: solve velocities
+    {ZoneScopedN("step 4");
     for EachList(n, PHYS_CollisionSubstepRecordNode, w->substep_collision_records) {
         PHYS_CollisionSubstepRecord* record = &n->v;
 
@@ -248,7 +253,7 @@ internal void phys_world_substep(PHYS_World* w, f64 dt) {
             f32 w = phys_collision_generalized_inverse_mass(b1, b2, record->r1, record->r2, mul_3f32(dv, 1.f/sqrt_f32(dv_l2)));
             phys_collision_apply_velocity_corrections(b1, b2, record->r1, record->r2, dv, 1.f/w);
         }
-    }
+    }}
 }
 
 // corrections helpers
@@ -259,6 +264,7 @@ internal f32 phys_body_inverse_inertia(PHYS_Body* b, vec3_f32 t_world) {
     return dot_3f32(nt, elmul_3f32(b->inv_inertia, nt));
 }
 internal void phys_body_apply_linear_correction(PHYS_Body* b, vec3_f32 dp_world) {
+    // TracyPlot("lin_correction", length_3f32(dp_world)*b->inv_mass);
     if (b->inv_mass <= 0.f) return;
     b->position = add_3f32(b->position, mul_3f32(dp_world, b->inv_mass));
 }
@@ -289,7 +295,7 @@ internal void phys_body_apply_angular_velocity_correction(PHYS_Body* b, vec3_f32
     b->angular_velocity = add_3f32(b->angular_velocity, dw);
 }
 
-internal f32 phys_lagrange_delta_no_update(f32 C, f32 w, f32 alpha) {
+force_inline internal f32 phys_lagrange_delta_no_update(f32 C, f32 w, f32 alpha) {
     return -C / (w + alpha);
 }
 
@@ -356,10 +362,7 @@ internal void phys_constraint_solve_distance(PHYS_Constraint* c, PHYS_Constraint
     
     f32 C = c->distance.d - r;
     if (c->distance.unilateral ? (C <= 0.f) : (C == 0.f)) return;    
-
-    f32 side = sgn_f32(C);
-    vec3_f32 n = mul_3f32(dr, side*1.f/r);
-    C *= side;
+    vec3_f32 n = mul_3f32(dr, 1.f/r); // @note not normalized so lagrange is not correct
 
     phys_constraint_apply_two_bodies_linear_correction(
         c->compliance, &c->l, &c->force, settings, body1, body2,
@@ -476,6 +479,54 @@ internal void phys_constraint_solve_volume(PHYS_Constraint* c, PHYS_ConstraintSo
     phys_body_apply_linear_correction(b2, corr2);
     phys_body_apply_linear_correction(b3, corr3);
     phys_body_apply_linear_correction(b4, corr4);
+
+    c->force = abs_f32(c->l) * settings.inv_dt;
+}
+
+internal void phys_constraint_solve_global_volume(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
+    // total volume @note assumes CCW, uses origin as 4th point of tetrahedron
+    f32 v = 0;
+    f32 w = 0; // inv mass @todo should this be normalized by gradient? should mass be shared or not?
+    for (u32 idx = 0; idx < c->global_volume.surface_indices_count; idx += GEO_Topology_Triangle) {
+        PHYS_Body* b1 = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[c->global_volume.surface_indices[idx+0]]);
+        PHYS_Body* b2 = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[c->global_volume.surface_indices[idx+1]]);
+        PHYS_Body* b3 = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[c->global_volume.surface_indices[idx+2]]);
+        
+        // @todo best edges (avoid sub)
+        vec3_f32 d21 = sub_3f32(b2->position, b1->position);
+        vec3_f32 d31 = sub_3f32(b3->position, b1->position);
+        vec3_f32 d14 = b1->position;
+
+        v += phys_tetrahedron_volume_axis(d31, d21, d14);
+        w += b1->inv_mass;
+        w += b2->inv_mass;
+        w += b3->inv_mass;
+    }
+    v = abs_f32(v);
+    printf("v = %f, v_rest = %f\n", v, c->global_volume.v_rest);
+    
+    f32 C = v - c->global_volume.v_rest;
+    if (C == 0.f) return;
+
+    f32 alpha = settings.inv_dt2*c->compliance;
+    if (w == 0.f) return;
+    f32 dl = phys_update_lagrange_multiplier_return_delta(C, w, alpha, &c->l);
+
+    for (u32 idx = 0; idx < c->global_volume.surface_indices_count; idx += GEO_Topology_Triangle) {
+        PHYS_Body* b1 = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[c->global_volume.surface_indices[idx+0]]);
+        PHYS_Body* b2 = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[c->global_volume.surface_indices[idx+1]]);
+        PHYS_Body* b3 = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[c->global_volume.surface_indices[idx+2]]);
+
+        vec3_f32 u = normalize_3f32(sub_3f32(b2->position, b1->position));
+        vec3_f32 v = normalize_3f32(sub_3f32(b3->position, b1->position));
+    
+        vec3_f32 dC = normalize_3f32(cross_3f32(u, v)); // ccw
+        vec3_f32 corr = mul_3f32(dC, dl);
+
+        phys_body_apply_linear_correction(b1, corr);
+        phys_body_apply_linear_correction(b2, corr);
+        phys_body_apply_linear_correction(b3, corr);
+    }
 
     c->force = abs_f32(c->l) * settings.inv_dt;
 }
@@ -640,6 +691,9 @@ internal void phys_constraint_solve(PHYS_Constraint* c, PHYS_ConstraintSolveSett
         case PHYS_ConstraintType_Volume: {
             phys_constraint_solve_volume(c, settings);
         }break;
+        case PHYS_ConstraintType_GlobalVolume: {
+            phys_constraint_solve_global_volume(c, settings);
+        }break;
         case PHYS_ConstraintType_Orientation: {
             phys_constraint_solve_orientation(c, settings);
         }break;
@@ -726,12 +780,13 @@ internal void phys_copy_indexed_buffer_to_polgyon(vec3_f32* in_points, u32* in_i
     }
 }
 internal GEO_Polygon phys_collision_SAT_get_supporting_face(vec3_f32 penetration_axis, u32 f, PHYS_Body* b, PHYS_Collider* c) {
-    GEO_Polygon support = {.topology=0};
+    GEO_Polygon support = {.topology=GEO_Topology_Empty};
 
     switch (c->base.type) {
         case PHYS_ColliderType_Sphere: {
             Assert(f == 0 || f == 1);
-            support.data[support.topology++] = add_3f32(mul_3f32(penetration_axis, (f == 0) ? -c->base.r : +c->base.r), b->position);
+            support.data[support.topology] = add_3f32(mul_3f32(penetration_axis, (f == 0) ? -c->base.r : +c->base.r), b->position);
+            support.topology = IntToEnum(GEO_Topology, support.topology+1);
         }break;
         case PHYS_ColliderType_Polytope: {
             phys_copy_indexed_buffer_to_polgyon(c->polytope.points, &c->polytope.indices[f], c->polytope.topology, &support);
@@ -920,10 +975,20 @@ internal void phys_collision_solve_narrow(PHYS_ConstraintSolveSettings settings,
         .r1 = check->r1,
         .r2 = check->r2,
         .n  = check->n,
-        .f_n = l_n * settings.inv_dt2,
+        .f_n = l_n*(f32)settings.inv_dt2,
         .v_n = v_n,
     });
 }
+internal void phys_collision_solve_narrow_particle(PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2, PHYS_CollisionCheck* check) {
+    f32 w_n = b1->inv_mass + b2->inv_mass;
+    f32 l_n = phys_lagrange_delta_no_update(check->d, w_n, 0.f);
+    
+    vec3_f32 corr1 = mul_3f32(check->n, +l_n);
+    vec3_f32 corr2 = mul_3f32(check->n, -l_n);
+    phys_body_apply_linear_correction(b1, corr1);
+    phys_body_apply_linear_correction(b2, corr2);
+}
+
 internal void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, PHYS_ConstraintSolveSettings settings) {
     if (id1.v == id2.v)
         return;
@@ -940,17 +1005,8 @@ internal void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, P
     PHYS_Body* b1 = phys_world_resolve_body(settings.w, c1->base.p);
     PHYS_Body* b2 = phys_world_resolve_body(settings.w, c2->base.p);
 
-    f32 static_friction = phys_calculate_coeffcient(
-        c1->base.static_friction, c2->base.static_friction,
-        settings.w->static_friction_calculation
-    );
-    f32 dynamic_friction = phys_calculate_coeffcient(
-        c1->base.dynamic_friction, c2->base.dynamic_friction,
-        settings.w->dynamic_friction_calculation
-    );
-
     // compute collision contact points
-    PHYS_CollisionCheck check = {0};
+    PHYS_CollisionCheck check = zero_struct;
     for (int i = 0; i < 2; i++) {
         if (
             (
@@ -959,7 +1015,13 @@ internal void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, P
                 phys_collision_check_spheres(&check, b1, b2, &c1->sphere, &c2->sphere)
             )
         ) {
-            phys_collision_solve_narrow(settings, b1, b2, &check, static_friction, dynamic_friction);
+            if (b1->is_particle && b2->is_particle) {
+                phys_collision_solve_narrow_particle(settings, b1, b2, &check);
+            } else {
+                f32 static_friction = phys_calculate_coeffcient(c1->base.static_friction, c2->base.static_friction, settings.w->static_friction_calculation);
+                f32 dynamic_friction = phys_calculate_coeffcient(c1->base.dynamic_friction, c2->base.dynamic_friction, settings.w->dynamic_friction_calculation);
+                phys_collision_solve_narrow(settings, b1, b2, &check, static_friction, dynamic_friction);
+            }
             break;
         }
         if (
@@ -973,6 +1035,8 @@ internal void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, P
                 phys_collision_check_polytope_sphere(&check, b1, b2, &c1->polytope, &c2->sphere)
             )
         ) {
+            f32 static_friction = phys_calculate_coeffcient(c1->base.static_friction, c2->base.static_friction, settings.w->static_friction_calculation);
+            f32 dynamic_friction = phys_calculate_coeffcient(c1->base.dynamic_friction, c2->base.dynamic_friction, settings.w->dynamic_friction_calculation);
             phys_collision_manifold_solve_narrow(&check, b1, b2, c1, c2, settings, static_friction, dynamic_friction);
             break;
         }
@@ -982,6 +1046,19 @@ internal void phys_collision_solve(PHYS_collider_id id1, PHYS_collider_id id2, P
             break;
         PHYS_Collider* ctmp = c1; c1 = c2; c2 = ctmp;
         PHYS_Body* btmp = b1; b1 = b2; b2 = btmp;
+    }
+}
+internal void phys_collision_ground_plane_solve(PHYS_World* w) {ZoneScoped;
+    for PHYS_EachPA(w->colliders) {
+        PHYS_EachPADef(w->colliders, PHYS_Collider, collider);
+        PHYS_Body* body = phys_world_resolve_body(w, collider->base.p);
+
+        if (body->inv_mass <= 0.f)
+            continue;
+        if (body->position.y - collider->base.r < w->particle_ground_plane_height) {
+            body->position = add_3f32(body->position, sub_3f32(body->prev_position, body->position));
+            body->position.y = w->particle_ground_plane_height + collider->base.r;
+        }
     }
 }
 

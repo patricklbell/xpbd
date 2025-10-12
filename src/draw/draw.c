@@ -16,8 +16,10 @@ internal void d_submit_pipeline(OS_Handle window, R_Handle rwindow) {
     r_submit(window, &d_thread_ctx->passes);
 }
 
-internal R_PassParams_3D* d_make_3d_pass(rect_f32 viewport, mat4x4_f32 view, mat4x4_f32 projection, b32 debug) {
-    R_Pass *pass = r_pass_from_kind(d_thread_ctx->arena, &d_thread_ctx->passes, debug ? R_PassKind_3DDebug : R_PassKind_3D);
+internal R_PassParams_3D* d_make_3d_pass(rect_f32 viewport, mat4x4_f32 view, mat4x4_f32 projection, b32 debug, b32 back_face) {
+    Assert(!(back_face && debug)); // invalid combination
+    R_PassKind kind = back_face ? (R_PassKind_3DBackFace) : (debug ? R_PassKind_3DDebug : R_PassKind_3D);
+    R_Pass *pass = r_pass_from_kind(d_thread_ctx->arena, &d_thread_ctx->passes, kind);
     R_PassParams_3D *params = pass->params_3d;
     params->viewport = viewport;
     params->clip = viewport;
@@ -26,8 +28,10 @@ internal R_PassParams_3D* d_make_3d_pass(rect_f32 viewport, mat4x4_f32 view, mat
     return params;
 }
 
-internal void* d_3d(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R_VertexTopology topology, R_Mesh3DMaterial material, void* instance, u64 instance_size, b32 debug) {
-    R_Pass *pass = r_pass_from_kind(d_thread_ctx->arena, &d_thread_ctx->passes, debug ? R_PassKind_3DDebug : R_PassKind_3D);
+internal void* d_3d(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R_VertexTopology topology, R_Mesh3DMaterial material, void* instance, u64 instance_size, b32 debug, b32 back_face) {
+    Assert(!(back_face && debug)); // invalid combination
+    R_PassKind kind = back_face ? (R_PassKind_3DBackFace) : (debug ? R_PassKind_3DDebug : R_PassKind_3D);
+    R_Pass *pass = r_pass_from_kind(d_thread_ctx->arena, &d_thread_ctx->passes, kind);
     R_PassParams_3D *params = pass->params_3d;
 
     // make batch hash map
@@ -88,20 +92,20 @@ internal void* d_3d(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R_V
 }
 
 // wrappers
-internal R_Mesh3DInstance* d_lambertian_mesh(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R_VertexTopology topology, mat4x4_f32 transform, vec3_f32 color) {
+internal R_Mesh3DInstance* d_lambertian_mesh_with_face(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R_VertexTopology topology, mat4x4_f32 transform, vec3_f32 color, b32 back_face) {
     R_Mesh3DInstance instance = {
         .transform = transform,
         .color = color,
     };
-    return (R_Mesh3DInstance*)d_3d(vertices, flags, indices, topology, R_Mesh3DMaterial_Lambertian, &instance, sizeof(instance), false);
+    return (R_Mesh3DInstance*)d_3d(vertices, flags, indices, topology, R_Mesh3DMaterial_Lambertian, &instance, sizeof(instance), /*debug*/ false, back_face);
 }
-internal R_PBRMesh3DInstance* d_pbr_mesh(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R_VertexTopology topology, mat4x4_f32 transform, vec3_f32 albedo, f32 roughness, vec3_f32 specular) {
+internal R_PBRMesh3DInstance* d_pbr_mesh_with_face(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R_VertexTopology topology, mat4x4_f32 transform, vec3_f32 albedo, f32 roughness, vec3_f32 specular, b32 back_face) {
     R_PBRMesh3DInstance instance = {
         .transform = transform,
         .albedo_roughness = {.xyz = albedo, ._w = roughness},
         .specular = specular,
     };
-    return (R_PBRMesh3DInstance*)d_3d(vertices, flags, indices, topology, R_Mesh3DMaterial_DieletricPBR, &instance, sizeof(instance), false);
+    return (R_PBRMesh3DInstance*)d_3d(vertices, flags, indices, topology, R_Mesh3DMaterial_DieletricPBR, &instance, sizeof(instance), /*debug*/ false, back_face);
 }
 
 internal void d_debug(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R_VertexTopology topology) {
@@ -109,12 +113,12 @@ internal void d_debug(R_Handle vertices, R_VertexFlag flags, R_Handle indices, R
         .transform = make_diagonal_4x4f32(1.f),
         .color = make_3f32(1.f,1.f,1.f),
     };
-    d_3d(vertices, flags, indices, topology, R_Mesh3DMaterial_Debug, &instance, sizeof(instance), true);
+    d_3d(vertices, flags, indices, topology, R_Mesh3DMaterial_Debug, &instance, sizeof(instance), /*debug*/ true, /*back_face*/ false);
 }
 internal void d_splat(R_Handle vertices, R_VertexFlag flags) {
     R_Mesh3DInstance instance = {
         .transform = make_diagonal_4x4f32(1.f),
         .color = make_3f32(1.f,1.f,1.f),
     };
-    d_3d(vertices, flags, r_zero_handle(), R_VertexTopology_Points, R_Mesh3DMaterial_Splat, &instance, sizeof(instance), true);
+    d_3d(vertices, flags, r_zero_handle(), R_VertexTopology_Points, R_Mesh3DMaterial_Splat, &instance, sizeof(instance), /*debug*/ true, /*back_face*/ false);
 }

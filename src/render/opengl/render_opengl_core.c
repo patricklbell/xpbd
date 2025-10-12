@@ -35,6 +35,7 @@ internal void r_ogl_debug_message_callback(GLenum source, GLenum type, GLuint id
 // render implementation section
 r_hook void r_init() {
     r_ogl_os_init();
+    TracyGpuContext;
 
     r_ogl_state.per_frame_arena = arena_alloc();
 
@@ -152,6 +153,8 @@ r_hook void r_window_end_frame(OS_Handle window, R_Handle rwindow) {
     arena_clear(r_ogl_state.per_frame_arena);
 
     r_ogl_os_window_swap(window, rwindow);
+    FrameMark;
+    TracyGpuCollect;
 }
 
 r_hook R_Handle r_buffer_alloc(R_ResourceKind kind, R_ResourceHint hint, u32 size, void *data) {
@@ -188,12 +191,20 @@ r_hook void r_buffer_release(R_Handle* handle) {
     glDeleteBuffers(1, &buffer);
 }
 
-r_hook void r_submit(OS_Handle window, R_PassList *passes) {
+r_hook void r_submit(OS_Handle window, R_PassList *passes) { TracyGpuZone("r_submit");
     for EachList(pass_n, R_PassNode, passes->first) {
         R_Pass* pass = &pass_n->v;
+
+        if (pass->kind == R_PassKind_3DBackFace) {
+            glFrontFace(GL_CW);
+        } else {
+            glFrontFace(GL_CCW);
+        }
+
         switch (pass->kind) {
-            case R_PassKind_3D:
-            case R_PassKind_3DDebug: {
+            case R_PassKind_3DBackFace:
+            case R_PassKind_3DDebug:
+            case R_PassKind_3D: {
                 R_PassParams_3D* params = pass->params_3d;
                 
                 glViewport(params->viewport.tl.x, params->viewport.tl.y, params->viewport.br.x, params->viewport.br.y);

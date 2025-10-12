@@ -147,8 +147,8 @@ internal b32 phys_contact_point_spheres(
 ) {
     f32 r = in_r1 + in_r2;
     vec3_f32 diff = sub_3f32(in_p2, in_p1);
-    f32 d2 = dot_3f32(diff, diff);
-    if (d2 >= r*r)
+    f32 d2 = length2_3f32(diff);
+    if (d2 >= r*r || d2 == 0.f)
         return false;
     
     f32 d = sqrt_f32(d2);

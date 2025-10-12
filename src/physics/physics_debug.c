@@ -76,13 +76,13 @@ internal vec3_f32 phys_dbg_d_get_body_color(PHYS_World* w, PHYS_Body* b) {
 }
 
 internal void phys_dbg_d_constraint_distance(PHYS_World* w, PHYS_Constraint* c) {
-    PHYS_Body* b1 = phys_world_resolve_body(w, c->distance.body1);
-    PHYS_Body* b2 = phys_world_resolve_body(w, c->distance.body2);
+    PHYS_Body* b1 = phys_world_resolve_body_unchecked(w, c->distance.body1);
+    PHYS_Body* b2 = phys_world_resolve_body_unchecked(w, c->distance.body2);
     PHYS_DBG_D_DRAW_EDGE(b1->position, b2->position, phys_dbg_d_get_constraint_color(w, c));
 }
 internal void phys_dbg_d_constraint_advanced_distance(PHYS_World* w, PHYS_Constraint* c) {
-    PHYS_Body* b1 = phys_world_resolve_body(w, c->advanced_distance.body1);
-    PHYS_Body* b2 = phys_world_resolve_body(w, c->advanced_distance.body2);
+    PHYS_Body* b1 = phys_world_resolve_body_unchecked(w, c->advanced_distance.body1);
+    PHYS_Body* b2 = phys_world_resolve_body_unchecked(w, c->advanced_distance.body2);
     vec3_f32 r1 = rot_quat(c->advanced_distance.offset1, b1->rotation);
     vec3_f32 r2 = rot_quat(c->advanced_distance.offset2, b2->rotation);
     PHYS_DBG_D_DRAW_EDGE(add_3f32(b1->position, r1), add_3f32(b2->position, r2), phys_dbg_d_get_constraint_color(w, c));
@@ -96,11 +96,11 @@ internal void phys_dbg_d_constraint_volume(PHYS_World* w, PHYS_Constraint* c) {
     int offset = 0;
     for (int i = 0; i < ArrayLength(c->volume.bodies); i++) {
         for (int j = i+1; j < ArrayLength(c->volume.bodies); j++) {
-            points[offset] = phys_world_resolve_body(w, c->volume.bodies[i])->position;
+            points[offset] = phys_world_resolve_body_unchecked(w, c->volume.bodies[i])->position;
             colors[offset] = color;
             offset++;
 
-            points[offset] = phys_world_resolve_body(w, c->volume.bodies[j])->position;
+            points[offset] = phys_world_resolve_body_unchecked(w, c->volume.bodies[j])->position;
             colors[offset] = color;
             offset++;
         }
@@ -159,7 +159,7 @@ internal void phys_dbg_d_collider_sphere(PHYS_World* w, PHYS_Collider_Sphere* c)
         }
         Assert(i == total_points);
 
-        PHYS_Body* b = phys_world_resolve_body(w, c->base.p);
+        PHYS_Body* b = phys_world_resolve_body_unchecked(w, c->base.p);
         vec3_f32 color = phys_dbg_d_get_collider_color(w, (PHYS_Collider*)c);
         for EachIndex(i, total_points) {
             points[i] = phys_rotate_translate(points[i], b->rotation, b->position);
@@ -172,7 +172,7 @@ internal void phys_dbg_d_collider_sphere(PHYS_World* w, PHYS_Collider_Sphere* c)
 internal void phys_dbg_d_collider_polytope(PHYS_World* w, PHYS_Collider_Polytope* c) {
     DeferResource(Temp scratch = scratch_begin(NULL, 0), scratch_end(scratch)) {
         vec3_f32 color = phys_dbg_d_get_collider_color(w, (PHYS_Collider*)c);
-        PHYS_Body* b = phys_world_resolve_body(w, c->base.p);
+        PHYS_Body* b = phys_world_resolve_body_unchecked(w, c->base.p);
 
         u32 point_count = 2*c->indices_count;
         u32 point_offset = 0;
@@ -283,29 +283,27 @@ internal b32 phys_dbg_d_is_blacklisted(int value, int* blacklist, int blacklist_
 }
 
 internal void phys_dbg_d_constraints(PHYS_World* w, PHYS_ConstraintType* blacklist, int blacklist_count) {
-    for EachIndex(slot, w->constraints.slots_count) {
-        for EachList(constraint_n, PHYS_ConstraintNode, w->constraints.slots[slot].first) {
-            PHYS_ConstraintType type = constraint_n->v.constraint.type;
-            if (!phys_dbg_d_is_blacklisted(type, (int*)blacklist, blacklist_count)) {
-                phys_dbg_d_constraint(w, &constraint_n->v.constraint);
-            }
+    for PHYS_EachPA(w->constraints) {
+        PHYS_EachPADef(w->constraints, PHYS_Constraint, constraint);
+        PHYS_ConstraintType type = constraint->type;
+        if (!phys_dbg_d_is_blacklisted(type, (int*)blacklist, blacklist_count)) {
+            phys_dbg_d_constraint(w, constraint);
         }
     }
 }
 internal void phys_dbg_d_colliders(PHYS_World* w, PHYS_ColliderType* blacklist, int blacklist_count) {
-    for EachIndex(slot, w->colliders.slots_count) {
-        for EachList(collider_n, PHYS_ColliderNode, w->colliders.slots[slot].first) {
-            PHYS_ColliderType type = collider_n->v.base.type;
-            if (!phys_dbg_d_is_blacklisted(type, (int*)blacklist, blacklist_count)) {
-                phys_dbg_d_collider(w, &collider_n->v);
-            }
+    for PHYS_EachPA(w->colliders) {
+        PHYS_EachPADef(w->colliders, PHYS_Collider, collider);
+        PHYS_ColliderType type = collider->base.type;
+        if (!phys_dbg_d_is_blacklisted(collider->base.type, (int*)blacklist, blacklist_count)) {
+            phys_dbg_d_collider(w, collider);
         }
     }
 }
 internal void phys_dbg_d_bodies(PHYS_World* w) {
-    for EachIndex(i, w->bodies.length) {
-        PHYS_Body* b = &w->bodies.v[i];
-        phys_dbg_d_body(w, b);
+    for PHYS_EachPA(w->bodies) {
+        PHYS_EachPADef(w->bodies, PHYS_Body, body);
+        phys_dbg_d_body(w, body);
     }
 }
 

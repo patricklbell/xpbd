@@ -6,9 +6,12 @@ f64 os_now_seconds() {
 
 // memory management
 void* os_allocate(u64 size) {
-    return malloc(size);
+    void* ptr = malloc(size);
+    TracyAlloc(ptr, size);
+    return ptr;
 }
 
 void os_deallocate(void* ptr) {
+    TracyFree(ptr);
     free(ptr);
 }

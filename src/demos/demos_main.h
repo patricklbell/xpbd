@@ -17,6 +17,8 @@
     #include "emcontrols/emcontrols.h"
 #endif
 
+#include "tracing/tracing.h"
+
 #include "demos_helpers.h"
 #include "demos_main.h"
 
@@ -43,14 +45,15 @@ struct DEMOS_CommonState {
 
 // hooks implemented by each demo
 demos_hook int  demos_init_hook(DEMOS_CommonState*);
-demos_hook void demos_world_start_hook(PHYS_World*);
-demos_hook void demos_frame_hook(DEMOS_CommonState*);
-demos_hook void demos_world_end_hook(PHYS_World*);
 demos_hook void demos_cleanup_hook(DEMOS_CommonState*);
+demos_hook void demos_world_start_hook(PHYS_World*);
+demos_hook void demos_world_end_hook(PHYS_World*);
+demos_hook void demos_frame_hook(DEMOS_CommonState*);
 
 // wrappers
 internal void demos_world_start_wrapper(DEMOS_CommonState*);
 internal void demos_world_end_wrapper(DEMOS_CommonState*);
+internal force_inline void demos_frame_hook_wrapper(DEMOS_CommonState*);
 
 // emcontrol callbacks
 no_inline internal void demos_on_demo_button(void* data);

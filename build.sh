@@ -2,7 +2,7 @@
 set -e
 
 # Default configuration
-CC=${CC:-gcc}
+CC=${CC:-g++}
 CFLAGS="${CFLAGS} -I src"
 LDFLAGS="${LDFLAGS} -lm"
 LDFLAGS_GFX="-lX11 -lXext"
@@ -10,6 +10,66 @@ LDFLAGS_GFX="-lX11 -lXext"
 BUILD_DIR="build"
 BUILD_EXT=""
 DATA_DIR="data"
+
+# Version information
+VERSION="0.1.0"
+SCRIPT_NAME="build.sh"
+
+# Help message
+print_help() {
+    cat << EOF
+Usage: $SCRIPT_NAME [OPTION]... [COMMAND]...
+
+Commands:
+  demo [NAME]      Build demo(s). If NAME is specified, build only that demo,
+                   otherwise build all demos
+  emcc [NAME]      Build demo(s) for web using Emscripten
+  lib              Build as a shared library
+  clean            Remove build artifacts
+
+Options:
+  --release        Build in release mode (optimized)
+  --help           Display this help and exit
+  --version        Output version information and exit
+
+Available demos:
+  balls, hanging_boxes, softbody, cloth, pendulum, joints, balloon, sheet
+
+Environment variables:
+  CC              C compiler to use (default: gcc)
+  CFLAGS          Additional compiler flags
+  LDFLAGS         Additional linker flags
+
+Examples:
+  $SCRIPT_NAME demo              # Build all demos in debug mode
+  $SCRIPT_NAME --release demo    # Build all demos in release mode
+  $SCRIPT_NAME demo balls        # Build only the balls demo
+  $SCRIPT_NAME emcc cloth        # Build cloth demo for web
+  $SCRIPT_NAME lib               # Build shared library
+  $SCRIPT_NAME clean             # Clean build artifacts
+EOF
+}
+
+# Version message
+print_version() {
+    echo "$SCRIPT_NAME $VERSION"
+}
+
+# Info message
+print_info() {
+    echo "Build system for physics simulations"
+    echo "  Build directory: $BUILD_DIR"
+    echo "  Data directory:  $DATA_DIR"
+    echo "  Compiler:        $CC"
+    if [[ -n "$release" ]]; then
+    echo "  Mode:            Release"
+    else
+    echo "  Mode:            Debug"
+    fi
+    if [[ -v trace ]]; then
+    echo "  Tracy:           Enabled"
+    fi
+}
 
 # Common build function for demos
 build_demo() {
@@ -30,16 +90,21 @@ build_demo() {
                 echo "Warning: Data file ${DATA_DIR}/${data_file} not found"
             fi
         done
+    else
+        CFLAGS="${CFLAGS} -march=native"
     fi
     
     build_command="${CC} ${CFLAGS} ${main_file} ${LDFLAGS} ${LDFLAGS_GFX} ${embed_args} -o ${BUILD_DIR}/${demo_name}${BUILD_EXT}"
-    echo ${build_command}
+    echo "${build_command}"
     eval ${build_command}
+    
 }
 
 # Function to clean build directory
 clean() {
-    echo "cleaning ${BUILD_DIR} and docs/demos"
+    echo "Cleaning build artifacts..."
+    echo "  Removing: ${BUILD_DIR}/"
+    echo "  Removing: docs/demos/"
     rm -rf "${BUILD_DIR}"/*
     rm -rf docs/demos
 }
@@ -53,6 +118,8 @@ build_demo_wrapper() {
         [cloth]="cloth.vtk sphere.obj"
         [pendulum]="cube.obj"
         [joints]="cube.obj"
+        [balloon]="sphere.vtk"
+        [sheet]=" "
     )
 
     if [[ -n "$1" && -n "${dependencies[$1]}" ]]; then
@@ -83,26 +150,55 @@ build_demo_emcc() {
 build_libphys() {
     LIB_NAME="lib-xpbd.so"
     build_command="${CC} -fPIC -Wl,-soname,${LIB_NAME} -shared ${CFLAGS} src/libphys/libphys.c ${LDFLAGS} -o ${BUILD_DIR}/${LIB_NAME}"
-    echo ${build_command}
+    echo "${build_command}"
     eval ${build_command}
 }
 
+# Main script execution
+main() {
+    # Parse options and filter flags
+    actions=()
+    for arg in "$@"; do
+        case "$arg" in
+            --release)   release=1;;
+            --trace)     trace=1;;
+            --debug)     debug=1;;
+            --help)      print_help; exit 0;;
+            --version)   print_version; exit 0;;
+            *)           actions+=("$arg");;
+        esac
+    done
 
-# Filter flags
-actions=()
-for arg in "$@"; do
-    case "$arg" in --release)   release=1;;
-    *)                          actions+=("$arg");;
+    # Handle build mode
+    if [[ -v release ]]; then
+        CFLAGS="${CFLAGS} -s -O3"
+    elif [[ -v debug ]]; then
+        CFLAGS="${CFLAGS} -g -O0"
+    else
+        CFLAGS="${CFLAGS} -g -O3"
+    fi
+    if [[ -v trace ]]; then
+        CFLAGS="${CFLAGS} -fno-omit-frame-pointer -rdynamic -DTRACY_ENABLE src/third_party/tracy/public/TracyClient.cpp"
+    fi
+
+    # Print build info
+    print_info
+    echo ""
+
+    # Execute command
+    case "${actions[0]}" in
+        clean)  clean;;
+        lib)    build_libphys;;
+        demo)   build_demo_wrapper "${actions[@]:1}";;
+        emcc)   build_demo_emcc "${actions[@]:1}";;
+        "")     echo "Error: No command specified"
+                echo "Try '$SCRIPT_NAME --help' for more information."
+                exit 1;;
+        *)      echo "Error: Unknown command '${actions[0]}'"
+                echo "Try '$SCRIPT_NAME --help' for more information."
+                exit 1;;
     esac
-done
+}
 
-# Handle flags
-if [[ -v $release ]];       then echo "[release mode]"; CFLAGS="${CFLAGS} -O3"; fi
-if [[ ! -v $release ]];     then echo "[debug mode]"; CFLAGS="${CFLAGS} -g -O0"; fi
-
-case "${actions[0]}" in
-    clean)  clean;;
-    lib)    build_libphys;;
-    demo)   build_demo_wrapper "${actions[@]:1}";;
-    emcc)   build_demo_emcc "${actions[@]:1}";;
-esac
+# Run main function with all arguments
+main "$@"

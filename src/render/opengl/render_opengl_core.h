@@ -251,6 +251,7 @@ global const NTString8 r_ogl_dieletric_pbr_fragment_shader_src = ntstr8_lit_init
     "   vec3 E = -transpose(mat3(u_view)) * u_view[3].xyz;"
     "   vec3 N = normalize(vs_normal);"
     "   vec3 V = normalize(E - vs_position);"
+    "   if (dot(N, V) < 0.0) N = -N;" // @note only needed for back-face rendering
     "   float cVdotN = max(dot(V, N), 0.0);"
     "   float alpha = vs_roughness*vs_roughness;"
     ""

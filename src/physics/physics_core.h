@@ -19,7 +19,14 @@ typedef struct PHYS_World PHYS_World;
 // 
 // bodies
 // 
-typedef u64 PHYS_body_id;
+typedef union PHYS_body_id {
+    struct {
+        u32 idx;
+        u32 version;
+    };
+    u64 v;
+} PHYS_body_id;
+
 typedef struct PHYS_Body PHYS_Body;
 struct PHYS_Body {
     vec3_f32    position;
@@ -116,6 +123,15 @@ struct PHYS_Constraint_Volume {
     f32 v_rest;
 };
 
+typedef struct PHYS_Constraint_GlobalVolume PHYS_Constraint_GlobalVolume;
+struct PHYS_Constraint_GlobalVolume {
+    PHYS_body_id* surface_bodies;
+    u32 surface_bodies_count;
+    u32* surface_indices; // @note assumed to be triangles
+    u32 surface_indices_count;
+    f32 v_rest;
+};
+
 typedef struct PHYS_Constraint_Orientation PHYS_Constraint_Orientation;
 struct PHYS_Constraint_Orientation {
     PHYS_body_id body1, body2;
@@ -155,6 +171,7 @@ typedef enum PHYS_ConstraintType {
     PHYS_ConstraintType_AdvancedDistance,
     PHYS_ConstraintType_LinearDOFs,
     PHYS_ConstraintType_Volume,
+    PHYS_ConstraintType_GlobalVolume,
     PHYS_ConstraintType_Orientation,
     PHYS_ConstraintType_Hinge,
     PHYS_ConstraintType_Swing,
@@ -178,6 +195,7 @@ struct PHYS_Constraint {
         PHYS_Constraint_AdvancedDistance    advanced_distance;
         PHYS_Constraint_LinearDOFs          linear_dofs;
         PHYS_Constraint_Volume              volume;
+        PHYS_Constraint_GlobalVolume        global_volume;
         PHYS_Constraint_Orientation         orientation;
         PHYS_Constraint_Hinge               hinge;
         PHYS_Constraint_Swing               swing;
@@ -220,10 +238,10 @@ typedef union PHYS_ColliderLayer {
 } PHYS_ColliderLayer;
 
 #define PHYS_ColliderLayer_Invalid  ((PHYS_ColliderLayer){.v=0})
-#define PHYS_ColliderLayer_1        ((PHYS_ColliderLayer){.mask=~0,.group=1})
-#define PHYS_ColliderLayer_1_No1    ((PHYS_ColliderLayer){.mask=~1,.group=1})
-#define PHYS_ColliderLayer_All_No1  ((PHYS_ColliderLayer){.mask=~1,.group=~0})
-#define PHYS_ColliderLayer_All      ((PHYS_ColliderLayer){.mask=~0,.group=~0})
+#define PHYS_ColliderLayer_1        ((PHYS_ColliderLayer){.mask=~0u,.group= 1u})
+#define PHYS_ColliderLayer_1_No1    ((PHYS_ColliderLayer){.mask=~1u,.group= 1u})
+#define PHYS_ColliderLayer_All_No1  ((PHYS_ColliderLayer){.mask=~1u,.group=~0u})
+#define PHYS_ColliderLayer_All      ((PHYS_ColliderLayer){.mask=~0u,.group=~0u})
 
 shared_function b32 phys_collider_layers_overlap(PHYS_ColliderLayer l1, PHYS_ColliderLayer l2);
 shared_function b32 phys_collider_layers_equal(PHYS_ColliderLayer l1, PHYS_ColliderLayer l2);
@@ -274,9 +292,9 @@ struct PHYS_CollisionCheck {
 
 // coefficients
 typedef enum PHYS_CoefficientCalculation {
-    PHYS_CoefficientCalculation_Average = 0,
-    PHYS_CoefficientCalculation_Min,
+    PHYS_CoefficientCalculation_Min = 0,
     PHYS_CoefficientCalculation_Max,
+    PHYS_CoefficientCalculation_Average,
 } PHYS_CoefficientCalculation;
 
 typedef struct PHYS_WorldSettings PHYS_WorldSettings;
@@ -298,17 +316,21 @@ shared_function PHYS_World*                  phys_make_world(PHYS_WorldSettings 
 shared_function void                         phys_world_cleanup(PHYS_World* w);
 
 shared_function PHYS_body_id                 phys_world_add_body(PHYS_World* w, PHYS_Body b);
-shared_function void                         phys_world_remove_body(PHYS_World* w, PHYS_body_id dp);
-shared_function PHYS_Body*                   phys_world_resolve_body(PHYS_World* w, PHYS_body_id dp);
+shared_function void                         phys_world_remove_body(PHYS_World* w, PHYS_body_id id);
+shared_function PHYS_Body*                   phys_world_resolve_body_unchecked(PHYS_World* w, PHYS_body_id id);
+shared_function PHYS_Body*                   phys_world_resolve_body(PHYS_World* w, PHYS_body_id id);
 
 shared_function PHYS_collider_id             phys_world_add_collider(PHYS_World* w, PHYS_Collider c);
-shared_function void                         phys_world_remove_collider(PHYS_World* w, PHYS_collider_id col);
-shared_function PHYS_Collider*               phys_world_resolve_collider(PHYS_World* w, PHYS_collider_id col);
+shared_function void                         phys_world_remove_collider(PHYS_World* w, PHYS_collider_id id);
+shared_function PHYS_Collider*               phys_world_resolve_collider_unchecked(PHYS_World* w, PHYS_collider_id id);
+shared_function PHYS_Collider*               phys_world_resolve_collider(PHYS_World* w, PHYS_collider_id id);
 
 shared_function PHYS_constraint_id           phys_world_add_constraint(PHYS_World* w, PHYS_Constraint c);
-shared_function void                         phys_world_remove_constraint(PHYS_World* w, PHYS_constraint_id col);
-shared_function PHYS_Constraint*             phys_world_resolve_constraint(PHYS_World* w, PHYS_constraint_id col);
+shared_function void                         phys_world_remove_constraint(PHYS_World* w, PHYS_constraint_id id);
+shared_function PHYS_Constraint*             phys_world_resolve_constraint_unchecked(PHYS_World* w, PHYS_constraint_id id);
+shared_function PHYS_Constraint*             phys_world_resolve_constraint(PHYS_World* w, PHYS_constraint_id id);
 
 shared_function PHYS_dependent_constraint_id phys_world_add_dependent_constraint(PHYS_World* w, PHYS_DependentConstraint c);
-shared_function void                         phys_world_remove_dependent_constraint(PHYS_World* w, PHYS_dependent_constraint_id col);
-shared_function PHYS_DependentConstraint*    phys_world_resolve_dependent_constraint(PHYS_World* w, PHYS_dependent_constraint_id col);
+shared_function void                         phys_world_remove_dependent_constraint(PHYS_World* w, PHYS_dependent_constraint_id id);
+shared_function PHYS_DependentConstraint*    phys_world_resolve_dependent_constraint_unchecked(PHYS_World* w, PHYS_dependent_constraint_id id);
+shared_function PHYS_DependentConstraint*    phys_world_resolve_dependent_constraint(PHYS_World* w, PHYS_dependent_constraint_id id);

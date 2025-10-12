@@ -1,3 +1,5 @@
+// @todo consistent api, eg. transform, velocities, material, compliances
+
 // rigid bodies
 typedef struct PHYS_RigidBody PHYS_RigidBody;
 struct PHYS_RigidBody {
@@ -7,27 +9,32 @@ struct PHYS_RigidBody {
 
 typedef struct PHYS_Ball_Settings PHYS_Ball_Settings;
 struct PHYS_Ball_Settings {
-    f32 radius;
     f32 mass;
-    f32 resitution;
     vec3_f32 center;
     vec3_f32 linear_velocity;
+
+    f32 radius;
+    b32 can_rotate;
+    b32 is_particle;
+
+    f32 resitution;
     f32 coefficient_of_dynamic_friction;
     f32 coefficient_of_static_friction;
-    b32 can_rotate;
 };
 
 typedef struct PHYS_Box_Settings PHYS_Box_Settings;
 struct PHYS_Box_Settings {
-    vec3_f32 center;
-    vec3_f32 extents;
-    vec4_f32 rotation;
     f32 mass;
-    b32 no_gravity;
-    f32 resitution;
+    vec3_f32 center;
+    vec4_f32 rotation;
     vec3_f32 linear_velocity;
     vec3_f32 angular_velocity;
+    
+    vec3_f32 extents;
+    b32 no_gravity;
+
     PHYS_ColliderLayer layer;
+    f32 resitution;
     f32 coefficient_of_dynamic_friction;
     f32 coefficient_of_static_friction;
 };
@@ -41,8 +48,10 @@ struct PHYS_BoxBoundary {
 typedef struct PHYS_BoxBoundary_Settings PHYS_BoxBoundary_Settings;
 struct PHYS_BoxBoundary_Settings {
     vec3_f32 center;
-    vec3_f32 extents;
     vec4_f32 rotation;
+
+    vec3_f32 extents;
+
     f32 resitution;
     PHYS_ColliderLayer layer;
 };
@@ -65,12 +74,13 @@ struct PHYS_Softbody {
 typedef struct PHYS_TetTriSoftbody_Settings PHYS_TetTriSoftbody_Settings;
 struct PHYS_TetTriSoftbody_Settings {
     f32 mass;
-    f32 edge_compliance;
-    f32 volume_compliance;
     vec3_f32 center;
     vec4_f32 rotation;
     vec3_f32 scale;
     vec3_f32 linear_velocity;
+    
+    f32 edge_compliance;
+    f32 volume_compliance;
 
     vec3_f32* vertices;
     u32 vertices_count;
@@ -98,19 +108,19 @@ struct PHYS_Cloth {
 };
 typedef struct PHYS_ClothFiber_Settings PHYS_ClothFiber_Settings;
 struct PHYS_ClothFiber_Settings {
-    vec3_f32 direction;
     f32 compliance;
+    b32 ignore_direction;
+    vec3_f32 direction;
 };
 typedef struct PHYS_Cloth_Settings PHYS_Cloth_Settings;
 struct PHYS_Cloth_Settings {
-    Arena* arena;
-    
-    f32 thickness;
     f32 mass;
     vec3_f32 center;
     vec4_f32 rotation;
     vec3_f32 scale;
     vec3_f32 linear_velocity;
+    
+    f32 thickness;
 
     vec3_f32* vertices;
     u32 vertices_count;
@@ -123,6 +133,21 @@ struct PHYS_Cloth_Settings {
     int fiber_depth;
     int fiber_ratio_hint;
 };
+typedef struct PHYS_Sheet_Settings PHYS_Sheet_Settings;
+struct PHYS_Sheet_Settings {
+    f32 mass;
+    vec3_f32 center;
+    vec4_f32 rotation;
+    vec3_f32 scale;
+    vec3_f32 linear_velocity;
+    
+    f32 thickness;
+    f32 spacing;
+    u32 x, y;
+    f32 stretch_compliance;
+    f32 shear_compliance;
+    f32 bend_compliance;
+};
 
 shared_function PHYS_body_id     phys_world_add_fixed_point(PHYS_World* w, vec3_f32 position);
 shared_function void             phys_world_remove_rigid_body(PHYS_World* w, PHYS_RigidBody* object);
@@ -133,4 +158,5 @@ shared_function void             phys_world_remove_box_boundary(PHYS_World* w, P
 shared_function PHYS_Softbody    phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Settings settings);
 shared_function void             phys_world_remove_softbody(PHYS_World* w, PHYS_Softbody object);
 shared_function PHYS_Cloth       phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings);
+shared_function PHYS_Cloth       phys_world_add_sheet(PHYS_World* w, PHYS_Sheet_Settings settings);
 shared_function void             phys_world_remove_cloth(PHYS_World* w, PHYS_Cloth object);

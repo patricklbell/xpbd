@@ -148,6 +148,7 @@ typedef enum R_PassKind
 {
     R_PassKind_3D,
     R_PassKind_3DDebug,
+    R_PassKind_3DBackFace,
     R_PassKind_COUNT ENUM_CASE_UNUSED,
 } R_PassKind;
 

@@ -17,7 +17,7 @@ internal void demos_camera_pan(DEMOS_Camera* cam, vec3_f32 pan);
 internal void demos_camera_resize_window(DEMOS_Camera* cam, vec2_f32 window_size);
 
 // controls
-#define DEMOS_CONTROLS_ORBIT_ZOOM_MULT 0.0001f
+#define DEMOS_CONTROLS_ORBIT_ZOOM_MULT 0.00005f
 #define DEMOS_CONTROLS_ORBIT_ZOOM_RATE 0.06f
 #define DEMOS_CONTROLS_ORBIT_ZOOM_MAX 100.f
 internal void demos_controls_camera_orbit(OS_Handle window, f32 dt, DEMOS_Camera* camera);
@@ -35,4 +35,4 @@ struct DEMOS_PhysDragState {
 internal b32 demos_controls_phys_drag(PHYS_World* w, OS_Handle window, DEMOS_Camera* camera, f32 compliance);
 
 // rendering
-internal R_PassParams_3D* demos_d_begin_3d_pass_camera(OS_Handle window, DEMOS_Camera* camera, b32 debug);
+internal R_PassParams_3D* demos_d_begin_3d_pass_camera(OS_Handle window, DEMOS_Camera* camera, b32 debug, b32 back_face);
