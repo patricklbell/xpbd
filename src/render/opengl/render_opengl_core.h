@@ -202,6 +202,7 @@ global const NTString8 r_ogl_dieletric_pbr_fragment_shader_src = ntstr8_lit_init
     "out vec4 out_color;"
     ""
     "uniform mat4 u_view;"
+    "uniform float u_flip;"
     ""
     "vec3 F_Schlick(float cLdotH, vec3 F0) {"
     "    return F0 + (1.0 - F0)*pow(1.0 - cLdotH, 5.0);"
@@ -249,9 +250,8 @@ global const NTString8 r_ogl_dieletric_pbr_fragment_shader_src = ntstr8_lit_init
     ""
     "void main() {"
     "   vec3 E = -transpose(mat3(u_view)) * u_view[3].xyz;"
-    "   vec3 N = normalize(vs_normal);"
+    "   vec3 N = u_flip*normalize(vs_normal);"
     "   vec3 V = normalize(E - vs_position);"
-    "   if (dot(N, V) < 0.0) N = -N;" // @note only needed for back-face rendering
     "   float cVdotN = max(dot(V, N), 0.0);"
     "   float alpha = vs_roughness*vs_roughness;"
     ""

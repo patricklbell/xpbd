@@ -17,7 +17,7 @@ global DEMO_SheetState s;
 // initialization/cleanup
 // 
 demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
-    cs->camera = demos_make_camera(os_gfx_window_size(cs->window), /*eye*/ make_3f32(0, -1.3, 1), /*target*/ make_3f32(0, -1.8, 0));
+    cs->camera = demos_make_camera(os_gfx_window_size(cs->window), /*eye*/ make_3f32(0, -0.5, 1), /*target*/ make_3f32(0, -1, 0));
 
     // setup visual mesh
     s.x = 30;
@@ -48,7 +48,7 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
     w->hashgrid_cell_size = diameter;
     w->hashgrid_obj_size = diameter;
     w->enable_particle_ground_plane = true;
-    w->particle_ground_plane_height = -2.f;
+    w->particle_ground_plane_height = -1.f;
 
     s.cloth_phys = phys_world_add_sheet(w, (PHYS_Sheet_Settings){
         .mass = PHYS_UNIT_KG(1),

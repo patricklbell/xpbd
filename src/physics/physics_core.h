@@ -74,10 +74,6 @@ typedef struct PHYS_DependentConstraint PHYS_DependentConstraint;
 struct PHYS_DependentConstraint {
     f32 l;
     f32 compliance;
-    union {
-        f32 force;
-        vec3_f32 torque;
-    };
 
     union {
         PHYS_DependentConstraint_Target target;
@@ -125,11 +121,14 @@ struct PHYS_Constraint_Volume {
 
 typedef struct PHYS_Constraint_GlobalVolume PHYS_Constraint_GlobalVolume;
 struct PHYS_Constraint_GlobalVolume {
+    f32 v_rest;
+    f32 k; // overpressure factor
+
     PHYS_body_id* surface_bodies;
     u32 surface_bodies_count;
+
     u32* surface_indices; // @note assumed to be triangles
     u32 surface_indices_count;
-    f32 v_rest;
 };
 
 typedef struct PHYS_Constraint_Orientation PHYS_Constraint_Orientation;
@@ -185,10 +184,6 @@ struct PHYS_Constraint {
 
     f32 l;
     f32 compliance;
-    union {
-        f32 force;
-        vec3_f32 torque;
-    };
 
     union {
         PHYS_Constraint_Distance            distance;

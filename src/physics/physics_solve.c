@@ -32,6 +32,8 @@ shared_function void phys_world_step(PHYS_World* w, f64 dt) {ZoneScoped;
     for PHYS_EachPA(w->colliders) {
         PHYS_EachPADefId(w->colliders, PHYS_Collider, PHYS_collider_id, collider);
 
+        Assert(phys_world_valid_radius(w, collider->base.r));
+        
         // if collider is small enough, put it in the hashgrid
         if (collider->base.r <= w->hashgrid_obj_size) {
             if (w->hashgrid_info_count >= hashgrid_info_capacity) {
@@ -313,7 +315,7 @@ internal vec3_f32 phys_body_velocity_at_offset(PHYS_Body* b, vec3_f32 r) {
 }
 
 internal void phys_constraint_apply_two_bodies_linear_correction(
-    f32 compliance, f32* l, f32* force, PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2,
+    f32 compliance, f32* l, PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2,
     f32 C, vec3_f32 n, f32 w
 ) {
     f32 alpha = settings.inv_dt2*compliance;
@@ -323,12 +325,10 @@ internal void phys_constraint_apply_two_bodies_linear_correction(
     vec3_f32 corr2 = mul_3f32(n, -dl);
     phys_body_apply_linear_correction(b1, corr1);
     phys_body_apply_linear_correction(b2, corr2);
-
-    *force = abs_f32(*l) * settings.inv_dt;
 }
 
 internal void phys_constraint_apply_two_bodies_linear_offset_correction(
-    f32 compliance, f32* l, f32* force, PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2,
+    f32 compliance, f32* l, PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2,
     f32 C, vec3_f32 n, vec3_f32 r1, vec3_f32 r2
 ) {
     f32 w  = b1->inv_mass + phys_body_inverse_inertia(b1, cross_3f32(r1, n));
@@ -344,8 +344,6 @@ internal void phys_constraint_apply_two_bodies_linear_offset_correction(
     phys_body_apply_linear_correction(b2, corr2);
     phys_body_apply_angular_correction(b1, cross_3f32(r1, corr1));
     phys_body_apply_angular_correction(b2, cross_3f32(r2, corr2));
-
-    *force = abs_f32(*l) * settings.inv_dt;
 }
 
 // solvers
@@ -365,7 +363,7 @@ internal void phys_constraint_solve_distance(PHYS_Constraint* c, PHYS_Constraint
     vec3_f32 n = mul_3f32(dr, 1.f/r); // @note not normalized so lagrange is not correct
 
     phys_constraint_apply_two_bodies_linear_correction(
-        c->compliance, &c->l, &c->force, settings, body1, body2,
+        c->compliance, &c->l, settings, body1, body2,
         C, n, w
     );
 }
@@ -403,7 +401,7 @@ internal void phys_constraint_solve_advanced_distance(PHYS_Constraint* c, PHYS_C
     C = abs_f32(C);
 
     phys_constraint_apply_two_bodies_linear_offset_correction(
-        c->compliance, &c->l, &c->force, settings, body1, body2,
+        c->compliance, &c->l, settings, body1, body2,
         C, n, r1, r2
     );
 }
@@ -435,7 +433,7 @@ internal void phys_constraint_solve_linear_dofs(PHYS_Constraint* c, PHYS_Constra
     vec3_f32 n = mul_3f32(corr, 1.f/C);
 
     phys_constraint_apply_two_bodies_linear_correction(
-        c->compliance, &c->l, &c->force, settings, body1, body2,
+        c->compliance, &c->l, settings, body1, body2,
         C, n, w
     );
 }
@@ -463,10 +461,10 @@ internal void phys_constraint_solve_volume(PHYS_Constraint* c, PHYS_ConstraintSo
     if (C == 0.f) return;
 
     f32 alpha = settings.inv_dt2*c->compliance;
-    f32 w  = b1->inv_mass*dot_3f32(dC1, dC1);
-        w += b2->inv_mass*dot_3f32(dC2, dC2);
-        w += b3->inv_mass*dot_3f32(dC3, dC3);
-        w += b4->inv_mass*dot_3f32(dC4, dC4);
+    f32 w  = b1->inv_mass*length2_3f32(dC1);
+        w += b2->inv_mass*length2_3f32(dC2);
+        w += b3->inv_mass*length2_3f32(dC3);
+        w += b4->inv_mass*length2_3f32(dC4);
     if (w == 0.f) return;
     f32 dl = phys_update_lagrange_multiplier_return_delta(C, w, alpha, &c->l);
 
@@ -479,60 +477,54 @@ internal void phys_constraint_solve_volume(PHYS_Constraint* c, PHYS_ConstraintSo
     phys_body_apply_linear_correction(b2, corr2);
     phys_body_apply_linear_correction(b3, corr3);
     phys_body_apply_linear_correction(b4, corr4);
-
-    c->force = abs_f32(c->l) * settings.inv_dt;
 }
 
+// https://matthias-research.github.io/pages/publications/posBasedDyn.pdf
+// 4.4 Cloth Balloons modified to use correct Lagrange multiplier for XPBD
 internal void phys_constraint_solve_global_volume(PHYS_Constraint* c, PHYS_ConstraintSolveSettings settings) {
-    // total volume @note assumes CCW, uses origin as 4th point of tetrahedron
-    f32 v = 0;
-    f32 w = 0; // inv mass @todo should this be normalized by gradient? should mass be shared or not?
-    for (u32 idx = 0; idx < c->global_volume.surface_indices_count; idx += GEO_Topology_Triangle) {
-        PHYS_Body* b1 = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[c->global_volume.surface_indices[idx+0]]);
-        PHYS_Body* b2 = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[c->global_volume.surface_indices[idx+1]]);
-        PHYS_Body* b3 = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[c->global_volume.surface_indices[idx+2]]);
-        
-        // @todo best edges (avoid sub)
-        vec3_f32 d21 = sub_3f32(b2->position, b1->position);
-        vec3_f32 d31 = sub_3f32(b3->position, b1->position);
-        vec3_f32 d14 = b1->position;
+    {DeferResource(Temp scratch = scratch_begin(NULL, 0), scratch_end(scratch)) {
+        vec3_f32* dC = push_array(scratch.arena, vec3_f32, c->global_volume.surface_bodies_count);
 
-        v += phys_tetrahedron_volume_axis(d31, d21, d14);
-        w += b1->inv_mass;
-        w += b2->inv_mass;
-        w += b3->inv_mass;
-    }
-    v = abs_f32(v);
-    printf("v = %f, v_rest = %f\n", v, c->global_volume.v_rest);
-    
-    f32 C = v - c->global_volume.v_rest;
-    if (C == 0.f) return;
+        f32 v = 0.f;
+        for (u32 idx = 0; idx < c->global_volume.surface_indices_count; idx += GEO_Topology_Triangle) {
+            u32 i1 = c->global_volume.surface_indices[idx+0];
+            u32 i2 = c->global_volume.surface_indices[idx+1];
+            u32 i3 = c->global_volume.surface_indices[idx+2];
+            vec3_f32 p1 = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[i1])->position;
+            vec3_f32 p2 = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[i2])->position;
+            vec3_f32 p3 = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[i3])->position;
+            
+            vec3_f32 p2xp3 = cross_3f32(p2, p3);
+            vec3_f32 p3xp1 = cross_3f32(p3, p1);
+            vec3_f32 p1xp2 = cross_3f32(p1, p2);
+            v += dot_3f32(p1xp2, p3); // @note ~tetrahedron volume
 
-    f32 alpha = settings.inv_dt2*c->compliance;
-    if (w == 0.f) return;
-    f32 dl = phys_update_lagrange_multiplier_return_delta(C, w, alpha, &c->l);
+            dC[i1] = add_3f32(dC[i1], p2xp3);
+            dC[i2] = add_3f32(dC[i2], p3xp1);
+            dC[i3] = add_3f32(dC[i3], p1xp2);
+        }
 
-    for (u32 idx = 0; idx < c->global_volume.surface_indices_count; idx += GEO_Topology_Triangle) {
-        PHYS_Body* b1 = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[c->global_volume.surface_indices[idx+0]]);
-        PHYS_Body* b2 = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[c->global_volume.surface_indices[idx+1]]);
-        PHYS_Body* b3 = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[c->global_volume.surface_indices[idx+2]]);
+        f32 C = v - 6.f*c->global_volume.v_rest*c->global_volume.k;
+        if (C == 0.f) return;
 
-        vec3_f32 u = normalize_3f32(sub_3f32(b2->position, b1->position));
-        vec3_f32 v = normalize_3f32(sub_3f32(b3->position, b1->position));
-    
-        vec3_f32 dC = normalize_3f32(cross_3f32(u, v)); // ccw
-        vec3_f32 corr = mul_3f32(dC, dl);
+        f32 alpha = settings.inv_dt2*c->compliance;
+        f32 w = 0.f;
+        for EachIndexU32(idx, c->global_volume.surface_bodies_count) {
+            PHYS_Body* b = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[idx]);
+            w += b->inv_mass*length2_3f32(dC[idx]);
+        }
+        if (w == 0.f) return;
+        f32 dl = phys_update_lagrange_multiplier_return_delta(C, w, alpha, &c->l);
 
-        phys_body_apply_linear_correction(b1, corr);
-        phys_body_apply_linear_correction(b2, corr);
-        phys_body_apply_linear_correction(b3, corr);
-    }
-
-    c->force = abs_f32(c->l) * settings.inv_dt;
+        for EachIndexU32(idx, c->global_volume.surface_bodies_count) {
+            PHYS_Body* b = phys_world_resolve_body(settings.w, c->global_volume.surface_bodies[idx]);
+            phys_body_apply_linear_correction(b, mul_3f32(dC[idx], dl));
+        }
+    }}
 }
 
 internal void phys_constraint_apply_two_bodies_angular_correction(
-    f32 compliance, f32* l, vec3_f32* torque, PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2,
+    f32 compliance, f32* l, PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2,
     vec3_f32 dq
 ) {
     f32 C2 = dot_3f32(dq, dq);
@@ -550,14 +542,12 @@ internal void phys_constraint_apply_two_bodies_angular_correction(
     vec3_f32 corr2 = mul_3f32(n, -dl);
     phys_body_apply_angular_correction(b1, corr1);
     phys_body_apply_angular_correction(b2, corr2);
-
-    *torque = mul_3f32(n, abs_f32(*l)*settings.inv_dt);
 }
 
 // https://matthias-research.github.io/pages/publications/PBDBodies.pdf
 // Algorithm 3: Handling joint limits
 internal void phys_constraint_apply_two_bodies_limit_angle(
-    f32 compliance, f32* l, vec3_f32* torque, PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2,
+    f32 compliance, f32* l, PHYS_ConstraintSolveSettings settings, PHYS_Body* b1, PHYS_Body* b2,
     vec3_f32 n, vec3_f32 n1, vec3_f32 n2, f32 alpha, f32 beta
 ) {
     #if PHYS_DBG_D_STEP
@@ -577,7 +567,6 @@ internal void phys_constraint_apply_two_bodies_limit_angle(
         phi += 2.f*PI;
 
     if (phi >= alpha && phi <= beta) {
-        *torque = make_3f32(0.f,0.f,0.f);
         return;
     }
 
@@ -585,7 +574,7 @@ internal void phys_constraint_apply_two_bodies_limit_angle(
 
     vec3_f32 n_target = rot_quat(n1, make_angle_axis_quat(phi, n));
     // @todo figure out why torque needed to be flipped from paper
-    phys_constraint_apply_two_bodies_angular_correction(compliance, l, torque, settings, b1, b2, cross_3f32(n2, n_target));
+    phys_constraint_apply_two_bodies_angular_correction(compliance, l, settings, b1, b2, cross_3f32(n2, n_target));
 
     #if PHYS_DBG_D_STEP
         if (phys_dbg_d_ctx->do_limit_angle) {
@@ -602,7 +591,7 @@ internal void phys_constraint_solve_orientation(PHYS_Constraint* c, PHYS_Constra
 
     vec4_f32 q = mul_quat(body1->rotation, inv_quat(body2->rotation));
     phys_constraint_apply_two_bodies_angular_correction(
-        c->compliance, &c->l, &c->torque, settings, body1, body2,
+        c->compliance, &c->l, settings, body1, body2,
         mul_3f32(q.xyz, 2.f)
     );
 }
@@ -615,7 +604,7 @@ internal void phys_constraint_solve_hinge(PHYS_Constraint* c, PHYS_ConstraintSol
     a1 = rot_quat(c->hinge.a1, body1->rotation);
     a2 = rot_quat(c->hinge.a2, body2->rotation);
     phys_constraint_apply_two_bodies_angular_correction(
-        c->compliance, &c->l, &c->torque, settings, body1, body2,
+        c->compliance, &c->l, settings, body1, body2,
         cross_3f32(a1, a2)
     );
 
@@ -628,7 +617,7 @@ internal void phys_constraint_solve_hinge(PHYS_Constraint* c, PHYS_ConstraintSol
         vec3_f32 b_target = rot_quat(b1, make_angle_axis_quat(dc->target.value, a1));
 
         phys_constraint_apply_two_bodies_angular_correction(
-            dc->compliance, &dc->l, &dc->torque, settings, body1, body2,
+            dc->compliance, &dc->l, settings, body1, body2,
             cross_3f32(b_target, b2)
         );
     }
@@ -639,7 +628,7 @@ internal void phys_constraint_solve_hinge(PHYS_Constraint* c, PHYS_ConstraintSol
         b1 = rot_quat(c->hinge.b1, body1->rotation);
         b2 = rot_quat(c->hinge.b2, body2->rotation);
         phys_constraint_apply_two_bodies_limit_angle(
-            dc->compliance, &dc->l, &dc->torque, settings, body1, body2,
+            dc->compliance, &dc->l, settings, body1, body2,
             a1, b1, b2, dc->limits.min, dc->limits.max
         );
     }
@@ -653,7 +642,7 @@ internal void phys_constraint_solve_swing(PHYS_Constraint* c, PHYS_ConstraintSol
     vec3_f32 a2 = rot_quat(c->swing.a2, body2->rotation);
 
     phys_constraint_apply_two_bodies_limit_angle(
-        c->compliance, &c->l, &c->torque, settings, body1, body2,
+        c->compliance, &c->l, settings, body1, body2,
         cross_3f32(a1, a2), a1, a2, c->swing.limits.min, c->swing.limits.max
     );
 }
@@ -672,7 +661,7 @@ internal void phys_constraint_solve_twist(PHYS_Constraint* c, PHYS_ConstraintSol
     vec3_f32 n2 = sub_3f32(b2, mul_3f32(n, dot_3f32(n, b2)));
 
     phys_constraint_apply_two_bodies_limit_angle(
-        c->compliance, &c->l, &c->torque, settings, body1, body2,
+        c->compliance, &c->l, settings, body1, body2,
         n, n1, n2, c->twist.limits.min, c->twist.limits.max
     );
 }

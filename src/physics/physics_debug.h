@@ -10,7 +10,7 @@ typedef void(*PHYS_DBG_DrawPointBatch)(vec3_f32* points, vec3_f32* colors, vec2_
 typedef enum PHYS_DBG_DrawColorMode {
     PHYS_DBG_DrawColorMode_Manual,
     PHYS_DBG_DrawColorMode_Type,
-    PHYS_DBG_DrawColorMode_Force,
+    // PHYS_DBG_DrawColorMode_Force,
     PHYS_DBG_DrawColorMode_Unique,
 } PHYS_DBG_DrawColorMode;
 
@@ -24,7 +24,6 @@ struct PHYS_DBG_ThreadCtx {
     f32 default_normal_length;
     f32 body_radius;
     f32 attachment_radius;
-    f32 max_force;
 
     PHYS_DBG_DrawColorMode color_mode;
     vec3_f32 constraint_colors[PHYS_ConstraintType_COUNT];
@@ -32,8 +31,6 @@ struct PHYS_DBG_ThreadCtx {
     vec3_f32 body_color;
     b32 is_color_set;
     vec3_f32 color;
-    vec3_f32 min_force_color_hsl;
-    vec3_f32 max_force_color_hsl;
 
     b32 do_colliders;
     b32 do_bodies;

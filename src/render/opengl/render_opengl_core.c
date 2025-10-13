@@ -223,6 +223,7 @@ r_hook void r_submit(OS_Handle window, R_PassList *passes) { TracyGpuZone("r_sub
                         glUseProgram(program);
                         glUniformMatrix4fv(glGetUniformLocation(program, "u_projection"), 1, GL_FALSE, &params->projection.v[0][0]);
                         glUniformMatrix4fv(glGetUniformLocation(program, "u_view"), 1, GL_FALSE, &params->view.v[0][0]);
+                        glUniform1f(glGetUniformLocation(program, "u_flip"), pass->kind == R_PassKind_3DBackFace ? -1.f : 1.f);
 
                         const R_OGL_ProgramDefinition* program_def = &r_ogl_programs_definitions[group_params->mesh_material];
 

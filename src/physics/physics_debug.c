@@ -12,10 +12,7 @@ shared_function PHYS_DBG_ThreadCtx* phys_dbg_d_init(PHYS_DBG_DrawEdgeBatch draw_
         .default_normal_length = 0.1,
         .body_radius = 0.05,
         .attachment_radius = 0.01,
-        .max_force = 10.f,
         .color_mode = PHYS_DBG_DrawColorMode_Type,
-        .min_force_color_hsl = make_3f32(240.f/360.f,1,1),
-        .max_force_color_hsl = make_3f32(000.f/360.f,1,1),
     };
 
     vec3_f32 hsl_color = make_3f32(0,1,1);
@@ -50,12 +47,12 @@ internal vec3_f32 phys_dbg_d_get_unique_color() {
 internal vec3_f32 phys_dbg_d_get_constraint_color(PHYS_World* w, PHYS_Constraint* c) {
     switch (phys_dbg_d_ctx->color_mode) {
         case PHYS_DBG_DrawColorMode_Type: return phys_dbg_d_ctx->constraint_colors[c->type];
-        case PHYS_DBG_DrawColorMode_Force: return hsl_to_rgb(
-            lerp_3f32(
-                phys_dbg_d_ctx->min_force_color_hsl, phys_dbg_d_ctx->max_force_color_hsl,
-                smoothstep_f32(0.f, phys_dbg_d_ctx->max_force, c->force)
-            )
-        );
+        // case PHYS_DBG_DrawColorMode_Force: return hsl_to_rgb(
+        //     lerp_3f32(
+        //         phys_dbg_d_ctx->min_force_color_hsl, phys_dbg_d_ctx->max_force_color_hsl,
+        //         smoothstep_f32(0.f, phys_dbg_d_ctx->max_force, abs_f32(c->l) * settings.inv_dt)
+        //     )
+        // );
         case PHYS_DBG_DrawColorMode_Unique: srand((u64)c); return phys_dbg_d_get_unique_color();
         default: return phys_dbg_d_ctx->color;
     }

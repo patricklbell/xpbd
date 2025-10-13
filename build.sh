@@ -118,8 +118,8 @@ build_demo_wrapper() {
         [cloth]="cloth.vtk sphere.obj"
         [pendulum]="cube.obj"
         [joints]="cube.obj"
-        [balloon]="sphere.vtk"
         [sheet]=" "
+        [balloon]="sphere.vtk cube.vtk"
     )
 
     if [[ -n "$1" && -n "${dependencies[$1]}" ]]; then

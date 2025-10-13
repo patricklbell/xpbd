@@ -27,7 +27,6 @@ global DEMO_HangingBoxesState s;
 // initialization/cleanup
 // 
 demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
-    phys_dbg_d_ctx->color_mode = PHYS_DBG_DrawColorMode_Force;
     phys_dbg_d_ctx->do_constraints = true;
     phys_dbg_d_ctx->do_colliders = true;
     phys_dbg_d_ctx->do_contact_points = true;

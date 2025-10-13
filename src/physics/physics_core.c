@@ -150,7 +150,6 @@ shared_function PHYS_Body* phys_world_resolve_body(PHYS_World* w, PHYS_body_id i
 
 // collider api
 shared_function PHYS_collider_id phys_world_add_collider(PHYS_World* w, PHYS_Collider collider) {
-    Assert(phys_world_valid_radius(w, collider.base.r));
     if (phys_collider_layers_equal(collider.base.layer, PHYS_ColliderLayer_Invalid))
         collider.base.layer = PHYS_ColliderLayer_All; // @todo layer context?
 

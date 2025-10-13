@@ -409,13 +409,16 @@ shared_function PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settin
     if (dot_3f32(settings.scale, settings.scale) == 0.f) {
         settings.scale = make_3f32(1,1,1);
     }
-    if (settings.thickness == 0.f) {
+    if (settings.radius_mode == PHYS_Cloth_Settings_RadiusMode_Thickness && settings.thickness == 0.f) {
         Assert(w->min_r > 0.f);
         settings.thickness = w->min_r;
     }
+    if (phys_collider_layers_equal(settings.layer, PHYS_ColliderLayer_Invalid)) {
+        settings.layer = PHYS_ColliderLayer_1;
+    }
     settings.fiber_ratio_hint = Max(settings.fiber_ratio_hint, 1);
-    Assert(phys_world_valid_radius(w, settings.thickness));
     Assert(settings.mass > 0.f);
+    b32 self_collision = phys_collider_layers_overlap(settings.layer, settings.layer);
 
     // introduces small instabilities to avoid unphysical behaviour
     f32 jitter = settings.thickness*0.01f;
@@ -437,12 +440,25 @@ shared_function PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settin
             .inv_mass = particle_inv_mass,
         });
 
+        f32 radius;
+        switch (settings.radius_mode) {
+            case PHYS_Cloth_Settings_RadiusMode_Thickness:{
+                radius = settings.thickness;
+            }break;
+            case PHYS_Cloth_Settings_RadiusMode_Max:{
+                radius = -MAX_F32;
+            }break;
+            case PHYS_Cloth_Settings_RadiusMode_Min:{
+                radius = +MAX_F32;
+            }break;
+        }
+
         result.sphere_colliders[vert_i] = phys_world_add_collider(w, (PHYS_Collider){
             .sphere = {
                 .base = {
                     .type = PHYS_ColliderType_Sphere,
                     .p = result.vertices[vert_i],
-                    .r = settings.thickness,
+                    .r = radius,
                 }
             }
         });
@@ -476,9 +492,9 @@ shared_function PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settin
                 vec3_f32 pj = settings.vertices[n_edge->hash.j];
 
                 f32 d = length_3f32(elmul_3f32(sub_3f32(pj, pi), settings.scale));
-                if (d < 2.f*settings.thickness) {
-                    fprintf(stderr, "self collision at rest in cloth, skipping constraint\n");
-                    continue;
+                if (self_collision && d < 2.f*settings.thickness) { // @logging
+                    fprintf(stderr, "self collision at rest in cloth, moving apart\n");
+                    d = 2.f*settings.thickness;
                 }
                 result.distance_constraints[distance_constraint_offset] = phys_world_add_constraint(w, (PHYS_Constraint){
                     .type = PHYS_ConstraintType_Distance,
@@ -490,6 +506,24 @@ shared_function PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settin
                     }
                 });
                 distance_constraint_offset++;
+
+                if (settings.radius_mode == PHYS_Cloth_Settings_RadiusMode_Thickness)
+                    continue;
+                
+                PHYS_Collider* ci = phys_world_resolve_collider_unchecked(w, result.sphere_colliders[n_edge->hash.i]);
+                PHYS_Collider* cj = phys_world_resolve_collider_unchecked(w, result.sphere_colliders[n_edge->hash.j]);
+                switch (settings.radius_mode) {
+                    case PHYS_Cloth_Settings_RadiusMode_Thickness:
+                        break;
+                    case PHYS_Cloth_Settings_RadiusMode_Max:{
+                        ci->base.r = Clamp(Max(ci->base.r, d/2.f), settings.radius_lower, settings.radius_upper);
+                        cj->base.r = Clamp(Max(cj->base.r, d/2.f), settings.radius_lower, settings.radius_upper);
+                    }break;
+                    case PHYS_Cloth_Settings_RadiusMode_Min:{
+                        ci->base.r = Clamp(Min(ci->base.r, d/2.f), settings.radius_lower, settings.radius_upper);
+                        cj->base.r = Clamp(Min(cj->base.r, d/2.f), settings.radius_lower, settings.radius_upper);
+                    }break;
+                }
             }
         }
 

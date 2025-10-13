@@ -112,6 +112,11 @@ struct PHYS_ClothFiber_Settings {
     b32 ignore_direction;
     vec3_f32 direction;
 };
+typedef enum PHYS_Cloth_Settings_RadiusMode {
+    PHYS_Cloth_Settings_RadiusMode_Thickness = 0,
+    PHYS_Cloth_Settings_RadiusMode_Min,
+    PHYS_Cloth_Settings_RadiusMode_Max,
+} PHYS_Cloth_Settings_RadiusMode;
 typedef struct PHYS_Cloth_Settings PHYS_Cloth_Settings;
 struct PHYS_Cloth_Settings {
     f32 mass;
@@ -120,7 +125,10 @@ struct PHYS_Cloth_Settings {
     vec3_f32 scale;
     vec3_f32 linear_velocity;
     
+    PHYS_Cloth_Settings_RadiusMode radius_mode;
     f32 thickness;
+    f32 radius_upper, radius_lower;
+    PHYS_ColliderLayer layer;
 
     vec3_f32* vertices;
     u32 vertices_count;
