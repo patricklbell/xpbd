@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e
 
-# Default configuration
 CC=${CC:-g++}
 CFLAGS="${CFLAGS} -I src"
 LDFLAGS="${LDFLAGS} -lm"
@@ -11,11 +10,9 @@ BUILD_DIR="build"
 BUILD_EXT=""
 DATA_DIR="data"
 
-# Version information
 VERSION="0.1.0"
 SCRIPT_NAME="build.sh"
 
-# Help message
 print_help() {
     cat << EOF
 Usage: $SCRIPT_NAME [OPTION]... [COMMAND]...
@@ -50,29 +47,25 @@ Examples:
 EOF
 }
 
-# Version message
 print_version() {
     echo "$SCRIPT_NAME $VERSION"
 }
 
-# Info message
 print_info() {
-    echo "Build system for physics simulations"
-    echo "  Build directory: $BUILD_DIR"
-    echo "  Data directory:  $DATA_DIR"
-    echo "  Compiler:        $CC"
+    echo "- Build directory: $BUILD_DIR"
+    echo "- Data directory:  $DATA_DIR"
+    echo "- Compiler:        $CC"
     if [[ -n "$release" ]]; then
-    echo "  Mode:            Release"
+    echo "- Mode:            Release"
     else
-    echo "  Mode:            Debug"
+    echo "- Mode:            Debug"
     fi
     if [[ -v trace ]]; then
-    echo "  Tracy:           Enabled"
+    echo "- Tracy:           Enabled"
     fi
 }
 
-# Common build function for demos
-build_demo() {
+build_single_file() {
     mkdir -p "${BUILD_DIR}"
     
     local demo_name="$1"
@@ -97,20 +90,9 @@ build_demo() {
     build_command="${CC} ${CFLAGS} ${main_file} ${LDFLAGS} ${LDFLAGS_GFX} ${embed_args} -o ${BUILD_DIR}/${demo_name}${BUILD_EXT}"
     echo "${build_command}"
     eval ${build_command}
-    
 }
 
-# Function to clean build directory
-clean() {
-    echo "Cleaning build artifacts..."
-    echo "  Removing: ${BUILD_DIR}/"
-    echo "  Removing: docs/demos/"
-    rm -rf "${BUILD_DIR}"/*
-    rm -rf docs/demos
-}
-
-# Function to build all demos
-build_demo_wrapper() {
+build_demo() {
     declare -A dependencies=(
         [balls]="sphere.obj cube.obj"
         [hanging_boxes]="cube.obj"
@@ -123,16 +105,15 @@ build_demo_wrapper() {
     )
 
     if [[ -n "$1" && -n "${dependencies[$1]}" ]]; then
-        build_demo "$1" ${dependencies[$1]}
+        build_single_file "$1" ${dependencies[$1]}
     else
         for demo in "${!dependencies[@]}"; do
-            build_demo "$demo" ${dependencies[$demo]}
+            build_single_file "$demo" ${dependencies[$demo]}
         done
     fi
 }
 
-# Emscripten configuration
-build_demo_emcc() {
+build_emcc() {
     CC="emcc"
     LDFLAGS="${LDFLAGS} -sINITIAL_MEMORY=1024mb -sALLOW_MEMORY_GROWTH -sTOTAL_STACK=512mb"
     LDFLAGS="${LDFLAGS} -sFETCH"
@@ -142,19 +123,16 @@ build_demo_emcc() {
     BUILD_DIR="docs/demos"
     BUILD_EXT=".html"
     CFLAGS="${CFLAGS} --shell-file docs/emcc-template.html --pre-js docs/emcc-pre.js"
-    
-    build_demo_wrapper $1
+    build_demo $1
 }
 
-# Lib configuration
-build_libphys() {
-    LIB_NAME="lib-xpbd.so"
-    build_command="${CC} -fPIC -Wl,-soname,${LIB_NAME} -shared ${CFLAGS} src/libphys/libphys.c ${LDFLAGS} -o ${BUILD_DIR}/${LIB_NAME}"
+build_lib() {
+    LIB_NAME="lib.so"
+    build_command="${CC} -fPIC -Wl,-soname,${LIB_NAME} -shared ${CFLAGS} src/lib/lib.c ${LDFLAGS} -o ${BUILD_DIR}/${LIB_NAME}"
     echo "${build_command}"
     eval ${build_command}
 }
 
-# Main script execution
 main() {
     # Parse options and filter flags
     actions=()
@@ -187,10 +165,9 @@ main() {
 
     # Execute command
     case "${actions[0]}" in
-        clean)  clean;;
-        lib)    build_libphys;;
-        demo)   build_demo_wrapper "${actions[@]:1}";;
-        emcc)   build_demo_emcc "${actions[@]:1}";;
+        lib)    build_lib;;
+        demo)   build_demo "${actions[@]:1}";;
+        emcc)   build_emcc "${actions[@]:1}";;
         "")     echo "Error: No command specified"
                 echo "Try '$SCRIPT_NAME --help' for more information."
                 exit 1;;
@@ -200,5 +177,4 @@ main() {
     esac
 }
 
-# Run main function with all arguments
 main "$@"
