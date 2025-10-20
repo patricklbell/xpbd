@@ -109,7 +109,6 @@ internal OS_Handle os_gfx_handle() {
 internal OS_Events* os_gfx_consume_events(Arena* arena, b32 wait) {
     // ping pong between an active arena (the one we are allocating)
     // and a deactivated arena (user is reading from)
-    os_gfx_wasm_state.queued_events = (OS_Events){};
     os_gfx_wasm_state.active_events_arena = (os_gfx_wasm_state.active_events_arena + 1)%2;
     arena_clear(os_gfx_wasm_state.events_arenas[os_gfx_wasm_state.active_events_arena]);
     
