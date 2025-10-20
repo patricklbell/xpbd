@@ -57,7 +57,8 @@ if "%/release%"=="1"   set compile=%compile_release%
 call :print_info
 
 if not exist %build_dir% mkdir %build_dir%
-if "%all%"=="1"                 set didbuild=1 && call :build_all_demos || call :build_libs || exit /b 1
+if "%all%"=="1"                 set didbuild=1 && call :build_all_demos && call :build_libs || exit /b 1
+if "%libs%"=="1"                set didbuild=1 && call :build_libs || exit /b 1
 if "%balls%"=="1"               set didbuild=1 && call :build_demo balls sphere.obj cube.obj || exit /b 1
 if "%hanging_boxes%"=="1"       set didbuild=1 && call :build_demo hanging_boxes cube.obj || exit /b 1
 if "%softbody%"=="1"            set didbuild=1 && call :build_demo softbody bunny.vtk || exit /b 1
@@ -66,7 +67,6 @@ if "%pendulum%"=="1"            set didbuild=1 && call :build_demo pendulum cube
 if "%joints%"=="1"              set didbuild=1 && call :build_demo joints cube.obj || exit /b 1
 if "%sheet%"=="1"               set didbuild=1 && call :build_demo sheet || exit /b 1
 if "%balloon%"=="1"             set didbuild=1 && call :build_demo balloon sphere.vtk cube.vtk || exit /b 1
-if "%libs%"=="1"                set didbuild=1 && call :build_libs || exit /b 1
 
 if "%didbuild%"=="" (
   echo Error: No valid command specified
