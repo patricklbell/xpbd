@@ -34,7 +34,7 @@ demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
 
     MS_LoadResult cube = ms_load_obj(cs->arena, ntstr8_lit("./data/cube.obj"), (MS_LoadSettings){});
     if (cube.error.length != 0) {
-        fprintf(stderr, "%s\n", cube.error.data);
+        fprintf(stderr, "%s\n", cube.error.cstr);
         return 1;
     }
     s.cube_vertices = r_buffer_alloc(R_ResourceKind_Static, R_ResourceHint_Array, cube.v.vertices_count*r_vertex_size(cube.v.flags), cube.v.vertices);

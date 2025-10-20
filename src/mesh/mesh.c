@@ -8,7 +8,7 @@ internal b32 ms_hash_is_eq(MS_VertexMapHash a, MS_VertexMapHash b) {
     return true;
 }
 
-internal MS_VertexMap ms_make_vertex_map(Arena* arena, u64 slots_count) {
+internal MS_VertexMap ms_make_vertex_map(Arena* arena, u32 slots_count) {
     MS_VertexMap result;
     result.slots_count = slots_count;
     result.slots = push_array(arena, MS_VertexMapNode*, result.slots_count);
@@ -17,7 +17,7 @@ internal MS_VertexMap ms_make_vertex_map(Arena* arena, u64 slots_count) {
 }
 
 internal u32 ms_add_to_vertex_map(Arena* arena, MS_VertexMap* map, MS_VertexMapHash hash) {
-    u64 slot = hash_u64((u8*)&hash, sizeof(hash)) % map->slots_count;
+    u32 slot = hash_u64((u8*)&hash, sizeof(hash)) % map->slots_count;
     MS_VertexMapNode* list = map->slots[slot];
 
     // try to find matching vertex
@@ -38,7 +38,7 @@ internal u32 ms_add_to_vertex_map(Arena* arena, MS_VertexMap* map, MS_VertexMapH
 
 internal void* ms_vertex_map_data(Arena* arena, MS_VertexMap* map, vec3_f32* positions, vec3_f32* normals, vec2_f32* uvs, R_VertexFlag flags) {
     u8* result = (u8*)arena_push(arena, r_vertex_size(flags)*map->vertices_count, r_vertex_align(flags));
-    for EachIndex(slot, map->slots_count) {
+    for EachIndexU32(slot, map->slots_count) {
         for EachList(vn, MS_VertexMapNode, map->slots[slot]) {
             for EachElement(indice_i, vn->hash.indices) {
                 R_VertexFlag flag = IntToEnum(R_VertexFlag, 1 << indice_i);
@@ -101,7 +101,7 @@ internal MS_LoadResult ms_load_obj(Arena* arena, NTString8 path, MS_LoadSettings
     {DeferResource(Temp scratch = scratch_begin_a(arena), scratch_end(scratch)) { 
 
         NTString8 line;
-        line.data = push_array(scratch.arena, u8, OS_DEFAULT_MAX_LINE_LENGTH);
+        line.cstr = push_array(scratch.arena, char, OS_DEFAULT_MAX_LINE_LENGTH);
 
         // determine buffer sizes
         u32 positions_count = 0, normals_count = 0, uvs_count = 0, indices_count = 0;

@@ -29,7 +29,7 @@ internal void dbgdraw_draw() {
     if (dbgdraw_thread_ctx->edges.total_count) {
         // convert edges into flat vertex array
         R_VertexFlag edge_flags = R_VertexFlag_PC;
-        u32 edges_size = dbgdraw_thread_ctx->edges.total_count*r_vertex_size(edge_flags);
+        u64 edges_size = dbgdraw_thread_ctx->edges.total_count*r_vertex_size(edge_flags);
         void* edges = arena_push(dbgdraw_thread_ctx->arena, edges_size, r_vertex_align(edge_flags));
         {
             vec3_f32* p_start = OffsetPtr(edges, r_vertex_offset(edge_flags, R_VertexFlag_P), vec3_f32);
@@ -39,17 +39,18 @@ internal void dbgdraw_draw() {
     
             u32 offset_count = 0;
             for EachList(n, DBGDRAW_BatchNode, dbgdraw_thread_ctx->edges.first) {
-                for EachIndex(i, n->count) {
+                for EachIndexU32(i, n->count) {
                     *OffsetPtr(p_start, offset_count*p_stride, R_VertexType_P) = n->vertices[i];
                     *OffsetPtr(c_start, offset_count*c_stride, R_VertexType_C) = n->colors[i];
                     offset_count++;
                 }
             }
         }
-        dbgdraw_load_into_rbuffer(&dbgdraw_thread_ctx->edge_buffer, &dbgdraw_thread_ctx->edge_buffer_size, edges_size, edges);
+        Assert(edges_size <= MAX_U32);
+        dbgdraw_load_into_rbuffer(&dbgdraw_thread_ctx->edge_buffer, &dbgdraw_thread_ctx->edge_buffer_size, (u32)edges_size, edges);
         arena_pop(dbgdraw_thread_ctx->arena, edges_size);
     
-        d_debug(r_buffer_view(dbgdraw_thread_ctx->edge_buffer, edges_size), edge_flags, r_zero_handle(), R_VertexTopology_Lines);
+        d_debug(r_buffer_view(dbgdraw_thread_ctx->edge_buffer, (u32)edges_size), edge_flags, r_zero_handle(), R_VertexTopology_Lines);
     }
 
     if (dbgdraw_thread_ctx->points.total_count) {
@@ -57,7 +58,7 @@ internal void dbgdraw_draw() {
         // @note splat uses texcoords for radii
         // @todo depth sorting
         R_VertexFlag point_flags = R_VertexFlag_PTC;
-        u32 points_size = dbgdraw_thread_ctx->points.total_count*r_vertex_size(point_flags);
+        u64 points_size = dbgdraw_thread_ctx->points.total_count*r_vertex_size(point_flags);
         void* points = arena_push(dbgdraw_thread_ctx->arena, points_size, r_vertex_align(point_flags));
         {
             vec3_f32* p_start = OffsetPtr(points, r_vertex_offset(point_flags, R_VertexFlag_P), vec3_f32);
@@ -69,7 +70,7 @@ internal void dbgdraw_draw() {
     
             u32 offset_count = 0;
             for EachList(n, DBGDRAW_BatchNode, dbgdraw_thread_ctx->points.first) {
-                for EachIndex(i, n->count) {
+                for EachIndexU32(i, n->count) {
                     *OffsetPtr(p_start, offset_count*p_stride, R_VertexType_P) = n->vertices[i];
                     *OffsetPtr(t_start, offset_count*t_stride, R_VertexType_T) = n->radii[i];
                     *OffsetPtr(c_start, offset_count*c_stride, R_VertexType_C) = n->colors[i];
@@ -77,10 +78,11 @@ internal void dbgdraw_draw() {
                 }
             }
         }
-        dbgdraw_load_into_rbuffer(&dbgdraw_thread_ctx->point_buffer, &dbgdraw_thread_ctx->point_buffer_size, points_size, points);
+        Assert(points_size <= MAX_U32);
+        dbgdraw_load_into_rbuffer(&dbgdraw_thread_ctx->point_buffer, &dbgdraw_thread_ctx->point_buffer_size, (u32)points_size, points);
         arena_pop(dbgdraw_thread_ctx->arena, points_size);
 
-        d_splat(r_buffer_view(dbgdraw_thread_ctx->point_buffer, points_size), point_flags);
+        d_splat(r_buffer_view(dbgdraw_thread_ctx->point_buffer, (u32)points_size), point_flags);
     }
 }
 

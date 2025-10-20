@@ -43,11 +43,11 @@ typedef struct GEO_EdgeMap GEO_EdgeMap;
 struct GEO_EdgeMap {
     Arena* arena;
     GEO_EdgeMapNode** slots;
-    u64 slots_count;
-    u64 edge_count;
+    u32 slots_count;
+    u32 edge_count;
 };
 
-internal GEO_EdgeMap      geo_make_edge_map(Arena* arena, u64 slots_count);
+internal GEO_EdgeMap      geo_make_edge_map(Arena* arena, u32 slots_count);
 internal GEO_EdgeMapNode* geo_edge_map_add_edge(GEO_EdgeMap* map, GEO_EdgeMapHash hash);
 internal void             geo_edge_map_extract_edges(Arena* arena, GEO_EdgeMap* map, u32** edge_indices, u32* edge_indices_count);
 
@@ -107,17 +107,17 @@ internal void geo_triangulate_quad(
     u32** out_indices, u32* out_indices_count
 );
 
-#define GEO_EachEdge_Strongly_Open(u, v, T, data, data_count, topology) (u32 off##__LINE__ = 0; off##__LINE__ < data_count; off##__LINE__+=topology) { \
-        for (u32 i##__LINE__ = 0; i##__LINE__ < topology; i##__LINE__++) { \
-            for (u32 j##__LINE__ = i##__LINE__+1; j##__LINE__ < topology; j##__LINE__++) { \
+#define GEO_EachEdge_Strongly_Open(u, v, T, data, data_count, topology) (u32 off##__LINE__ = 0; off##__LINE__ < (u32)data_count; off##__LINE__+=topology) { \
+        for (u32 i##__LINE__ = 0; i##__LINE__ < (u32)topology; i##__LINE__++) { \
+            for (u32 j##__LINE__ = i##__LINE__+1; j##__LINE__ < (u32)topology; j##__LINE__++) { \
                 T u = data[off##__LINE__ + i##__LINE__]; \
                 T v = data[off##__LINE__ + j##__LINE__];
 #define GEO_EachEdge_Strongly_Close } \
         } \
     }
 
-#define GEO_EachEdge_Ring_Open(u, v, T, data, data_count, topology) (u32 off##__LINE__ = 0; off##__LINE__ < data_count; off##__LINE__+=topology) { \
-        for (u32 i##__LINE__ = 0; i##__LINE__ < topology; i##__LINE__++) { \
+#define GEO_EachEdge_Ring_Open(u, v, T, data, data_count, topology) (u32 off##__LINE__ = 0; off##__LINE__ < (u32)data_count; off##__LINE__+=topology) { \
+        for (u32 i##__LINE__ = 0; i##__LINE__ < (u32)topology; i##__LINE__++) { \
             T u = data[off##__LINE__ + i##__LINE__]; \
             T v = data[off##__LINE__ + (i##__LINE__ + 1)%topology];
 #define GEO_EachEdge_Ring_Close } \

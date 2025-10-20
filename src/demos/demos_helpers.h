@@ -3,7 +3,7 @@
 // camera
 typedef struct DEMOS_Camera DEMOS_Camera;
 struct DEMOS_Camera {
-    f32 fov, aspect_ratio, near, far;
+    f32 fov, aspect_ratio, near_z, far_z;
 
     vec3_f32 eye;
     vec3_f32 target;
@@ -17,10 +17,10 @@ internal void demos_camera_pan(DEMOS_Camera* cam, vec3_f32 pan);
 internal void demos_camera_resize_window(DEMOS_Camera* cam, vec2_f32 window_size);
 
 // controls
-#define DEMOS_CONTROLS_ORBIT_ZOOM_MULT 0.00005f
+#define DEMOS_CONTROLS_ORBIT_ZOOM_MULT 2.f
 #define DEMOS_CONTROLS_ORBIT_ZOOM_RATE 0.06f
 #define DEMOS_CONTROLS_ORBIT_ZOOM_MAX 100.f
-internal void demos_controls_camera_orbit(OS_Handle window, f32 dt, DEMOS_Camera* camera);
+internal void demos_controls_camera_orbit(OS_Handle window, f64 dt, DEMOS_Camera* camera);
 
 typedef struct DEMOS_PhysDragState DEMOS_PhysDragState;
 struct DEMOS_PhysDragState {

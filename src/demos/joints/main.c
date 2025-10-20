@@ -39,7 +39,7 @@ demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
 
     MS_LoadResult res = ms_load_obj(cs->arena, ntstr8_lit("./data/cube.obj"), (MS_LoadSettings){});
     if (res.error.length != 0) {
-        fprintf(stderr, "%s\n", res.error.data);
+        fprintf(stderr, "%s\n", res.error.cstr);
         return 1;
     }
 
@@ -129,7 +129,7 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
                 .a1=make_3f32(0,0,1), .b1=make_3f32(0,1,0),
                 .a2=make_3f32(0,0,1), .b2=make_3f32(0,1,0),
                 .limit_angle=phys_world_add_dependent_constraint(w, (PHYS_DependentConstraint){
-                    .limits={.min=-PI/4.f, .max=PI/2.f}
+                    .limits={.min=-PI_F32/4.f, .max=PI_F32/2.f}
                 })
             }
         });
@@ -169,7 +169,7 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
                 .body2=arm,
                 .a1=make_3f32(0,1,0),
                 .a2=make_3f32(0,1,0),
-                .limits={.min=-PI/4.f, .max=+PI/4.f}
+                .limits={.min=-PI_F32/4.f, .max=+PI_F32/4.f}
             }
         });
         
@@ -208,7 +208,7 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
                 .body2=arm,
                 .a1=make_3f32(0,1,0),
                 .a2=make_3f32(0,1,0),
-                .limits={.min=-PI/4.f, .max=+PI/4.f}
+                .limits={.min=-PI_F32/4.f, .max=+PI_F32/4.f}
             }
         });
         phys_world_add_constraint(w, (PHYS_Constraint){
@@ -219,7 +219,7 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
                 .body2=arm,
                 .a1=make_3f32(0,1,0), .b1=make_3f32(1,0,0),
                 .a2=make_3f32(0,1,0), .b2=make_3f32(1,0,0),
-                .limits={.min=-PI/8.f, .max=+PI/8.f}
+                .limits={.min=-PI_F32/8.f, .max=+PI_F32/8.f}
             }
         });
         

@@ -32,7 +32,7 @@ demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
 
     MS_LoadResult res = ms_load_obj(cs->arena, ntstr8_lit("./data/cube.obj"), (MS_LoadSettings){});
     if (res.error.length != 0) {
-        fprintf(stderr, "%s\n", res.error.data);
+        fprintf(stderr, "%s\n", res.error.cstr);
         return 1;
     }
 
@@ -118,6 +118,6 @@ internal void d_arm(PHYS_World* w, DEMO_PendulumArm* arm) {
     );
     d_pbr_mesh(
         s.cube_vertices, s.cube_flags, s.cube_indices, s.cube_topology,
-        t, hsl_to_rgb(make_3f32(-PI/3.f, 0.9, 1)), 1.0, make_3f32(0,0,0)
+        t, hsl_to_rgb(make_3f32(-PI_F32/3.f, 0.9, 1)), 1.0, make_3f32(0,0,0)
     );
 }

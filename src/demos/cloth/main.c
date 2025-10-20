@@ -26,7 +26,7 @@ global DEMO_ClothState s;
 demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
     MS_LoadResult sphere = ms_load_obj(cs->arena, ntstr8_lit("./data/sphere.obj"), (MS_LoadSettings){});
     if (sphere.error.length != 0) {
-        fprintf(stderr, "%s\n", sphere.error.data);
+        fprintf(stderr, "%s\n", sphere.error.cstr);
         return 1;
     }
     s.sphere_vertices = r_buffer_alloc(R_ResourceKind_Static, R_ResourceHint_Array, sphere.v.vertices_count*r_vertex_size(sphere.v.flags), sphere.v.vertices);
@@ -34,9 +34,9 @@ demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
     s.sphere_flags = sphere.v.flags;
     s.sphere_topology = sphere.v.topology;
 
-    VTK_LoadResult cloth = vtk_load(cs->arena, ntstr8_lit("./data/cloth.vtk"), (VTK_LoadSettings){});
+    VTK_LoadResult cloth = vtk_load(cs->arena, (VTK_LoadSettings){.path=ntstr8_lit("./data/cloth.vtk")});
     if (cloth.error.length != 0) {
-        fprintf(stderr, "%s\n", cloth.error.data);
+        fprintf(stderr, "%s\n", cloth.error.cstr);
         return 1;
     }
     s.cloth_vtk = cloth.v;
@@ -100,7 +100,7 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
         s.cloth_phys = phys_world_add_cloth(w, (PHYS_Cloth_Settings){
             .mass = PHYS_UNIT_KG(1.2),
             .center = make_3f32(-l/2.f,-1,-l/2.f),
-            .rotation = make_angle_axis_quat(PI/2.f, normalize_3f32(make_3f32(1,0,0))),
+            .rotation = make_angle_axis_quat(PI_F32/2.f, normalize_3f32(make_3f32(1,0,0))),
             .scale = mul_3f32(make_3f32(1.f,1.f,1.f), l),
 
             .thickness = radius,

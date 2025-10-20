@@ -18,8 +18,8 @@ shared_function PHYS_World* phys_make_world(PHYS_WorldSettings settings) {
 
         .min_r = settings.min_collision_distance,
         .min_v_mult = 1.0f,
-        .hashgrid_cell_size = 0.01,
-        .hashgrid_obj_size = 0.01,
+        .hashgrid_cell_size = 0.01f,
+        .hashgrid_obj_size = 0.01f,
     };
     static u32 pa_growth = 2, pa_initial_capacity = 16;
     phys_pooled_array_alloc(&w->bodies, sizeof(PHYS_Body), pa_growth, pa_initial_capacity);
@@ -92,13 +92,15 @@ internal PHYS_pooled_array_id phys_pooled_array_add(PHYS_PooledArray* pa) {
     } else {
         new_id.idx = pa->length;
         new_id.version = 1;
-        pa->length++;
-    
+        
         // @todo reserve large vaddress space and commit pages as needed
-        if (pa->length > pa->capacity) {
+        if (pa->length >= pa->capacity) {
+            Assert(pa->capacity*pa->growth > pa->capacity);
             pa->capacity *= pa->growth;
             phys_pooled_array_adjust_allocation(pa);
         }
+
+        pa->length++;
     }
 
     pa->versions[new_id.idx] = new_id.version;

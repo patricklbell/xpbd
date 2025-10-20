@@ -34,13 +34,13 @@ demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
     phys_dbg_d_ctx->do_contact_manifold = true;
     phys_dbg_d_ctx->do_collider_normals = false;
     phys_dbg_d_ctx->do_colliders = true;
-    phys_dbg_d_ctx->default_point_radius = 0.01;
+    phys_dbg_d_ctx->default_point_radius = 0.01f;
 
     s.state_arena = arena_alloc();
 
     MS_LoadResult sphere = ms_load_obj(cs->arena, ntstr8_lit("./data/sphere.obj"), (MS_LoadSettings){});
     if (sphere.error.length != 0) {
-        fprintf(stderr, "%s\n", sphere.error.data);
+        fprintf(stderr, "%s\n", sphere.error.cstr);
         return 1;
     }
     s.sphere_vertices = r_buffer_alloc(R_ResourceKind_Static, R_ResourceHint_Array, sphere.v.vertices_count*r_vertex_size(sphere.v.flags), sphere.v.vertices);
@@ -49,7 +49,7 @@ demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
     s.sphere_topology = sphere.v.topology;
     MS_LoadResult cube = ms_load_obj(cs->arena, ntstr8_lit("./data/cube.obj"), (MS_LoadSettings){});
     if (cube.error.length != 0) {
-        fprintf(stderr, "%s\n", cube.error.data);
+        fprintf(stderr, "%s\n", cube.error.cstr);
         return 1;
     }
     s.cube_vertices = r_buffer_alloc(R_ResourceKind_Static, R_ResourceHint_Array, cube.v.vertices_count*r_vertex_size(cube.v.flags), cube.v.vertices);
@@ -76,7 +76,7 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
         u32 j = (idx/balls_count_dim) % balls_count_dim;
         u32 k = (idx/balls_count_dim/balls_count_dim) % balls_count_dim;
 
-        vec3_f32 ball_center = sub_3f32(make_3f32(i,j,k), balls_region_extents);
+        vec3_f32 ball_center = sub_3f32(make_3f32((f32)i,(f32)j,(f32)k), balls_region_extents);
         
         f32 radius = rand_f32()*0.3f + 0.1f;
         f32 density = 0.1f;
@@ -85,7 +85,7 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
         PHYS_body_id center_id;
         if (i % 2 == 0) {
             PHYS_Ball_Settings settings = {
-                .mass=radius*radius*radius*(3.f/4.f)*(f32)PI*density,
+                .mass=radius*radius*radius*(3.f/4.f)*(f32)PI_F32*density,
                 .center=ball_center,
 
                 .radius=radius,
@@ -95,7 +95,7 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
             };
             center_id = phys_world_add_ball(w, settings).body_id;
         } else {
-            radius *= 0.8;
+            radius *= 0.8f;
             PHYS_Box_Settings settings = {
                 .mass=radius*radius*radius*density,
                 .center=ball_center,

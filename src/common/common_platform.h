@@ -114,7 +114,7 @@
 #if ARCH_ARM32 || ARCH_ARM64 || ARCH_X64 || ARCH_X86
     #define ARCH_LITTLE_ENDIAN 1
 #else
-    #error Endianness of this architecture not be deduced.
+    #error Endianness of this architecture could not be deduced.
 #endif
 
 // Language Cracking
@@ -126,24 +126,18 @@
 #endif
 
 // Windowing system
-#define OS_WINDOWING_SYSTEM_WINAP       0
-#define OS_WINDOWING_SYSTEM_XWINDOWS    1
-#define OS_WINDOWING_SYSTEM_WAYLAND     2
-#define OS_WINDOWING_SYSTEM_LINUX       3
-#define OS_WINDOWING_SYSTEM_WASM        4
+#define OS_WINDOWING_SYSTEM_WINDOWS     1
+#define OS_WINDOWING_SYSTEM_XWINDOWS    2
+#define OS_WINDOWING_SYSTEM_WAYLAND     3
+#define OS_WINDOWING_SYSTEM_LINUX       4
+#define OS_WINDOWING_SYSTEM_WASM        5
 
 #if !defined(OS_WINDOWING_SYSTEM)
     #if OS_LINUX
-        #if defined(X11)
-            #define OS_WINDOWING_SYSTEM OS_WINDOWING_SYSTEM_XWINDOWS
-        #elif defined(WAYLAND)
-            #define OS_WINDOWING_SYSTEM OS_WINDOWING_SYSTEM_WAYLAND
-        #else
-            // @todo x11 + wayland support
-            #define OS_WINDOWING_SYSTEM OS_WINDOWING_SYSTEM_WAYLAND
-        #endif
+        // @todo x11 glx support + detect
+        #define OS_WINDOWING_SYSTEM OS_WINDOWING_SYSTEM_WAYLAND
     #elif OS_WINDOWS
-        #define OS_WINDOWING_SYSTEM OS_WINDOWING_SYSTEM_WINAP
+        #define OS_WINDOWING_SYSTEM OS_WINDOWING_SYSTEM_WINDOWS
     #elif OS_WEB
         #define OS_WINDOWING_SYSTEM OS_WINDOWING_SYSTEM_WASM
     #endif
@@ -184,7 +178,7 @@
 #endif
 
 #if !defined(BUILD_TITLE)
-    #define BUILD_TITLE "Untitled"
+    #define BUILD_TITLE "XPBD"
 #endif
 
 #if !defined(BUILD_RELEASE_PHASE_STRING_LITERAL)

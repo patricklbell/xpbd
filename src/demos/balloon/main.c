@@ -21,9 +21,9 @@ global DEMO_BalloonState s;
 // initialization/cleanup
 //
 b8 demo_balloon_load_inflatable_vtk(Arena* arena, NTString8 path, DEMO_Inflatable* i) {
-    VTK_LoadResult vtk_result = vtk_load(arena, path, (VTK_LoadSettings){});
+    VTK_LoadResult vtk_result = vtk_load(arena, (VTK_LoadSettings){.path=path});
     if (vtk_result.error.length != 0) {
-        fprintf(stderr, "%s\n", vtk_result.error.data);
+        fprintf(stderr, "%s\n", vtk_result.error.cstr);
         return false;
     }
     i->vtk = vtk_result.v;
@@ -116,7 +116,7 @@ demos_hook void demos_world_start_hook(PHYS_World* w) {
     w->enable_particle_ground_plane = true;
     w->particle_ground_plane_height = -2;
 
-    demo_balloon_phys_world_add_inflatable(w, &s.inflatables[0], (PHYS_ColliderLayer){.mask=4u,.group=1u&2u}, make_3f32(-1,0,0), radius, (4.f/3.f)*PI);
+    demo_balloon_phys_world_add_inflatable(w, &s.inflatables[0], (PHYS_ColliderLayer){.mask=4u,.group=1u&2u}, make_3f32(-1,0,0), radius, (4.f/3.f)*PI_F32);
     demo_balloon_phys_world_add_inflatable(w, &s.inflatables[1], (PHYS_ColliderLayer){.mask=2u,.group=1u&4u}, make_3f32(+1,0,0), radius, 1.f*1.f*1.f);
     // phys_world_add_box_boundary(w, (PHYS_BoxBoundary_Settings){
     //     .extents=make_3f32(2,2,2),

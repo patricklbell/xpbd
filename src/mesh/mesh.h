@@ -37,8 +37,8 @@ struct MS_VertexMapNode {
 typedef struct MS_VertexMap MS_VertexMap;
 struct MS_VertexMap {
     MS_VertexMapNode** slots;
-    u64 slots_count;
-    u64 vertices_count;
+    u32 slots_count;
+    u32 vertices_count;
 };
 
 // loaders

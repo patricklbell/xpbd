@@ -30,7 +30,6 @@ shared_function void phys_raycast_collider(PHYS_World* w, PHYS_Collider* c, PHYS
     PHYS_HitListData data;
     switch (c->base.type) {
         case PHYS_ColliderType_Sphere:{
-            f32 t;
             if (phys_raycast_sphere(origin, direction, body->position, c->base.r, &data.contact))
                 phys_hit_list_add(out_hits, id, data);
         }break;

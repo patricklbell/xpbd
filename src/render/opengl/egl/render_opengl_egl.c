@@ -1,3 +1,6 @@
+// 
+// native
+// 
 internal EGLSurface r_ogl_egl_handle_to_surface(R_Handle handle) {
     return (EGLSurface)handle.v64[0];
 }
@@ -10,7 +13,15 @@ internal EGLNativeWindowType r_ogl_egl_native_window(OS_Handle window) {
     return (EGLNativeWindowType) window.v64[0];
 }
 
-// @todo gracefully handle failing to acquire
+internal void* r_ogl_egl_procedure_address(char* name) {
+    return (void*)eglGetProcAddress(name);
+}
+
+// 
+// hooks
+// 
+// based on glad egl_x11 example
+// https://github.com/Dav1dde/glad/blob/glad2/example/c/egl_x11/egl_x11.c
 internal void r_ogl_os_init() {
     int version = gladLoaderLoadEGL(NULL);
 
@@ -47,8 +58,8 @@ internal void r_ogl_os_init() {
     AssertAlways(configs_count == 1);
 
     EGLint ctxattr[] = {
-        EGL_CONTEXT_MAJOR_VERSION, 3,
-        EGL_CONTEXT_MINOR_VERSION, 3,
+        EGL_CONTEXT_MAJOR_VERSION, R_OGL_OPENGL_MAJOR_VERSION,
+        EGL_CONTEXT_MINOR_VERSION, R_OGL_OPENGL_MINOR_VERSION,
         EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
         #if BUILD_DEBUG
             EGL_CONTEXT_OPENGL_DEBUG, EGL_TRUE,
@@ -81,10 +92,6 @@ internal void r_ogl_os_cleanup() {
 
 internal void r_ogl_os_window_swap(OS_Handle window, R_Handle rwindow) {
     eglSwapBuffers(r_ogl_egl_state.display, r_ogl_egl_handle_to_surface(rwindow));
-}
-
-internal void* r_ogl_egl_procedure_address(char* name) {
-    return (void*)eglGetProcAddress(name);
 }
 
 // 
@@ -132,7 +139,7 @@ r_hook void r_os_unequip_window(OS_Handle window, R_Handle rwindow) {
 r_hook void r_os_select_window(OS_Handle window, R_Handle rwindow) {
     EGLSurface surface = r_ogl_egl_handle_to_surface(rwindow);
     eglMakeCurrent(r_ogl_egl_state.display, surface, surface, r_ogl_egl_state.context);
-
+    // @todo multi-window
     glDrawBuffer(GL_BACK);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 }

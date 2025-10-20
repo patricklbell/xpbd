@@ -8,10 +8,10 @@ shared_function PHYS_DBG_ThreadCtx* phys_dbg_d_init(PHYS_DBG_DrawEdgeBatch draw_
         .arena = arena,
         .draw_edge_batch = draw_edge_batch,
         .draw_point_batch = draw_point_batch,
-        .default_point_radius = 0.05,
-        .default_normal_length = 0.1,
-        .body_radius = 0.05,
-        .attachment_radius = 0.01,
+        .default_point_radius = 0.05f,
+        .default_normal_length = 0.1f,
+        .body_radius = 0.05f,
+        .attachment_radius = 0.01f,
         .color_mode = PHYS_DBG_DrawColorMode_Type,
     };
 
@@ -53,21 +53,21 @@ internal vec3_f32 phys_dbg_d_get_constraint_color(PHYS_World* w, PHYS_Constraint
         //         smoothstep_f32(0.f, phys_dbg_d_ctx->max_force, abs_f32(c->l) * settings.inv_dt)
         //     )
         // );
-        case PHYS_DBG_DrawColorMode_Unique: srand((u64)c); return phys_dbg_d_get_unique_color();
+        case PHYS_DBG_DrawColorMode_Unique: srand((unsigned int)c->type); return phys_dbg_d_get_unique_color();
         default: return phys_dbg_d_ctx->color;
     }
 }
 internal vec3_f32 phys_dbg_d_get_collider_color(PHYS_World* w, PHYS_Collider* c) {
     switch (phys_dbg_d_ctx->color_mode) {
         case PHYS_DBG_DrawColorMode_Type: return phys_dbg_d_ctx->collider_colors[c->base.type];
-        case PHYS_DBG_DrawColorMode_Unique: srand((u64)c); return phys_dbg_d_get_unique_color();
+        case PHYS_DBG_DrawColorMode_Unique: srand((unsigned int)c->base.type); return phys_dbg_d_get_unique_color();
         default: return phys_dbg_d_ctx->color;
     }
 }
 internal vec3_f32 phys_dbg_d_get_body_color(PHYS_World* w, PHYS_Body* b) {
     switch (phys_dbg_d_ctx->color_mode) {
         case PHYS_DBG_DrawColorMode_Type: return phys_dbg_d_ctx->body_color;
-        case PHYS_DBG_DrawColorMode_Unique: srand((u64)b); return phys_dbg_d_get_unique_color();
+        case PHYS_DBG_DrawColorMode_Unique: srand((unsigned int)b->position.x); return phys_dbg_d_get_unique_color();
         default: return phys_dbg_d_ctx->color;
     }
 }
@@ -86,24 +86,27 @@ internal void phys_dbg_d_constraint_advanced_distance(PHYS_World* w, PHYS_Constr
 }
 internal void phys_dbg_d_constraint_volume(PHYS_World* w, PHYS_Constraint* c) {
     static const int points_count = ArrayLength(c->volume.bodies)*(ArrayLength(c->volume.bodies)-1); // 2*(n choose 2)
-    vec3_f32 points[points_count], colors[points_count];
 
-    vec3_f32 color = phys_dbg_d_get_constraint_color(w, c);
+    {DeferResource(Temp scratch = scratch_begin(NULL, 0), scratch_end(scratch)) {
+        vec3_f32* points = push_array(scratch.arena, vec3_f32, points_count);
+        vec3_f32* colors = push_array(scratch.arena, vec3_f32, points_count);
+        vec3_f32 color = phys_dbg_d_get_constraint_color(w, c);
+        
+        int offset = 0;
+        for (int i = 0; i < ArrayLength(c->volume.bodies); i++) {
+            for (int j = i+1; j < ArrayLength(c->volume.bodies); j++) {
+                points[offset] = phys_world_resolve_body_unchecked(w, c->volume.bodies[i])->position;
+                colors[offset] = color;
+                offset++;
     
-    int offset = 0;
-    for (int i = 0; i < ArrayLength(c->volume.bodies); i++) {
-        for (int j = i+1; j < ArrayLength(c->volume.bodies); j++) {
-            points[offset] = phys_world_resolve_body_unchecked(w, c->volume.bodies[i])->position;
-            colors[offset] = color;
-            offset++;
-
-            points[offset] = phys_world_resolve_body_unchecked(w, c->volume.bodies[j])->position;
-            colors[offset] = color;
-            offset++;
+                points[offset] = phys_world_resolve_body_unchecked(w, c->volume.bodies[j])->position;
+                colors[offset] = color;
+                offset++;
+            }
         }
-    }
-
-    phys_dbg_d_ctx->draw_edge_batch(points, colors, points_count);
+    
+        phys_dbg_d_ctx->draw_edge_batch(points, colors, points_count);
+    }}
 }
 internal void phys_dbg_d_constraint_hinge(PHYS_World* w, PHYS_Constraint* c) {
     return; // @todo
@@ -126,19 +129,19 @@ internal void phys_dbg_d_collider_sphere(PHYS_World* w, PHYS_Collider_Sphere* c)
         vec3_f32* points = push_array(scratch.arena, vec3_f32, total_points);
         vec3_f32* colors = push_array(scratch.arena, vec3_f32, total_points);
 
-        for EachIndex(paralleli, 1+parallels) {
+        for EachIndexU32(paralleli, 1+parallels) {
             f32 gapi = paralleli*gap;
             f32 ri = sqrt_f32(r*r - gapi*gapi);
-            for EachIndex(pointi, points_per_parallel) {
-                f32 t1 = 2.f*PI*(f32)pointi/points_per_parallel;
+            for EachIndexU32(pointi, points_per_parallel) {
+                f32 t1 = 2.f*PI_F32*(f32)pointi/points_per_parallel;
                 f32 x1 = ri*cos_f32(t1);
                 f32 y1 = ri*sin_f32(t1);
 
-                f32 t2 = 2.f*PI*(f32)(pointi+1)/points_per_parallel;
+                f32 t2 = 2.f*PI_F32*(f32)(pointi+1)/points_per_parallel;
                 f32 x2 = ri*cos_f32(t2);
                 f32 y2 = ri*sin_f32(t2);
 
-                for EachIndex(dim, dims_shown) {
+                for EachIndexU32(dim, dims_shown) {
                     // +parallel
                     points[i].v[dim] = +gapi; points[i].v[(dim+1)%dims] = x1; points[i].v[(dim+2)%dims] = y1;
                     i++;
@@ -158,7 +161,7 @@ internal void phys_dbg_d_collider_sphere(PHYS_World* w, PHYS_Collider_Sphere* c)
 
         PHYS_Body* b = phys_world_resolve_body_unchecked(w, c->base.p);
         vec3_f32 color = phys_dbg_d_get_collider_color(w, (PHYS_Collider*)c);
-        for EachIndex(i, total_points) {
+        for EachIndexU32(i, total_points) {
             points[i] = phys_rotate_translate(points[i], b->rotation, b->position);
             colors[i] = color;
         }
@@ -183,7 +186,7 @@ internal void phys_dbg_d_collider_polytope(PHYS_World* w, PHYS_Collider_Polytope
         } GEO_EachEdge_Ring_Close;
 
         if (phys_dbg_d_ctx->do_collider_normals) {
-            for EachIndex(ni, c->normals_count) {
+            for EachIndexU32(ni, c->normals_count) {
                 // vec3_f32 centroid = {0};
                 // for EachIndex(pi, c->topology) {
                 //     centroid = add_3f32(centroid, phys_rotate_translate(c->points[c->indices[ni*c->topology + pi]], b->rotation, b->position));
@@ -317,8 +320,8 @@ internal void phys_dbg_d_angle(vec3_f32 origin, vec3_f32 n1, vec3_f32 n2, vec3_f
     phys_dbg_d_sector(origin, n1, axis, angle, angle_color, angle_length);
 }
 internal void phys_dbg_d_sector(vec3_f32 origin, vec3_f32 normal, vec3_f32 axis, f32 angle, vec3_f32 color, f32 radius) {
-    static u32 steps_in_angle = 12;
-    u32 total_points = 2*steps_in_angle;
+    static int steps_in_angle = 12;
+    int total_points = 2*steps_in_angle;
 
     vec4_f32 step = make_angle_axis_quat(angle/steps_in_angle, axis);
 

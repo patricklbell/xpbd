@@ -22,9 +22,9 @@ global DEMO_SoftbodyState s;
 // initialization/cleanup
 // 
 demos_hook int demos_init_hook(DEMOS_CommonState* cs) {
-    VTK_LoadResult bunny = vtk_load(cs->arena, ntstr8_lit("./data/bunny.vtk"), (VTK_LoadSettings){});
+    VTK_LoadResult bunny = vtk_load(cs->arena, (VTK_LoadSettings){.path=ntstr8_lit("./data/bunny.vtk")});
     if (bunny.error.length != 0) {
-        fprintf(stderr, "%s\n", bunny.error.data);
+        fprintf(stderr, "%s\n", bunny.error.cstr);
         return 1;
     }
     s.bunny_vtk = bunny.v;

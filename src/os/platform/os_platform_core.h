@@ -20,7 +20,7 @@ internal void      os_close_file(OS_Handle file);
 internal void      os_set_file_offset(OS_Handle file, u64 offset);
 internal b8        os_is_eof(OS_Handle file);
 internal NTString8 os_read_line_ml(OS_Handle file, Arena* arena, u64 max_line_length);
-internal void      os_read_line_to_buffer_ml(OS_Handle file, NTString8* str, u64 max_line_length);
+internal void      os_read_line_to_buffer_ml(OS_Handle file, NTString8* str, u64 buffer_size);
 
 #define OS_DEFAULT_MAX_LINE_LENGTH 256
 #define os_read_line(file, arena) os_read_line_ml(file, arena, OS_DEFAULT_MAX_LINE_LENGTH)

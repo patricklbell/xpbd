@@ -30,7 +30,7 @@
 #define GLAD_WGL_H_
 
 #include <windows.h>
-#include <glad/gl.h>
+// #include <glad/gl.h>
 
 #define GLAD_WGL
 #define GLAD_OPTION_WGL_HEADER_ONLY

@@ -181,11 +181,10 @@ union rect_f32 {
 
 internal rect_f32 make_rect_f32(vec2_f32 tl, vec2_f32 br);
 
-#define PI               (3.1415926535897)
+#define PI_F32           3.1415926535897932384626433832795028841971693993751058209749445923078164062f
+#define PI_F64           3.1415926535897932384626433832795028841971693993751058209749445923078164062
 #define EPSILON_F32      (1.1920929E-7f)
-#define MAX_F32          (FLT_MAX)
-#define MAX_F64          (DBL_MAX)
-#define DegreesToRad(v)  (v * (PI / 180.f))
+#define DegreesToRad(v)  (v * (PI_F32 / 180.f))
 
 #define sqrt_f32(v)   sqrtf(v)
 #define cbrt_f32(v)   cbrtf(v)
@@ -203,7 +202,8 @@ internal rect_f32 make_rect_f32(vec2_f32 tl, vec2_f32 br);
 #define atan_f32(v)   atanf(v)
 #define log_f32(v)    logf(v)
 #define exp_f32(v)    expf(v)
-#define sgn_f32(v)    (((v) < 0.f) ? -1.f : 1.f)
+#define sgn_f32(v)    (((v) < 0) ? -1.f : 1.f)
+#define sgnnum_f32(v) ((v == 0) ? 0.f : (((v) < 0) ? -1.f : 1.f))
 #define rand_f32()    ((f32)rand()/(f32)RAND_MAX)
 
 internal f32 smoothstep_f32(f32 edge_0, f32 edge_1, f32 x);
@@ -224,7 +224,8 @@ internal f32 smoothstep_f32(f32 edge_0, f32 edge_1, f32 x);
 #define atan_f64(v)   atan(v)
 #define log_f64(v)    log(v)
 #define exp_f64(v)    exp(v)
-#define sgn_f64(v)    (((v) < 0.) ? -1. : 1.)
+#define sgn_f64(v)    (((v) < 0) ? -1. : 1.)
+#define sgnnum_f64(v) ((v == 0) ? 0. : (((v) < 0) ? -1. : 1.))
 #define rand_f64()    ((f64)rand()/(f64)RAND_MAX)
 
 internal u64 hash_u64(u8* buffer, u64 size);

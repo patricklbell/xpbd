@@ -5,7 +5,7 @@ typedef enum OS_EventType {
     OS_EventType_Press,
     OS_EventType_Release,
     OS_EventType_MouseMove,
-    OS_EventType_Wheel,
+    OS_EventType_Wheel, // @todo acceleration/velocity
     OS_EventType_Quit,
     OS_EventType_COUNT,
 } OS_EventType;
@@ -71,8 +71,6 @@ struct OS_Events {
     OS_EventNode* first;
     OS_EventNode* last;
     u64 length;
-
-    b32 quit;
 };
 
 // graphics and windowing api
@@ -81,13 +79,15 @@ internal void        os_gfx_disconnect_from_rendering();
 internal void        os_gfx_cleanup();
 internal OS_Handle   os_gfx_handle();
 
-internal OS_Handle   os_gfx_open_window();
-internal void        os_gfx_close_window(OS_Handle window);
+internal OS_Handle   os_gfx_window_open();
+internal void        os_gfx_window_close(OS_Handle window);
 internal vec2_f32    os_gfx_window_size(OS_Handle window);
+internal void        os_gfx_window_show(OS_Handle window);
 
 typedef void (*OS_LoopFunction)(void* data);
-internal void os_gfx_start_window_event_loop(OS_Handle window, OS_LoopFunction callback, void* data, OS_Events* events);
+internal void os_gfx_start_loop(OS_LoopFunction callback, void* data);
+
+internal OS_Events* os_gfx_consume_events(Arena* arena, b32 wait);
 
 // helpers
-internal void os_gfx_window_add_event(Arena* arena, OS_Events* list, OS_Event event);
-internal OS_Events os_gfx_window_poll_events(Arena* arena, OS_Handle window);
+internal OS_Event* os_gfx_window_add_event(Arena* arena, OS_Events* list, OS_Event event);

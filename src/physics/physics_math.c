@@ -82,7 +82,7 @@ internal void phys_SAT_polytope_min_max(
     vec3_f32 in_axis, vec3_f32* in_points, u32 in_points_count,
     f32* out_min, f32* out_max
 ) {
-    for EachIndex(i, in_points_count) {
+    for EachIndexU32(i, in_points_count) {
         f32 proj = dot_3f32(in_axis, in_points[i]);
 
         *out_min = Min(*out_min, proj);

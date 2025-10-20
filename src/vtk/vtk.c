@@ -46,8 +46,8 @@ internal void vtk_load_cell_types(OS_Handle file, NTString8 line, VTK_CellType* 
 }
 
 // loader
-internal VTK_LoadResult vtk_load(Arena* arena, NTString8 path, VTK_LoadSettings settings) {
-    OS_Handle file = os_open_readonly_file(path);
+internal VTK_LoadResult vtk_load(Arena* arena, VTK_LoadSettings settings) {
+    OS_Handle file = os_open_readonly_file(settings.path);
     VTK_LoadResult res = zero_struct;
 
     if (os_is_handle_zero(file)) {
@@ -57,7 +57,7 @@ internal VTK_LoadResult vtk_load(Arena* arena, NTString8 path, VTK_LoadSettings 
 
     {DeferResource(Temp scratch = scratch_begin_a(arena), scratch_end(scratch)) {
         NTString8 line;
-        line.data = push_array(scratch.arena, u8, Max(OS_DEFAULT_MAX_LINE_LENGTH, 256));
+        line.cstr = push_array(scratch.arena, char, Max(OS_DEFAULT_MAX_LINE_LENGTH, 256));
 
         // version
         os_read_line_to_buffer(file, &line);
@@ -154,7 +154,7 @@ internal VTK_LoadResult vtk_load(Arena* arena, NTString8 path, VTK_LoadSettings 
             u32 vertex_count = cells_data[data_offset];
             data_offset++; // consume count
             
-            for (int vertex_i = 0; vertex_i < vertex_count; vertex_i++, data_offset++, (*indice_offset)++) {
+            for (u32 vertex_i = 0; vertex_i < vertex_count; vertex_i++, data_offset++, (*indice_offset)++) {
                 res.v.indices[type][*indice_offset] = cells_data[data_offset];
             }
         }

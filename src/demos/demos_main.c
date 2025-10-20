@@ -9,9 +9,7 @@
 #include "input/input.c"
 #include "vtk/vtk.c"
 #include "dbgdraw/dbgdraw.c"
-#if OS_WEB
-    #include "emcontrols/emcontrols.c"
-#endif
+#include "emcontrols/emcontrols.c"
 
 #include "demos_helpers.c"
 
@@ -20,75 +18,60 @@ internal void window_event_loop(void* data);
 int main() {
     ThreadCtx main_ctx;
     thread_equip(&main_ctx);
-    Arena* main_arena = arena_alloc();
 
-    DEMOS_CommonState* cs = push_array(main_arena, DEMOS_CommonState, 1);
-    cs->arena = main_arena;
+    Arena* arena = arena_alloc();
+    DEMOS_CommonState* cs = push_array(arena, DEMOS_CommonState, 1);
+    cs->arena = arena;
 
-    // initialize windowing api
     os_gfx_init();
-
-    // open a window
-    cs->window = os_gfx_open_window();
-    if (os_is_handle_zero(cs->window)) {
-        os_gfx_cleanup();
-        return 1;
-    }
-
-    // initialize rendering api
     r_init();
-    
-    // equip window for rendering
-    cs->rwindow = r_os_equip_window(cs->window);
-
     input_init();
+    emcontrols_init(cs->arena);
     phys_dbg_d_init(dbgdraw_edge_batch, dbgdraw_point_batch);
-
-    #if OS_WEB
-        emcontrols_init(cs->arena);
+    
+    // setup window
+    {
+        cs->window = os_gfx_window_open(); Assert(!os_is_handle_zero(cs->window));
+        cs->rwindow = r_os_equip_window(cs->window);
+        os_gfx_window_show(cs->window);
+    }
+    
+    // controls
+    {
         emcontrols_add((EMCONTROLS_Control){
             .type = EMCONTROLS_ControlType_Button,
             .label = ntstr8_lit("reset"),
             .data = cs,
-            .on_press = &demos_on_demo_button,
+            .on_press = &demos_on_reset_button,
         });
-        emcontrols_add((EMCONTROLS_Control){
-            .type = EMCONTROLS_ControlType_Slider,
-            .label = ntstr8_lit("gravity"),
-            .data = cs,
-            .on_slider = &demos_on_slider_gravity,
-            .slider_value = -10,
-            .slider_min = -20,
-            .slider_max = +20,
-        });
-    #endif
-
-    // demo hooks section
-    if (!demos_init_hook(cs)) {
-        demos_world_start_wrapper(cs);
-        os_gfx_start_window_event_loop(cs->window, window_event_loop, cs, &cs->events);
-        demos_world_end_wrapper(cs);
-        demos_cleanup_hook(cs);
     }
-
-    os_gfx_close_window(cs->window);
-
-    os_gfx_disconnect_from_rendering();
-    r_cleanup();
-
+    
+    // main loop
+    {
+        b32 demos_err = demos_init_hook(cs); Assert(!demos_err);
+        demos_world_start_wrapper(cs);
+        os_gfx_start_loop(window_event_loop, cs);
+        demos_world_end_wrapper(cs);
+    }
+    
+    os_gfx_window_close(cs->window);
+    
+    demos_cleanup_hook(cs);
+    os_gfx_disconnect_from_rendering(); r_cleanup();
     os_gfx_cleanup();
 }
 
 internal void window_event_loop(void* data) {ZoneScoped;
-    DEMOS_CommonState* cs = (DEMOS_CommonState*)data;
+    DEMOS_CommonState* cs = (DEMOS_CommonState*)data;    
     f64 ntime = os_now_seconds();
     f64 dt = ntime - cs->time;
-    f64 pdt = 1.f/60.f;
+    f32 pdt = 1.f/60.f;
     cs->time = ntime;
 
-    input_update(&cs->events);
+    input_update();
 
-    if (cs->is_paused || !demos_controls_phys_drag(cs->w, cs->window, &cs->camera, /*compliance*/ 0.001)) {
+    // behaviour
+    if (cs->is_paused || !demos_controls_phys_drag(cs->w, cs->window, &cs->camera, /*compliance*/ 0.001f)) {
         demos_controls_camera_orbit(cs->window, dt, &cs->camera);
     }
     if (cs->should_reset || input_is_key_pressed(OS_Key_r)) {
@@ -114,6 +97,7 @@ internal void window_event_loop(void* data) {ZoneScoped;
         cs->show_debug = !cs->show_debug;
     }
 
+    // frame
     DeferCall(r_window_begin_frame(cs->window, cs->rwindow), r_window_end_frame(cs->window, cs->rwindow)) {
         DeferCall(d_begin_pipeline(), d_submit_pipeline(cs->window, cs->rwindow)) {
             demos_d_begin_3d_pass_camera(cs->window, &cs->camera, /*debug*/ false, /*back_face*/ false);
@@ -149,14 +133,7 @@ internal force_inline void demos_frame_hook_wrapper(DEMOS_CommonState* cs) {
 }
 
 // emcontrol callbacks
-no_inline internal void demos_on_demo_button(void* data) {
+no_inline internal void demos_on_reset_button(void* data) {
     DEMOS_CommonState* cs = (DEMOS_CommonState*)data;
     cs->should_reset = true;
-}
-
-no_inline internal void demos_on_slider_gravity(f32 value, void* data) {
-    DEMOS_CommonState* cs = (DEMOS_CommonState*)data;
-    if (cs->w != NULL) {
-        cs->w->little_g = value;
-    }
 }

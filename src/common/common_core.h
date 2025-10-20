@@ -24,6 +24,31 @@ typedef s64      b64;
 typedef float    f32;
 typedef double   f64;
 
+#define MAX_U8   UINT8_MAX
+#define MAX_U16  UINT16_MAX
+#define MAX_U32  UINT32_MAX
+#define MAX_U64  UINT64_MAX
+
+#define MAX_S8   INT8_MAX
+#define MAX_S16  INT16_MAX
+#define MAX_S32  INT32_MAX
+#define MAX_S64  INT64_MAX
+
+#define MIN_S8   INT8_MIN
+#define MIN_S16  INT16_MIN
+#define MIN_S32  INT32_MIN
+#define MIN_S64  INT64_MIN
+
+#define MAX_F32  FLT_MAX
+#define MIN_F32  FLT_MIN
+#define MAX_F64  DBL_MAX
+#define MIN_F64  DBL_MIN
+
+#define MAX_B8   INT8_MAX
+#define MAX_B16  INT16_MAX
+#define MAX_B32  INT32_MAX
+#define MAX_B64  INT64_MAX
+
 // helpers
 #define Glue_(A,B) A##B
 #define Glue(A,B) Glue_(A,B)
@@ -64,6 +89,8 @@ typedef double   f64;
 #else
     #define zero_struct {0}
 #endif
+#define MemoryZeroStruct(ptr)           (memset(ptr, 0, sizeof(*ptr)))
+#define MemoryZeroArray(arr)            (memset(arr, 0, sizeof(arr)))
 
 #if LANG_CPP
     #define IntToEnum(Enum, value) static_cast<Enum>(value)
@@ -91,6 +118,21 @@ typedef double   f64;
 #define internal      static
 #define global        static
 #define local_persist static
+
+// from raddebuger
+#if COMPILER_MSVC || (COMPILER_CLANG && OS_WINDOWS)
+    #pragma section(".rdata$", read)
+    #define read_only __declspec(allocate(".rdata$"))
+#elif (COMPILER_CLANG && OS_LINUX)
+    #define read_only __attribute__((section(".rodata")))
+#else
+    // NOTE(rjf): I don't know of a useful way to do this in GCC land.
+    // __attribute__((section(".rodata"))) looked promising, but it introduces a
+    // strange warning about malformed section attributes, and it doesn't look
+    // like writing to that section reliably produces access violations, strangely
+    // enough. (It does on Clang)
+    #define read_only
+#endif
 
 #if COMPILER_MSVC
     #define thread_static __declspec(thread)
@@ -225,5 +267,5 @@ typedef double   f64;
 #define DeferResource(begin, end)       begin; for(int _i_ = 0; !_i_; _i_ += 1, (end))
 
 // bit bashing
-internal int count_ones_u64(u64 x);
-internal int first_set_bit_u64(u64 x);
+internal u64 count_ones_u64(u64 x);
+internal u64 first_set_bit_u64(u64 x);

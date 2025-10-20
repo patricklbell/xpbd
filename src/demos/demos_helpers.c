@@ -1,6 +1,6 @@
 // camera
 internal void demos_camera_update_instrinsics(DEMOS_Camera* cam) {
-    cam->projection = make_perspective_4x4f32(cam->fov, cam->aspect_ratio, cam->near, cam->far);
+    cam->projection = make_perspective_4x4f32(cam->fov, cam->aspect_ratio, cam->near_z, cam->far_z);
     cam->inv_projection = inv_4x4f32(cam->projection);
 }
 internal void demos_camera_update_extrinsics(DEMOS_Camera* cam) {
@@ -11,8 +11,8 @@ internal DEMOS_Camera demos_make_camera(vec2_f32 window_size, vec3_f32 eye, vec3
     DEMOS_Camera cam = {
         .fov=DegreesToRad(45),
         .aspect_ratio=window_size.x / window_size.y,
-        .near=0.1f,
-        .far=100.f,
+        .near_z=0.1f,
+        .far_z=100.f,
         .eye=eye,
         .target=target,
     };
@@ -36,7 +36,7 @@ internal void demos_camera_resize_window(DEMOS_Camera* cam, vec2_f32 window_size
 }
 
 // controls
-internal void demos_controls_camera_orbit(OS_Handle window, f32 dt, DEMOS_Camera* camera) {
+internal void demos_controls_camera_orbit(OS_Handle window, f64 dt, DEMOS_Camera* camera) {
     vec2_f32 delta_px;
     if (input_mouse_delta(&delta_px) && (input_left_mouse_held() || input_right_mouse_held())) {
         vec2_f32 window_size = os_gfx_window_size(window);
@@ -51,7 +51,7 @@ internal void demos_controls_camera_orbit(OS_Handle window, f32 dt, DEMOS_Camera
         if (input_left_mouse_held()) {
             // stop rotation at poles
             f32 polarity = f.y;
-            const f32 north_pole = 0.95, south_pole = -0.95;
+            const f32 north_pole = 0.95f, south_pole = -0.95f;
             if (polarity > north_pole && -delta.y > 0) {
                 delta.y = 0;
             }
@@ -60,8 +60,8 @@ internal void demos_controls_camera_orbit(OS_Handle window, f32 dt, DEMOS_Camera
             }
         
             // compute rotation
-            vec4_f32 xrot = make_angle_axis_quat(delta.x*-2.f*PI, u);
-            vec4_f32 yrot = make_angle_axis_quat(delta.y*-1.f*PI, s);
+            vec4_f32 xrot = make_angle_axis_quat(delta.x*-2.f*PI_F32, u);
+            vec4_f32 yrot = make_angle_axis_quat(delta.y*-1.f*PI_F32, s);
             d = rot_quat(d, xrot);
             d = rot_quat(d, yrot);
             
@@ -80,7 +80,7 @@ internal void demos_controls_camera_orbit(OS_Handle window, f32 dt, DEMOS_Camera
         vec3_f32 d = sub_3f32(camera->eye, camera->target);
         f32 d_length = length_3f32(d);
         f32 d_zoom = Clamp(
-            d_length - DEMOS_CONTROLS_ORBIT_ZOOM_MULT*scroll_delta.y*dt*(1.f + exp_f32(DEMOS_CONTROLS_ORBIT_ZOOM_RATE*d_length)),
+            d_length - DEMOS_CONTROLS_ORBIT_ZOOM_MULT*scroll_delta.y*(f32)dt*(1.f + exp_f32(DEMOS_CONTROLS_ORBIT_ZOOM_RATE*d_length)),
             EPSILON_F32,
             DEMOS_CONTROLS_ORBIT_ZOOM_MAX
         );
@@ -183,7 +183,8 @@ internal b32 demos_controls_phys_drag(PHYS_World* w, OS_Handle window, DEMOS_Cam
 // rendering
 internal R_PassParams_3D* demos_d_begin_3d_pass_camera(OS_Handle window, DEMOS_Camera* camera, b32 debug, b32 back_face) {
     vec2_f32 window_size = os_gfx_window_size(window);
-    rect_f32 viewport = make_rect_f32((vec2_f32){}, window_size);
+    vec2_f32 tl = zero_struct;
+    rect_f32 viewport = make_rect_f32(tl, window_size);
     demos_camera_resize_window(camera, window_size); // @todo event
 
     return d_make_3d_pass(viewport, camera->view, camera->projection, /*debug*/ debug, /*back_face*/ back_face);

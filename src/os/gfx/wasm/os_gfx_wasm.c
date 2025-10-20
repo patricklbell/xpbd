@@ -1,6 +1,8 @@
-// helpers
+// 
+// native
+// 
 internal void os_gfx_wasm_add_os_event(OS_Event os_event, void *user_data) {
-    OS_GFX_WASMState* s = (OS_GFX_WASMState*)user_data;
+    OS_GFX_WASM_State* s = (OS_GFX_WASM_State*)user_data;
 
     Arena* arena = s->events_arenas[s->active_events_arena];
     os_gfx_window_add_event(arena, &s->queued_events, os_event);
@@ -13,7 +15,6 @@ internal vec2_f32 os_gfx_wasm_transform_screen_xy(int x, int y) {
     };
 }
 
-// callbacks
 EMSCRIPTEN_KEEPALIVE
 void os_gfx_wasm_resize_callback(int x, int y, int width, int height, int pixel_ratio) {
     os_gfx_wasm_state.window_position = make_2f32((f32)x,(f32)y);
@@ -26,7 +27,7 @@ internal EM_BOOL os_gfx_wasm_scroll_callback(int eventType, const EmscriptenWhee
         .type = OS_EventType_Wheel,
         // @note assumes measured in pixels (deltaMode = DOM_DELTA_PIXEL)
         // https://developer.mozilla.org/en-US/docs/Web/API/WheelEvent/deltaMode
-        .wheel_delta = make_2f32((f32)wheelEvent->deltaX, -(f32)wheelEvent->deltaY),
+        .wheel_delta = make_2f32(sgnnum_f32(wheelEvent->deltaX), -sgnnum_f32(wheelEvent->deltaY)),
     };
 
     os_gfx_wasm_add_os_event(os_event, userData);
@@ -75,8 +76,11 @@ internal EM_BOOL os_gfx_wasm_mouse_up_callback(int eventType, const EmscriptenMo
     return EM_TRUE;
 }
 
+// 
+// hooks
+// 
 internal void os_gfx_init() {
-    os_gfx_wasm_state = (OS_GFX_WASMState) {
+    os_gfx_wasm_state = (OS_GFX_WASM_State) {
         .events_arenas = { arena_alloc(), arena_alloc() },
         .active_events_arena = 0,
         .submit_events = NULL,
@@ -103,7 +107,7 @@ internal OS_Handle os_gfx_handle() {
     return os_gfx_make_magic_handle();
 }
 
-internal OS_Handle os_gfx_open_window() {
+internal OS_Handle os_gfx_window_open() {
     #if BUILD_DEBUG
         static int counter = 0;
         // multiple windows doesn't make sense in wasm
@@ -112,7 +116,7 @@ internal OS_Handle os_gfx_open_window() {
     return os_gfx_make_magic_handle();
 }
 
-internal void os_gfx_close_window(OS_Handle window) {
+internal void os_gfx_window_close(OS_Handle window) {
     Assert(window.v64[0] == OS_GFX_WASM_MAGIC_HANDLE);
 }
 
@@ -122,9 +126,7 @@ internal vec2_f32 os_gfx_window_size(OS_Handle window) {
     return os_gfx_wasm_state.window_size;
 }
 
-// @todo update api since this doesn't actually allocate events on arena
-// in consideration of what most platforms do (i.e. callbacks vs polling)
-internal OS_Events os_gfx_window_poll_events(Arena* arena, OS_Handle window) {
+internal void os_gfx_window_event_loop_callback_wrapper(void* data) {
     OS_Events events = os_gfx_wasm_state.queued_events;
 
     // ping pong between an active arena (the one we are allocating)
@@ -133,16 +135,11 @@ internal OS_Events os_gfx_window_poll_events(Arena* arena, OS_Handle window) {
     os_gfx_wasm_state.active_events_arena = (os_gfx_wasm_state.active_events_arena + 1)%2;
     arena_clear(os_gfx_wasm_state.events_arenas[os_gfx_wasm_state.active_events_arena]);
 
-    return events;
-}
-
-internal void os_gfx_window_event_loop_callback_wrapper(void* data) {
-    *os_gfx_wasm_state.submit_events = os_gfx_window_poll_events(NULL, os_gfx_make_magic_handle());
-
+    *os_gfx_wasm_state.submit_events = events;
     (*os_gfx_wasm_state.callback)(data);
 }
 
-internal void os_gfx_start_window_event_loop(OS_Handle window, OS_LoopFunction callback, void* data, OS_Events* events) {
+internal void os_gfx_start_loop(OS_Handle window, OS_LoopFunction callback, void* data, OS_Events* events) {
     os_gfx_wasm_state.callback = callback;
     os_gfx_wasm_state.submit_events = events;
     *os_gfx_wasm_state.submit_events = os_gfx_wasm_state.queued_events;

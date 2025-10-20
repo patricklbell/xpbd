@@ -71,7 +71,7 @@ internal PHYS_ContactPairs phys_manifold_between_faces(vec3_f32 penetration_axis
         return pairs; // @todo
     f32 penetration_axis_l = length_3f32(penetration_axis);
 
-    Assert(clipped.topology >= 0 && clipped.topology < ArrayLength(pairs.bodies[0]));
+    Assert(clipped.topology >= 0 && (int)clipped.topology < ArrayLength(pairs.bodies[0]));
     for EachIndex(i, clipped.topology) {
         vec3_f32 i_v = clipped.data[i]; // @note contact relative to reference
 

@@ -202,8 +202,8 @@ struct PHYS_Constraint {
 typedef struct PHYS_ConstraintSolveSettings PHYS_ConstraintSolveSettings;
 struct PHYS_ConstraintSolveSettings {
     PHYS_World* w;
-    f64 inv_dt;
-    f64 inv_dt2;
+    f32 inv_dt;
+    f32 inv_dt2;
 };
 
 // 

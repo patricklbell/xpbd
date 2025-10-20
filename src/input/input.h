@@ -19,7 +19,7 @@ global INPUT_State* input_state = NULL;
 
 // core
 internal void input_init();
-internal void input_update(OS_Events* events);
+internal void input_update();
 
 // queries
 internal vec2_f32 input_mouse_position();

@@ -7,7 +7,7 @@ internal b32 geo_hash_is_eq(GEO_EdgeMapHash a, GEO_EdgeMapHash b) {
     );
 }
 
-internal GEO_EdgeMap geo_make_edge_map(Arena* arena, u64 slots_count) {
+internal GEO_EdgeMap geo_make_edge_map(Arena* arena, u32 slots_count) {
     return (GEO_EdgeMap) {
         .arena = arena,
         .slots = push_array(arena, GEO_EdgeMapNode*, slots_count),
@@ -39,11 +39,11 @@ internal GEO_EdgeMapNode* geo_edge_map_add_edge(GEO_EdgeMap* map, GEO_EdgeMapHas
 }
 
 internal void geo_edge_map_extract_edges(Arena* arena, GEO_EdgeMap* map, u32** edge_indices, u32* edge_indices_count) {
-    *edge_indices_count = map->edge_count*2;
+    *edge_indices_count = map->edge_count*2u;
     *edge_indices = push_array(arena, u32, *edge_indices_count);
 
     u32 edge_offset = 0;
-    for EachIndex(slot, map->slots_count) {
+    for EachIndexU32(slot, map->slots_count) {
         for EachList(n_edge, GEO_EdgeMapNode, map->slots[slot]) {
             (*edge_indices)[edge_offset] = n_edge->hash.i; edge_offset++;
             (*edge_indices)[edge_offset] = n_edge->hash.j; edge_offset++;
@@ -129,7 +129,7 @@ internal void geo_calculate_points(
         b32* occupied = push_array(scratch.arena, b32, in_point_count);
 
         *out_count = 0;
-        for (int in_indice_i = 0; in_indice_i < in_indices_count; in_indice_i++) {
+        for (u32 in_indice_i = 0; in_indice_i < in_indices_count; in_indice_i++) {
             u32 indice = in_indices[in_indice_i];
 
             if (!occupied[indice]) {
@@ -139,7 +139,7 @@ internal void geo_calculate_points(
         }
 
         (*out_indices) =  push_array(arena, u32, *out_count);
-        for (int point_i = 0, out_indice_i = 0; point_i < in_point_count; point_i++) {
+        for (u32 point_i = 0, out_indice_i = 0; point_i < in_point_count; point_i++) {
             if (occupied[point_i]) {
                 (*out_indices)[out_indice_i] = point_i;
                 out_indice_i++;
@@ -197,7 +197,7 @@ internal void geo_calculate_smooth_normals(
             // @todo check validity
             f32 a1 = acos_f32(Clamp(dot_3f32(u, v), -1.f, 1.f));
             f32 a3 = acos_f32(Clamp(dot_3f32(v, x), -1.f, 1.f));
-            f32 a2 = PI - a1 - a3;
+            f32 a2 = PI_F32 - a1 - a3;
     
             vec3_f32* n1 = OffsetPtr(out_n, i1*in_n_stride, vec3_f32);
             vec3_f32* n2 = OffsetPtr(out_n, i2*in_n_stride, vec3_f32);
@@ -252,8 +252,8 @@ internal void geo_triangulate_quad(
     *out_indices = push_array(arena, u32, *out_indices_count);
 
     u32 i = 0;
-    for EachIndex(xi, x-1) {
-        for EachIndex(yi, y-1) {
+    for EachIndexU32(xi, x-1) {
+        for EachIndexU32(yi, y-1) {
             u32 i0 = y*(xi  ) + yi;
             u32 i1 = y*(xi+1) + yi;
             u32 i2 = y*(xi+1) + yi+1;
@@ -317,7 +317,7 @@ internal GEO_Polygon geo_clip_polygon_against_plane(GEO_Polygon* in_to_clip, vec
         prev_v = cur_v; prev_num = cur_num; prev_inside = cur_inside;
     }
 
-    Assert(clipped.topology < GEO_MAX_CLIPPED_TOPOLOGY);
+    Assert((int)clipped.topology < GEO_MAX_CLIPPED_TOPOLOGY);
     return clipped;
 }
 
@@ -340,7 +340,7 @@ internal GEO_Polygon geo_clip_polygon_against_polygon(GEO_Polygon* in_to_clip, G
         }
     } GEO_EachEdge_Ring_Close;
 
-    Assert(ping_pong[src_idx].topology < GEO_MAX_CLIPPED_TOPOLOGY);
+    Assert((int)ping_pong[src_idx].topology < GEO_MAX_CLIPPED_TOPOLOGY);
     return ping_pong[src_idx];
 }
 
@@ -390,6 +390,6 @@ internal GEO_Polygon geo_clip_polygon_against_edge(GEO_Polygon* in_to_clip, vec3
         prev_v = cur_v; prev_num = cur_num; prev_inside = cur_inside;
     }
 
-    Assert(clipped.topology < GEO_MAX_CLIPPED_TOPOLOGY);
+    Assert((int)clipped.topology < GEO_MAX_CLIPPED_TOPOLOGY);
     return clipped;
 }

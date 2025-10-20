@@ -41,14 +41,14 @@ internal HG_Hashgrid hg_build_hashgrid(
 
     // use occupancy to store end index
     u32 count = 0;
-    for EachIndex(cell_i, grid.cells_count) {
+    for EachIndexU32(cell_i, grid.cells_count) {
         count += grid.cells[cell_i].object_index;
         grid.cells[cell_i].object_index = count;
     }
     grid.cells[grid.cells_count].object_index = count;
 
     // fill in object entries and change end to start index
-    for EachIndex(id, positions_count) {
+    for EachIndexU32(id, positions_count) {
         vec3_f32* p = OffsetPtr(positions, positions_stride*id, vec3_f32);
         u32 hash = hg_hash_3f32(*p, grid.cell_length, grid.cells_count);
 
@@ -119,13 +119,13 @@ internal HG_BatchQueryResult hg_hashgrid_batch_query(
         u32 hits_capacity = expected_hits;
         u64* hits_data = push_array(scratch.arena, u64, hits_capacity);
 
-        for EachIndex(id0, object_count) {
+        for EachIndexU32(id0, object_count) {
             result.object_hits_start[id0] = result.hits_count;
 
             vec3_f32* p0 = OffsetPtr(positions, positions_stride*id0, vec3_f32);
             HG_QueryResult query = hg_hashgrid_query(grid, radius, *p0);
 
-            for EachIndex(idx, query.length) {
+            for EachIndexU32(idx, query.length) {
                 u32 id1 = query.ids[idx];
 
                 // conditions on query

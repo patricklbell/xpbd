@@ -59,9 +59,9 @@ internal void phys_collision_ground_plane_solve(PHYS_World* w);
 // 
 // substep
 // 
-internal void phys_world_substep(PHYS_World* w, f64 dt);
+internal void phys_world_substep(PHYS_World* w, f32 dt);
 
 // 
 // solve api
 // 
-shared_function void phys_world_step(PHYS_World* w, f64 dt);
+shared_function void phys_world_step(PHYS_World* w, f32 dt);

@@ -4,12 +4,12 @@
 //      - solve constraints on positions,
 //      - determine linear & angular velocity from delta after constraints 
 //        have been applied.
-shared_function void phys_world_step(PHYS_World* w, f64 dt) {ZoneScoped;
+shared_function void phys_world_step(PHYS_World* w, f32 dt) {ZoneScoped;
     w->hashgrid_info = NULL;
     w->brute_info = NULL;
     arena_clear(w->step_arena);
 
-    f64 sdt = dt/(f64)w->substeps;
+    f32 sdt = dt/(f32)w->substeps;
     f32 max_lin_v = w->min_v_mult*w->min_r/sdt;
 
     // build cached queries
@@ -105,11 +105,11 @@ shared_function void phys_world_step(PHYS_World* w, f64 dt) {ZoneScoped;
     #endif
 }
 
-internal void phys_world_substep(PHYS_World* w, f64 dt) {ZoneScoped;
+internal void phys_world_substep(PHYS_World* w, f32 dt) {ZoneScoped;
     w->substep_collision_records = NULL;
     arena_clear(w->substep_arena);
 
-    f64 inv_dt = 1.f / dt;
+    f32 inv_dt = 1.f / dt;
     f32 max_lin_v = w->min_v_mult*w->min_r*inv_dt;
     f32 max_lin_v2 = max_lin_v*max_lin_v;
 
@@ -177,21 +177,21 @@ internal void phys_world_substep(PHYS_World* w, f64 dt) {ZoneScoped;
         
     // brute x brute
     // @todo bvh or octree
-    for EachIndex(i, w->brute_info_count) {
-        for (int j = i+1; j < w->brute_info_count; j++) {
+    for EachIndexU32(i, w->brute_info_count) {
+        for (u32 j = i+1; j < w->brute_info_count; j++) {
             phys_collision_solve(w->brute_info[i].collider, w->brute_info[j].collider, settings);
         }
     }
     // brute x hashgrid
     // @todo bvh or octree
-    for EachIndex(j, w->brute_info_count) {
-        for EachIndex(i, w->hashgrid_info_count) {
+    for EachIndexU32(j, w->brute_info_count) {
+        for EachIndexU32(i, w->hashgrid_info_count) {
             phys_collision_solve(w->hashgrid_info[i].collider, w->brute_info[j].collider, settings);
         }
     }
     // hashgrid x hashgrid
     HG_BatchQueryResult* q = &w->hashgrid_self_collisions;
-    for EachIndex(object_i, q->object_count) {
+    for EachIndexU32(object_i, q->object_count) {
         u32 hits_beg = q->object_hits_start[object_i  ];
         u32 hits_end = q->object_hits_start[object_i+1];
 
@@ -211,7 +211,7 @@ internal void phys_world_substep(PHYS_World* w, f64 dt) {ZoneScoped;
             if (!b->is_particle) {
                 vec4_f32 dr = mul_quat(b->rotation, inv_quat(b->prev_rotation));
                 // @note linearized approximation
-                b->angular_velocity = mul_3f32(dr.xyz, 2.0*inv_dt*sgn_f32(dr.w));
+                b->angular_velocity = mul_3f32(dr.xyz, 2.f*inv_dt*sgn_f32(dr.w));
             }
         }
     }}
@@ -449,7 +449,6 @@ internal void phys_constraint_solve_volume(PHYS_Constraint* c, PHYS_ConstraintSo
     vec3_f32 d41 = sub_3f32(b4->position, b1->position);
     vec3_f32 d32 = sub_3f32(b3->position, b2->position);
     vec3_f32 d42 = sub_3f32(b4->position, b2->position);
-    vec3_f32 d43 = sub_3f32(b4->position, b3->position);
 
     vec3_f32 dC1 = cross_3f32(d42, d32);
     vec3_f32 dC2 = cross_3f32(d31, d41);
@@ -560,11 +559,11 @@ internal void phys_constraint_apply_two_bodies_limit_angle(
     f32 phi = asin_f32(Clamp(dot_3f32(cross_3f32(n1, n2), n), -1.f,1.f)); // @note clamp for numerical errors
 
     if (dot_3f32(n1, n2) < 0.f)
-        phi = PI - phi;
-    if (phi > +PI)
-        phi -= 2.f*PI;
-    if (phi < -PI)
-        phi += 2.f*PI;
+        phi = PI_F32 - phi;
+    if (phi > +PI_F32)
+        phi -= 2.f*PI_F32;
+    if (phi < -PI_F32)
+        phi += 2.f*PI_F32;
 
     if (phi >= alpha && phi <= beta) {
         return;
@@ -578,7 +577,7 @@ internal void phys_constraint_apply_two_bodies_limit_angle(
 
     #if PHYS_DBG_D_STEP
         if (phys_dbg_d_ctx->do_limit_angle) {
-            phys_dbg_d_sector(b1->position, n1, n, phi, make_3f32(0,0,1), phys_dbg_d_ctx->default_normal_length*0.3);
+            phys_dbg_d_sector(b1->position, n1, n, phi, make_3f32(0,0,1), phys_dbg_d_ctx->default_normal_length*0.3f);
             PHYS_DBG_D_DRAW_NORMAL(b1->position, n_target, make_3f32(0,0,1));
             PHYS_DBG_D_DRAW_NORMAL(b1->position, cross_3f32(n2, n_target), make_3f32(1,0,1));
         }
@@ -811,11 +810,11 @@ internal void phys_collision_manifold_solve_narrow(PHYS_CollisionCheck* in_out, 
             return;
  
         // apply all contact points
-        for EachIndex(i, cp.count) {
+        for EachIndexU32(i, cp.count) {
             // in_out->d = dot_3f32(sub_3f32(cp.bodies[0][i], cp.bodies[1][i]), in_out->n);
             #if PHYS_DBG_D_STEP
                 if (phys_dbg_d_ctx->do_contact_manifold) {
-                    for EachIndex(i, cp.count) {
+                    for EachIndexU32(i, cp.count) {
                         PHYS_DBG_D_DRAW_DPOINT(cp.bodies[0][i], (in_out->d > 0.f) ? make_3f32(1,0,0) : make_3f32(0,1,1));
                         PHYS_DBG_D_DRAW_DPOINT(cp.bodies[1][i], (in_out->d > 0.f) ? make_3f32(0,0,1) : make_3f32(1,1,0));
                     }
@@ -858,11 +857,11 @@ internal b32 phys_collision_SAT_check_axis(PHYS_CollisionCheck* out, vec3_f32 ax
 
 internal b32 phys_collision_check_polytopes(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Polytope* p1, PHYS_Collider_Polytope* p2) {
     out->d = MAX_F32;
-    for EachIndex(ni, p1->normals_count) {
+    for EachIndexU32(ni, p1->normals_count) {
         if (!phys_collision_SAT_check_axis(out, rot_quat(p1->normals[ni], b1->rotation), b1, b2, (PHYS_Collider*)p1, (PHYS_Collider*)p2))
             return false;
     }
-    for EachIndex(ni, p2->normals_count) {
+    for EachIndexU32(ni, p2->normals_count) {
         if (!phys_collision_SAT_check_axis(out, rot_quat(p2->normals[ni], b2->rotation), b1, b2, (PHYS_Collider*)p1, (PHYS_Collider*)p2))
             return false;
     }
@@ -885,7 +884,7 @@ internal b32 phys_collision_check_polytopes(PHYS_CollisionCheck* out, PHYS_Body*
 }
 internal b32 phys_collision_check_polytope_sphere(PHYS_CollisionCheck* out, PHYS_Body* b1, PHYS_Body* b2, PHYS_Collider_Polytope* p1, PHYS_Collider_Sphere* s2) {
     out->d = MAX_F32;
-    for EachIndex(ni, p1->normals_count) {
+    for EachIndexU32(ni, p1->normals_count) {
         if (!phys_collision_SAT_check_axis(out, rot_quat(p1->normals[ni], b1->rotation), b1, b2, (PHYS_Collider*)p1, (PHYS_Collider*)s2))
             return false;
     }
@@ -1059,4 +1058,5 @@ internal f32 phys_calculate_coeffcient(f32 x1, f32 x2, PHYS_CoefficientCalculati
         case PHYS_CoefficientCalculation_Max:       return Max(x1,x2);
     }
     NotImplemented;
+    return x1;
 }

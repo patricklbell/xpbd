@@ -50,8 +50,8 @@ r_hook void r_init() {
         char log[512];
 
         // vertex shader
-        const char* vertex_src[] = { program_def->vertex_shader_src.cstr };
-        GLint vertex_src_lens[] = { (GLint)program_def->vertex_shader_src.length };
+        const char* vertex_src[] = { program_def->vertex_shader_src->cstr };
+        GLint vertex_src_lens[] = { (GLint)program_def->vertex_shader_src->length };
         GLuint vertex_id = glCreateShader(GL_VERTEX_SHADER);
         glShaderSource(vertex_id, 1, vertex_src, vertex_src_lens);
         glCompileShader(vertex_id);
@@ -62,8 +62,8 @@ r_hook void r_init() {
         }
     
         // fragment shader
-        const char* fragment_src[] = { program_def->fragment_shader_src.cstr };
-        GLint fragment_src_lens[] = { (GLint)program_def->fragment_shader_src.length };
+        const char* fragment_src[] = { program_def->fragment_shader_src->cstr };
+        GLint fragment_src_lens[] = { (GLint)program_def->fragment_shader_src->length };
         GLuint fragment_id = glCreateShader(GL_FRAGMENT_SHADER);
         glShaderSource(fragment_id, 1, fragment_src, fragment_src_lens);
         glCompileShader(fragment_id);
@@ -75,9 +75,9 @@ r_hook void r_init() {
 
         // geometry shader
         GLuint geometry_id = 0;
-        if (program_def->geometry_shader_src.length > 0) {
-            const char* geometry_src[] = { program_def->geometry_shader_src.cstr };
-            GLint geometry_src_lens[] = { (GLint)program_def->geometry_shader_src.length };
+        if (program_def->geometry_shader_src != NULL) {
+            const char* geometry_src[] = { program_def->geometry_shader_src->cstr };
+            GLint geometry_src_lens[] = { (GLint)program_def->geometry_shader_src->length };
             geometry_id = glCreateShader(GL_GEOMETRY_SHADER);
             glShaderSource(geometry_id, 1, geometry_src, geometry_src_lens);
             glCompileShader(geometry_id);
@@ -207,8 +207,8 @@ r_hook void r_submit(OS_Handle window, R_PassList *passes) { TracyGpuZone("r_sub
             case R_PassKind_3D: {
                 R_PassParams_3D* params = pass->params_3d;
                 
-                glViewport(params->viewport.tl.x, params->viewport.tl.y, params->viewport.br.x, params->viewport.br.y);
-                glScissor(params->clip.tl.x, params->clip.tl.y, params->clip.br.x, params->clip.br.y);
+                glViewport((GLint)params->viewport.tl.x, (GLint)params->viewport.tl.y, (GLsizei)params->viewport.br.x, (GLsizei)params->viewport.br.y);
+                glScissor((GLint)params->clip.tl.x, (GLint)params->clip.tl.y, (GLsizei)params->clip.br.x, (GLsizei)params->clip.br.y);
                 glEnable(GL_SCISSOR_TEST);
                 glEnable(GL_CULL_FACE);
 
@@ -242,7 +242,7 @@ r_hook void r_submit(OS_Handle window, R_PassList *passes) { TracyGpuZone("r_sub
                                 glEnableVertexAttribArray(attribute->location);
                                 u64 offset = r_vertex_offset(group_params->mesh_flags, attribute->flag);
                                 u64 stride = r_vertex_stride(group_params->mesh_flags, attribute->flag);
-                                glVertexAttribPointer(attribute->location, attribute->size, attribute->type, attribute->normalized, stride, (void*)offset);
+                                glVertexAttribPointer(attribute->location, attribute->size, attribute->type, attribute->normalized, (GLsizei)stride, (void*)offset);
                             }
                         }
 
@@ -260,7 +260,7 @@ r_hook void r_submit(OS_Handle window, R_PassList *passes) { TracyGpuZone("r_sub
                             for EachIndex(i, program_def->instance_attribute_count) {
                                 const R_OGL_InstanceAttribute* attribute = &program_def->instance_attributes[i];
                                 glEnableVertexAttribArray(attribute->location);
-                                glVertexAttribPointer(attribute->location, attribute->size, attribute->type, attribute->normalized, batches->bytes_per_inst, attribute->offset);
+                                glVertexAttribPointer(attribute->location, attribute->size, attribute->type, attribute->normalized, (GLsizei)batches->bytes_per_inst, attribute->offset);
                                 glVertexAttribDivisor(attribute->location, 1);
                             }
                         }
@@ -270,9 +270,9 @@ r_hook void r_submit(OS_Handle window, R_PassList *passes) { TracyGpuZone("r_sub
                             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, r_ogl_handle_to_buffer(group_params->mesh_indices));
     
                             // draw instances
-                            glDrawElementsInstanced(r_ogl_topology_mode[group_params->mesh_topology], r_ogl_handle_to_size(group_params->mesh_indices)/sizeof(u32), GL_UNSIGNED_INT, 0, byte_offset/batches->bytes_per_inst);
+                            glDrawElementsInstanced(r_ogl_topology_mode[group_params->mesh_topology], (GLsizei)(r_ogl_handle_to_size(group_params->mesh_indices)/sizeof(u32)), GL_UNSIGNED_INT, 0, (GLsizei)(byte_offset/batches->bytes_per_inst));
                         } else {
-                            glDrawArraysInstanced(r_ogl_topology_mode[group_params->mesh_topology], 0, r_ogl_handle_to_size(group_params->mesh_vertices)/r_vertex_size(group_params->mesh_flags), byte_offset/batches->bytes_per_inst);
+                            glDrawArraysInstanced(r_ogl_topology_mode[group_params->mesh_topology], 0, (GLsizei)(r_ogl_handle_to_size(group_params->mesh_vertices)/r_vertex_size(group_params->mesh_flags)), (GLsizei)(byte_offset/batches->bytes_per_inst));
                         }
                     }
                 }
@@ -286,3 +286,60 @@ r_hook void r_submit(OS_Handle window, R_PassList *passes) { TracyGpuZone("r_sub
         }
     }
 }
+
+R_OGL_ProgramDefinition r_ogl_programs_definitions[] = {
+    {
+        R_Mesh3DMaterial_Lambertian,
+        &r_ogl_lambertian_vertex_shader_src,
+        &r_ogl_lambertian_fragment_shader_src,
+        NULL,
+        r_ogl_lambertian_shader_vertex_attributes,
+        ArrayLength(r_ogl_lambertian_shader_vertex_attributes),
+        r_ogl_lambertian_shader_instance_attributes,
+        ArrayLength(r_ogl_lambertian_shader_instance_attributes),
+        false,
+    },
+    {
+        R_Mesh3DMaterial_DieletricPBR,
+        &r_ogl_dieletric_pbr_vertex_shader_src,
+        &r_ogl_dieletric_pbr_fragment_shader_src,
+        NULL,
+        r_ogl_dieletric_pbr_shader_vertex_attributes,
+        ArrayLength(r_ogl_dieletric_pbr_shader_vertex_attributes),
+        r_ogl_dieletric_pbr_shader_instance_attributes,
+        ArrayLength(r_ogl_dieletric_pbr_shader_instance_attributes),
+        false,
+    },
+    {
+        R_Mesh3DMaterial_Debug,
+        &r_ogl_debug_vertex_shader_src,
+        &r_ogl_debug_fragment_shader_src,
+        NULL,
+        r_ogl_debug_shader_vertex_attributes,
+        ArrayLength(r_ogl_debug_shader_vertex_attributes),
+        r_ogl_debug_shader_instance_attributes,
+        ArrayLength(r_ogl_debug_shader_instance_attributes),
+        true,
+    },
+    {
+        R_Mesh3DMaterial_Splat,
+        #if R_OGL_USES_ES
+        &r_ogl_debug_vertex_shader_src,
+        &r_ogl_debug_fragment_shader_src,
+        NULL,
+        r_ogl_debug_shader_vertex_attributes,
+        ArrayLength(r_ogl_debug_shader_vertex_attributes),
+        r_ogl_debug_shader_instance_attributes,
+        ArrayLength(r_ogl_debug_shader_instance_attributes),
+        #else
+        &r_ogl_splat_vertex_shader_src,
+        &r_ogl_splat_fragment_shader_src,
+        &r_ogl_splat_geometry_shader_src,
+        r_ogl_splat_shader_vertex_attributes,
+        ArrayLength(r_ogl_splat_shader_vertex_attributes),
+        NULL,
+        0,
+        #endif
+        true,
+    },
+};

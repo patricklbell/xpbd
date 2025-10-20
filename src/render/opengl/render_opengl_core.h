@@ -1,5 +1,8 @@
 #pragma once
 
+#define R_OGL_OPENGL_MAJOR_VERSION 3
+#define R_OGL_OPENGL_MINOR_VERSION 3
+
 internal void r_ogl_os_init();
 internal void r_ogl_os_cleanup();
 internal void r_ogl_os_window_swap(OS_Handle window, R_Handle rwindow);
@@ -104,7 +107,7 @@ struct R_OGL_InstanceAttribute {
 #endif
 
 // lambertian
-global const NTString8 r_ogl_lambertian_vertex_shader_src = ntstr8_lit_init(
+read_only global NTString8 r_ogl_lambertian_vertex_shader_src = ntstr8_lit_init(
     R_OGL_SHADER_PREAMBLE
     "layout (location = 0) in vec3 in_position;"
     "layout (location = 1) in vec3 in_normal;"
@@ -125,7 +128,7 @@ global const NTString8 r_ogl_lambertian_vertex_shader_src = ntstr8_lit_init(
     "}"
 );
 
-global const NTString8 r_ogl_lambertian_fragment_shader_src = ntstr8_lit_init(
+read_only global NTString8 r_ogl_lambertian_fragment_shader_src = ntstr8_lit_init(
     R_OGL_SHADER_PREAMBLE
     "in vec3 vs_normal;"
     "in vec3 vs_color;"
@@ -145,21 +148,21 @@ global const NTString8 r_ogl_lambertian_fragment_shader_src = ntstr8_lit_init(
     "}"
 );
 
-global const R_OGL_VertexAttribute r_ogl_lambertian_shader_vertex_attributes[] = {
-    { .location = 0, .size = sizeof(vec3_f32)/sizeof(f32), .flag = R_VertexFlag_P, .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_position") },
-    { .location = 1, .size = sizeof(vec3_f32)/sizeof(f32), .flag = R_VertexFlag_N, .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_normal"  ) },
+read_only global R_OGL_VertexAttribute r_ogl_lambertian_shader_vertex_attributes[] = {
+    { 0, sizeof(vec3_f32)/sizeof(f32), R_VertexFlag_P, GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_position") },
+    { 1, sizeof(vec3_f32)/sizeof(f32), R_VertexFlag_N, GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_normal"  ) },
 };
 
-global const R_OGL_InstanceAttribute r_ogl_lambertian_shader_instance_attributes[] = {
-    { .location = 10, .size = sizeof(Member(R_Mesh3DInstance, transform.c1))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c1), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
-    { .location = 11, .size = sizeof(Member(R_Mesh3DInstance, transform.c2))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c2), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
-    { .location = 12, .size = sizeof(Member(R_Mesh3DInstance, transform.c3))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c3), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
-    { .location = 13, .size = sizeof(Member(R_Mesh3DInstance, transform.c4))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c4), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
-    { .location = 14, .size = sizeof(Member(R_Mesh3DInstance, color       ))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, color       ), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_color") },
+read_only global R_OGL_InstanceAttribute r_ogl_lambertian_shader_instance_attributes[] = {
+    { 10, sizeof(Member(R_Mesh3DInstance, transform.c1))/sizeof(f32), &Member(R_Mesh3DInstance, transform.c1), GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_model") },
+    { 11, sizeof(Member(R_Mesh3DInstance, transform.c2))/sizeof(f32), &Member(R_Mesh3DInstance, transform.c2), GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_model") },
+    { 12, sizeof(Member(R_Mesh3DInstance, transform.c3))/sizeof(f32), &Member(R_Mesh3DInstance, transform.c3), GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_model") },
+    { 13, sizeof(Member(R_Mesh3DInstance, transform.c4))/sizeof(f32), &Member(R_Mesh3DInstance, transform.c4), GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_model") },
+    { 14, sizeof(Member(R_Mesh3DInstance, color       ))/sizeof(f32), &Member(R_Mesh3DInstance, color       ), GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_color") },
 };
 
 // dieletric pbr
-global const NTString8 r_ogl_dieletric_pbr_vertex_shader_src = ntstr8_lit_init(
+read_only global NTString8 r_ogl_dieletric_pbr_vertex_shader_src = ntstr8_lit_init(
     R_OGL_SHADER_PREAMBLE
     "layout (location = 0) in vec3 in_position;"
     "layout (location = 1) in vec3 in_normal;"
@@ -188,7 +191,7 @@ global const NTString8 r_ogl_dieletric_pbr_vertex_shader_src = ntstr8_lit_init(
     "}"
 );
 
-global const NTString8 r_ogl_dieletric_pbr_fragment_shader_src = ntstr8_lit_init(
+read_only global NTString8 r_ogl_dieletric_pbr_fragment_shader_src = ntstr8_lit_init(
     R_OGL_SHADER_PREAMBLE
     "#define PI      3.141592f\n"
     "#define EPSILON 1.19209e-07\n"
@@ -266,22 +269,22 @@ global const NTString8 r_ogl_dieletric_pbr_fragment_shader_src = ntstr8_lit_init
     "}"
 );
 
-global const R_OGL_VertexAttribute r_ogl_dieletric_pbr_shader_vertex_attributes[] = {
-    { .location = 0, .size = sizeof(vec3_f32)/sizeof(f32), .flag = R_VertexFlag_P, .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_position") },
-    { .location = 1, .size = sizeof(vec3_f32)/sizeof(f32), .flag = R_VertexFlag_N, .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_normal"  ) },
+read_only global R_OGL_VertexAttribute r_ogl_dieletric_pbr_shader_vertex_attributes[] = {
+    { 0, sizeof(vec3_f32)/sizeof(f32), R_VertexFlag_P, GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_position") },
+    { 1, sizeof(vec3_f32)/sizeof(f32), R_VertexFlag_N, GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_normal"  ) },
 };
 
-global const R_OGL_InstanceAttribute r_ogl_dieletric_pbr_shader_instance_attributes[] = {
-    { .location = 10, .size = sizeof(Member(R_PBRMesh3DInstance, transform.c1))/sizeof(f32), .offset = &Member(R_PBRMesh3DInstance, transform.c1), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
-    { .location = 11, .size = sizeof(Member(R_PBRMesh3DInstance, transform.c2))/sizeof(f32), .offset = &Member(R_PBRMesh3DInstance, transform.c2), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
-    { .location = 12, .size = sizeof(Member(R_PBRMesh3DInstance, transform.c3))/sizeof(f32), .offset = &Member(R_PBRMesh3DInstance, transform.c3), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
-    { .location = 13, .size = sizeof(Member(R_PBRMesh3DInstance, transform.c4))/sizeof(f32), .offset = &Member(R_PBRMesh3DInstance, transform.c4), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
-    { .location = 14, .size = sizeof(Member(R_PBRMesh3DInstance, albedo_roughness))/sizeof(f32), .offset = &Member(R_PBRMesh3DInstance, albedo_roughness), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_albedo_roughness") },
-    { .location = 15, .size = sizeof(Member(R_PBRMesh3DInstance, specular        ))/sizeof(f32), .offset = &Member(R_PBRMesh3DInstance, specular        ), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_specular"        ) },
+read_only global R_OGL_InstanceAttribute r_ogl_dieletric_pbr_shader_instance_attributes[] = {
+    { 10, sizeof(Member(R_PBRMesh3DInstance, transform.c1    ))/sizeof(f32), &Member(R_PBRMesh3DInstance, transform.c1    ), GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_model"           ) },
+    { 11, sizeof(Member(R_PBRMesh3DInstance, transform.c2    ))/sizeof(f32), &Member(R_PBRMesh3DInstance, transform.c2    ), GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_model"           ) },
+    { 12, sizeof(Member(R_PBRMesh3DInstance, transform.c3    ))/sizeof(f32), &Member(R_PBRMesh3DInstance, transform.c3    ), GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_model"           ) },
+    { 13, sizeof(Member(R_PBRMesh3DInstance, transform.c4    ))/sizeof(f32), &Member(R_PBRMesh3DInstance, transform.c4    ), GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_model"           ) },
+    { 14, sizeof(Member(R_PBRMesh3DInstance, albedo_roughness))/sizeof(f32), &Member(R_PBRMesh3DInstance, albedo_roughness), GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_albedo_roughness") },
+    { 15, sizeof(Member(R_PBRMesh3DInstance, specular        ))/sizeof(f32), &Member(R_PBRMesh3DInstance, specular        ), GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_specular"        ) },
 };
 
 // debug
-global const NTString8 r_ogl_debug_vertex_shader_src = ntstr8_lit_init(
+read_only global NTString8 r_ogl_debug_vertex_shader_src = ntstr8_lit_init(
     R_OGL_SHADER_PREAMBLE
     "layout (location = 0) in vec3 in_position;"
     "layout (location = 1) in vec3 in_color;"
@@ -299,7 +302,7 @@ global const NTString8 r_ogl_debug_vertex_shader_src = ntstr8_lit_init(
     "}"
 );
 
-global const NTString8 r_ogl_debug_fragment_shader_src = ntstr8_lit_init(
+read_only global NTString8 r_ogl_debug_fragment_shader_src = ntstr8_lit_init(
     R_OGL_SHADER_PREAMBLE
     "in vec3 vs_color;"
     ""
@@ -310,20 +313,20 @@ global const NTString8 r_ogl_debug_fragment_shader_src = ntstr8_lit_init(
     "}"
 );
 
-global const R_OGL_VertexAttribute r_ogl_debug_shader_vertex_attributes[] = {
-    { .location = 0, .size = sizeof(vec3_f32)/sizeof(f32), .flag = R_VertexFlag_P, .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_position") },
-    { .location = 1, .size = sizeof(vec3_f32)/sizeof(f32), .flag = R_VertexFlag_C, .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_color"   ) },
+read_only global R_OGL_VertexAttribute r_ogl_debug_shader_vertex_attributes[] = {
+    { 0, sizeof(vec3_f32)/sizeof(f32), R_VertexFlag_P, GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_position") },
+    { 1, sizeof(vec3_f32)/sizeof(f32), R_VertexFlag_C, GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_color"   ) },
 };
 
-global const R_OGL_InstanceAttribute r_ogl_debug_shader_instance_attributes[] = {
-    { .location = 10, .size = sizeof(Member(R_Mesh3DInstance, transform.c1))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c1), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
-    { .location = 11, .size = sizeof(Member(R_Mesh3DInstance, transform.c2))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c2), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
-    { .location = 12, .size = sizeof(Member(R_Mesh3DInstance, transform.c3))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c3), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
-    { .location = 13, .size = sizeof(Member(R_Mesh3DInstance, transform.c4))/sizeof(f32), .offset = &Member(R_Mesh3DInstance, transform.c4), .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_model") },
+read_only global R_OGL_InstanceAttribute r_ogl_debug_shader_instance_attributes[] = {
+    { 10, sizeof(Member(R_Mesh3DInstance, transform.c1))/sizeof(f32), &Member(R_Mesh3DInstance, transform.c1), GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_model") },
+    { 11, sizeof(Member(R_Mesh3DInstance, transform.c2))/sizeof(f32), &Member(R_Mesh3DInstance, transform.c2), GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_model") },
+    { 12, sizeof(Member(R_Mesh3DInstance, transform.c3))/sizeof(f32), &Member(R_Mesh3DInstance, transform.c3), GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_model") },
+    { 13, sizeof(Member(R_Mesh3DInstance, transform.c4))/sizeof(f32), &Member(R_Mesh3DInstance, transform.c4), GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_model") },
 };
 
 // debug splat
-global const NTString8 r_ogl_splat_vertex_shader_src = ntstr8_lit_init(
+read_only global NTString8 r_ogl_splat_vertex_shader_src = ntstr8_lit_init(
     R_OGL_SHADER_PREAMBLE
     "layout (location = 0) in vec3 in_position;"
     "layout (location = 1) in vec3 in_color;"
@@ -342,7 +345,7 @@ global const NTString8 r_ogl_splat_vertex_shader_src = ntstr8_lit_init(
     "}"
 );
 
-global const NTString8 r_ogl_splat_geometry_shader_src = ntstr8_lit_init(
+read_only global NTString8 r_ogl_splat_geometry_shader_src = ntstr8_lit_init(
     R_OGL_SHADER_PREAMBLE
     "layout(points) in;"
     "layout(triangle_strip, max_vertices = 4) out;"
@@ -381,7 +384,7 @@ global const NTString8 r_ogl_splat_geometry_shader_src = ntstr8_lit_init(
     "}"
 );
 
-global const NTString8 r_ogl_splat_fragment_shader_src = ntstr8_lit_init(
+read_only global NTString8 r_ogl_splat_fragment_shader_src = ntstr8_lit_init(
     R_OGL_SHADER_PREAMBLE
     "in vec3 gs_color;"
     "in vec2 gs_texcoord;"
@@ -397,21 +400,19 @@ global const NTString8 r_ogl_splat_fragment_shader_src = ntstr8_lit_init(
     "}"
 );
 
-global const R_OGL_VertexAttribute r_ogl_splat_shader_vertex_attributes[] = {
-    { .location = 0, .size = sizeof(vec3_f32)/sizeof(f32), .flag = R_VertexFlag_P, .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_position") },
-    { .location = 1, .size = sizeof(vec3_f32)/sizeof(f32), .flag = R_VertexFlag_C, .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_color"   ) },
-    { .location = 2, .size = sizeof(vec2_f32)/sizeof(f32), .flag = R_VertexFlag_T, .type = GL_FLOAT, .normalized = GL_FALSE, .name = ntstr8_lit_init("in_radius"  ) },
+read_only global R_OGL_VertexAttribute r_ogl_splat_shader_vertex_attributes[] = {
+    { 0, sizeof(vec3_f32)/sizeof(f32), R_VertexFlag_P, GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_position") },
+    { 1, sizeof(vec3_f32)/sizeof(f32), R_VertexFlag_C, GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_color"   ) },
+    { 2, sizeof(vec2_f32)/sizeof(f32), R_VertexFlag_T, GL_FLOAT, GL_FALSE, ntstr8_lit_init("in_radius"  ) },
 };
-
-global const R_OGL_InstanceAttribute r_ogl_splat_shader_instance_attributes[] = {};
 
 typedef struct R_OGL_ProgramDefinition R_OGL_ProgramDefinition;
 struct R_OGL_ProgramDefinition {
     R_Mesh3DMaterial material;
 
-    NTString8 vertex_shader_src;
-    NTString8 fragment_shader_src;
-    NTString8 geometry_shader_src;
+    NTString8* vertex_shader_src;
+    NTString8* fragment_shader_src;
+    NTString8* geometry_shader_src;
 
     const R_OGL_VertexAttribute* vertex_attributes;
     int vertex_attribute_count;
@@ -422,55 +423,4 @@ struct R_OGL_ProgramDefinition {
     b32 disable_depth_test;
 };
 
-global const R_OGL_ProgramDefinition r_ogl_programs_definitions[R_Mesh3DMaterial_COUNT] = {
-    {
-        .material = R_Mesh3DMaterial_Lambertian,
-        .vertex_shader_src = r_ogl_lambertian_vertex_shader_src,
-        .fragment_shader_src = r_ogl_lambertian_fragment_shader_src,
-        .vertex_attributes = r_ogl_lambertian_shader_vertex_attributes,
-        .vertex_attribute_count = ArrayLength(r_ogl_lambertian_shader_vertex_attributes),
-        .instance_attributes = r_ogl_lambertian_shader_instance_attributes,
-        .instance_attribute_count = ArrayLength(r_ogl_lambertian_shader_instance_attributes),
-        .disable_depth_test = false,
-    },
-    {
-        .material = R_Mesh3DMaterial_DieletricPBR,
-        .vertex_shader_src = r_ogl_dieletric_pbr_vertex_shader_src,
-        .fragment_shader_src = r_ogl_dieletric_pbr_fragment_shader_src,
-        .vertex_attributes = r_ogl_dieletric_pbr_shader_vertex_attributes,
-        .vertex_attribute_count = ArrayLength(r_ogl_dieletric_pbr_shader_vertex_attributes),
-        .instance_attributes = r_ogl_dieletric_pbr_shader_instance_attributes,
-        .instance_attribute_count = ArrayLength(r_ogl_dieletric_pbr_shader_instance_attributes),
-        .disable_depth_test = false,
-    },
-    {
-        .material = R_Mesh3DMaterial_Debug,
-        .vertex_shader_src = r_ogl_debug_vertex_shader_src,
-        .fragment_shader_src = r_ogl_debug_fragment_shader_src,
-        .vertex_attributes = r_ogl_debug_shader_vertex_attributes,
-        .vertex_attribute_count = ArrayLength(r_ogl_debug_shader_vertex_attributes),
-        .instance_attributes = r_ogl_debug_shader_instance_attributes,
-        .instance_attribute_count = ArrayLength(r_ogl_debug_shader_instance_attributes),
-        .disable_depth_test = true,
-    },
-    {
-        .material = R_Mesh3DMaterial_Splat,
-        #if R_OGL_USES_ES
-        .vertex_shader_src = r_ogl_debug_vertex_shader_src,
-        .fragment_shader_src = r_ogl_debug_fragment_shader_src,
-        .vertex_attributes = r_ogl_debug_shader_vertex_attributes,
-        .vertex_attribute_count = ArrayLength(r_ogl_debug_shader_vertex_attributes),
-        .instance_attributes = r_ogl_debug_shader_instance_attributes,
-        .instance_attribute_count = ArrayLength(r_ogl_debug_shader_instance_attributes),
-        #else
-        .vertex_shader_src = r_ogl_splat_vertex_shader_src,
-        .fragment_shader_src = r_ogl_splat_fragment_shader_src,
-        .geometry_shader_src = r_ogl_splat_geometry_shader_src,
-        .vertex_attributes = r_ogl_splat_shader_vertex_attributes,
-        .vertex_attribute_count = ArrayLength(r_ogl_splat_shader_vertex_attributes),
-        .instance_attributes = r_ogl_splat_shader_instance_attributes,
-        .instance_attribute_count = ArrayLength(r_ogl_splat_shader_instance_attributes),
-        #endif
-        .disable_depth_test = true,
-    },
-};
+extern R_OGL_ProgramDefinition r_ogl_programs_definitions[R_Mesh3DMaterial_COUNT];

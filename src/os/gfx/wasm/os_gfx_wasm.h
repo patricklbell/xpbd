@@ -3,8 +3,8 @@
 #include <emscripten.h>
 #include <emscripten/html5.h>
 
-typedef struct OS_GFX_WASMState OS_GFX_WASMState;
-struct OS_GFX_WASMState {
+typedef struct OS_GFX_WASM_State OS_GFX_WASM_State;
+struct OS_GFX_WASM_State {
     vec2_f32 window_size;
     vec2_f32 window_position;
     int window_pixel_ratio;
@@ -17,7 +17,7 @@ struct OS_GFX_WASMState {
     OS_LoopFunction callback;
 };
 
-global OS_GFX_WASMState os_gfx_wasm_state;
+global OS_GFX_WASM_State os_gfx_wasm_state;
 
 #define OS_GFX_WASM_MAGIC_HANDLE 42189
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#define EMCONTROLS_MAX_CONTROLS 64
+
 typedef void (*EMCONTROLS_Control_Callback)(void* data);
 typedef void (*EMCONTROLS_Control_SliderCallback)(f32 value, void* data);
 
@@ -23,20 +25,10 @@ struct EMCONTROLS_Control {
     f32 slider_max;
 };
 
-#define EMCONTROLS_MAX_CONTROLS 64
-
-typedef struct EMCONTROLS_ThreadCtx EMCONTROLS_ThreadCtx;
-struct EMCONTROLS_ThreadCtx {
-    Arena* arena;
-
-    EMCONTROLS_Control controls[EMCONTROLS_MAX_CONTROLS];
-    int count;
-};
-
-global EMCONTROLS_ThreadCtx* emcontrols_ctx = NULL;
-
 internal void emcontrols_init(Arena* arena);
 internal void emcontrols_clear();
-
 internal int  emcontrols_add(EMCONTROLS_Control button);
-internal void emcontrols_update(int id, EMCONTROLS_Control button);
+
+#if OS_WEB
+    #include "wasm/emcontrols_wasm.h"
+#endif
