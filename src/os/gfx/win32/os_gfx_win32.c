@@ -4,7 +4,7 @@
 internal LRESULT CALLBACK os_gfx_win32_wnd_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     LRESULT result = 0;
     
-    OS_GFX_Win32_Window* window = os_gfx_win32_hwnd_to_window(hwnd);
+    OS_GFX_Win32_Window* window = os_gfx_win32_hwnd_to_gfx_window(hwnd);
     switch (uMsg) {
         case WM_DESTROY:{
             PostQuitMessage(0);
@@ -13,15 +13,17 @@ internal LRESULT CALLBACK os_gfx_win32_wnd_proc(HWND hwnd, UINT uMsg, WPARAM wPa
             PAINTSTRUCT ps = {0};
             BeginPaint(hwnd, &ps);
 
-            os_win32_gfx_state->callback(os_win32_gfx_state->data);
+            os_gfx_win32_state->callback(os_gfx_win32_state->data);
 
             EndPaint(hwnd, &ps);
         }break;
         
         case WM_SIZE:{
+            OS_Event* event = os_gfx_win32_add_event(OS_EventType_Resize);
             UINT width = LOWORD(lParam);
             UINT height = HIWORD(lParam);
             window->size = (vec2_f32){.x = (f32)width, .y = (f32)height};
+            event->window_size = window->size;
         }break;
 
         case WM_MOUSEMOVE:{
@@ -90,7 +92,7 @@ internal LRESULT CALLBACK os_gfx_win32_wnd_proc(HWND hwnd, UINT uMsg, WPARAM wPa
     return result;
 }
 
-internal OS_Handle os_gfx_win32_window_to_handle(OS_GFX_Win32_Window* window) {
+internal OS_Handle os_gfx_win32_gfx_window_to_handle(OS_GFX_Win32_Window* window) {
     OS_Handle handle = os_zero_handle();
     handle.v64[0] = (u64)window;
     return handle;
@@ -100,8 +102,8 @@ internal OS_GFX_Win32_Window* os_gfx_win32_handle_to_window(OS_Handle handle) {
     return (OS_GFX_Win32_Window*)handle.v64[0];
 }
 
-internal OS_GFX_Win32_Window* os_gfx_win32_hwnd_to_window(HWND hwnd) {
-    for EachList(n, OS_GFX_Win32_Window, os_win32_gfx_state->windows.first) {
+internal OS_GFX_Win32_Window* os_gfx_win32_hwnd_to_gfx_window(HWND hwnd) {
+    for EachList(n, OS_GFX_Win32_Window, os_gfx_win32_state->windows.first) {
         if (n->hwnd == hwnd)
             return n;
     }
@@ -168,28 +170,28 @@ internal b32 os_win32_vk_to_os_key(u32 vk, OS_Key* key) {
 }
 
 internal OS_Event* os_gfx_win32_add_event(OS_EventType type) {
-    return os_gfx_window_add_event(os_win32_gfx_state->events_arena, &os_win32_gfx_state->events, (OS_Event){.type=type});
+    return os_gfx_add_event(os_gfx_win32_state->events_arena, &os_gfx_win32_state->events, (OS_Event){.type=type});
 }
 
 // 
 // hooks
 // 
 internal void os_gfx_init() {
-    Assert(os_win32_gfx_state == NULL);
+    Assert(os_gfx_win32_state == NULL);
     Arena* arena = arena_alloc();
-    os_win32_gfx_state = push_array(arena, OS_GFX_Win32_State, 1);
+    os_gfx_win32_state = push_array(arena, OS_GFX_Win32_State, 1);
     
-    os_win32_gfx_state->arena = arena;
-    os_win32_gfx_state->hInstance = GetModuleHandle(0);
+    os_gfx_win32_state->arena = arena;
+    os_gfx_win32_state->hInstance = GetModuleHandle(0);
 
     {
         WNDCLASSEX wndclass = {};
         wndclass.cbSize = sizeof(WNDCLASSEX);
         wndclass.hbrBackground = (HBRUSH) (COLOR_WINDOW + 1);
         wndclass.lpfnWndProc = os_gfx_win32_wnd_proc;
-        wndclass.hInstance = os_win32_gfx_state->hInstance;
+        wndclass.hInstance = os_gfx_win32_state->hInstance;
         wndclass.hCursor = LoadCursorA(NULL, IDC_ARROW);
-        wndclass.hIcon = LoadIcon(os_win32_gfx_state->hInstance, MAKEINTRESOURCE(1));
+        wndclass.hIcon = LoadIcon(os_gfx_win32_state->hInstance, MAKEINTRESOURCE(1));
         wndclass.style = CS_VREDRAW|CS_HREDRAW;
         wndclass.lpszClassName = "graphical-window";
         ATOM wndatom = RegisterClassEx(&wndclass);
@@ -197,16 +199,17 @@ internal void os_gfx_init() {
     }
 }
 internal void os_gfx_cleanup() {
-    for EachList(n, OS_GFX_Win32_Window, os_win32_gfx_state->windows.first) {
+    for EachList(n, OS_GFX_Win32_Window, os_gfx_win32_state->windows.first) {
+        DestroyWindow(n->hwnd);
         os_deallocate(n);
     }
-    arena_release(os_win32_gfx_state->arena);
-    os_win32_gfx_state = NULL;
+    arena_release(os_gfx_win32_state->arena);
+    os_gfx_win32_state = NULL;
 }
 
 internal OS_Events* os_gfx_consume_events(Arena* arena, b32 wait) {
-    os_win32_gfx_state->events_arena = arena;
-    MemoryZeroStruct(&os_win32_gfx_state->events);
+    os_gfx_win32_state->events_arena = arena;
+    MemoryZeroStruct(&os_gfx_win32_state->events);
 
     MSG msg = zero_struct;
     if (!wait || GetMessage(&msg, NULL, 0, 0) != 0) {
@@ -218,14 +221,14 @@ internal OS_Events* os_gfx_consume_events(Arena* arena, b32 wait) {
             DispatchMessage(&msg); 
             if (msg.message == WM_QUIT) {
                 os_gfx_win32_add_event(OS_EventType_Quit);
-                os_win32_gfx_state->quit = true;
+                os_gfx_win32_state->quit = true;
             }
 
             already_waited = false;
         }
     }
 
-    return &os_win32_gfx_state->events;
+    return &os_gfx_win32_state->events;
 }
 
 internal void os_gfx_disconnect_from_rendering() {
@@ -233,9 +236,9 @@ internal void os_gfx_disconnect_from_rendering() {
 }
 
 internal OS_Handle os_gfx_handle() {
-    Assert(os_win32_gfx_state != NULL);
+    Assert(os_gfx_win32_state != NULL);
     OS_Handle handle;
-    handle.v64[0] = (u64)os_win32_gfx_state->hInstance;
+    handle.v64[0] = (u64)os_gfx_win32_state->hInstance;
     return handle;
 }
 
@@ -249,26 +252,25 @@ internal OS_Handle os_gfx_window_open() {
         CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
 
         NULL, NULL,
-        os_win32_gfx_state->hInstance,
+        os_gfx_win32_state->hInstance,
         NULL
     );
     if (hwnd == NULL)
         return os_zero_handle();
 
     OS_GFX_Win32_Window* window = (OS_GFX_Win32_Window*)os_allocate(sizeof(OS_GFX_Win32_Window));
-    dllist_push_back(os_win32_gfx_state->windows.first, os_win32_gfx_state->windows.last, window);
-
+    dllist_push_back(os_gfx_win32_state->windows.first, os_gfx_win32_state->windows.last, window);
     window->hwnd = hwnd;
     window->dc = GetDC(hwnd);
     Assert(window->dc != NULL); // @todo
-    return os_gfx_win32_window_to_handle(window);
+    return os_gfx_win32_gfx_window_to_handle(window);
 }
 
 internal void os_gfx_window_close(OS_Handle handle) {
     OS_GFX_Win32_Window* window = os_gfx_win32_handle_to_window(handle);
 
     DestroyWindow(window->hwnd);
-    dllist_remove(os_win32_gfx_state->windows.first, os_win32_gfx_state->windows.last, window);
+    dllist_remove(os_gfx_win32_state->windows.first, os_gfx_win32_state->windows.last, window);
     os_deallocate(window);
 }
 internal vec2_f32 os_gfx_window_size(OS_Handle handle) {
@@ -286,9 +288,9 @@ internal void os_gfx_window_show(OS_Handle os) {
 }
 
 internal void os_gfx_start_loop(OS_LoopFunction callback, void* data) {
-    os_win32_gfx_state->callback = callback;
-    os_win32_gfx_state->data = data;
-    while (!os_win32_gfx_state->quit) {
+    os_gfx_win32_state->callback = callback;
+    os_gfx_win32_state->data = data;
+    while (!os_gfx_win32_state->quit) {
         callback(data);
     }
 }

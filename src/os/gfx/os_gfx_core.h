@@ -7,6 +7,7 @@ typedef enum OS_EventType {
     OS_EventType_MouseMove,
     OS_EventType_Wheel, // @todo acceleration/velocity
     OS_EventType_Quit,
+    OS_EventType_Resize,
     OS_EventType_COUNT,
 } OS_EventType;
 
@@ -52,10 +53,14 @@ typedef enum OS_Key {
 } OS_Key;
 
 typedef struct OS_Event OS_Event;
-struct OS_Event {
+struct OS_Event { 
     OS_EventType type;
     OS_Key key;
-    vec2_f32 mouse_position;
+    // OS_Handle window; @todo
+    union {
+        vec2_f32 mouse_position;
+        vec2_f32 window_size;
+    };
     vec2_f32 wheel_delta;
 };
 
@@ -90,4 +95,4 @@ internal void os_gfx_start_loop(OS_LoopFunction callback, void* data);
 internal OS_Events* os_gfx_consume_events(Arena* arena, b32 wait);
 
 // helpers
-internal OS_Event* os_gfx_window_add_event(Arena* arena, OS_Events* list, OS_Event event);
+internal OS_Event* os_gfx_add_event(Arena* arena, OS_Events* list, OS_Event event);

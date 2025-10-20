@@ -20,7 +20,7 @@ jobs:
       - name: Build with emcc
         run: |
           chmod +x build.sh
-          ./build.sh emcc --release
+          ./build.sh --emcc --release all
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

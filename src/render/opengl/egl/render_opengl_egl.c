@@ -9,8 +9,8 @@ internal EGLNativeDisplayType r_ogl_egl_native_display() {
     return (EGLNativeDisplayType) os_gfx_handle().v64[0];
 }
 
-internal EGLNativeWindowType r_ogl_egl_native_window(OS_Handle window) {
-    return (EGLNativeWindowType) window.v64[0];
+internal EGLNativeWindowType r_ogl_egl_native_window(OS_Handle os) {
+    return (EGLNativeWindowType)os_gfx_x11_handle_to_gfx_window(os)->wndw;
 }
 
 internal void* r_ogl_egl_procedure_address(char* name) {

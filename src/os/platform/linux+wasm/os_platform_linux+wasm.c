@@ -30,8 +30,8 @@ internal b8 os_is_eof(OS_Handle file) {
 
 internal NTString8 os_read_line_ml(OS_Handle file, Arena* arena, u64 max_line_length) {
     NTString8 result;
-    result.data = push_array(arena, u8, max_line_length + 1);
-    os_read_line_to_buffer_ml(file, result, max_line_length+1);
+    result.cstr = push_array(arena, char, max_line_length + 1);
+    os_read_line_to_buffer_ml(file, &result, max_line_length+1);
     return result;
 }
 

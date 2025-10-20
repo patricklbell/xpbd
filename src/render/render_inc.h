@@ -3,12 +3,8 @@
 #define R_BACKEND_OPENGL 1
 #define R_BACKEND_D3D11 2
 
-#if !defined(R_BACKEND) && OS_LINUX
-    #define R_BACKEND R_BACKEND_OPENGL
-#elif !defined(R_BACKEND) && OS_WINDOWS
-    // @todo d3d11
-    #define R_BACKEND R_BACKEND_OPENGL
-#endif
+// @todo d3d11
+#define R_BACKEND R_BACKEND_OPENGL
 
 #include "render_core.h"
 

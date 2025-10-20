@@ -2,7 +2,7 @@
 set -e
 
 CC=${CC:-g++}
-CFLAGS="${CFLAGS} -I src"
+CFLAGS="${CFLAGS} -I src -Wno-writable-strings -Wno-write-strings"
 LDFLAGS="${LDFLAGS} -lm"
 LDFLAGS_GFX="-lX11 -lXext"
 
@@ -17,7 +17,8 @@ print_help() {
 Usage: $SCRIPT_NAME [OPTION]... [TARGETS]...
 
 Options:
-  --release       Build in release mode (optimized)
+  --debug         Debug build (default)
+  --release       Release build
   --emcc          Build with emscripten
   --trace         Enable Tracy profiling
   --help          Display this help and exit
@@ -114,12 +115,13 @@ main() {
             *)           actions+=("$arg");;
         esac
     done
+    if ! [[ -v release ]]; then debug=1; fi
 
     # Handle build mode
     if [[ -v release ]]; then
         CFLAGS="${CFLAGS} -s -O3 -DBUILD_DEBUG=0"
     elif [[ -v debug ]]; then
-        CFLAGS="${CFLAGS} -g -O0 -DBUILD_DEBUG=1 -fno-omit-frame-pointer -rdynamic"
+        CFLAGS="${CFLAGS} -g -O0 -DBUILD_DEBUG=1 -fno-omit-frame-pointer"
     fi
     if [[ -v trace ]]; then
         CFLAGS="${CFLAGS} -DTRACY_ENABLE src/third_party/tracy/public/TracyClient.cpp"
@@ -143,17 +145,17 @@ main() {
     # Execute command
     for arg in "${actions}"; do
         case "$arg" in
-            libs)          build_libs;;
             all)           build_all_demos
-                           build_libs;;
-            balls)         build_single_file balls sphere.obj cube.obj
-            hanging_boxes) build_single_file hanging_boxes cube.obj
-            softbody)      build_single_file softbody bunny.vtk
-            cloth)         build_single_file cloth cloth.vtk sphere.obj
-            pendulum)      build_single_file pendulum cube.obj
-            joints)        build_single_file joints cube.obj
-            sheet)         build_single_file sheet
-            balloon)       build_single_file balloon sphere.vtk cube.vtk
+                           if ! [[ -v emcc ]]; then build_libs; fi;;
+            libs)          build_libs;;
+            balls)         build_single_file balls sphere.obj cube.obj;;
+            hanging_boxes) build_single_file hanging_boxes cube.obj;;
+            softbody)      build_single_file softbody bunny.vtk;;
+            cloth)         build_single_file cloth cloth.vtk sphere.obj;;
+            pendulum)      build_single_file pendulum cube.obj;;
+            joints)        build_single_file joints cube.obj;;
+            sheet)         build_single_file sheet;;
+            balloon)       build_single_file balloon sphere.vtk cube.vtk;;
             "")            echo "Error: No command specified"
                            echo "Try '$SCRIPT_NAME --help' for more information."
                            exit 1;;
