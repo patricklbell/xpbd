@@ -1,10 +1,11 @@
 // 
 // native
 // 
-internal LRESULT CALLBACK os_gfx_win32_wnd_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+LRESULT CALLBACK os_gfx_win32_wnd_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     LRESULT result = 0;
     
     OS_GFX_Win32_Window* window = os_gfx_win32_hwnd_to_gfx_window(hwnd);
+
     switch (uMsg) {
         case WM_DESTROY:{
             PostQuitMessage(0);
@@ -183,10 +184,10 @@ internal void os_gfx_init() {
     
     os_gfx_win32_state->arena = arena;
     os_gfx_win32_state->hInstance = GetModuleHandle(0);
+    os_gfx_win32_state->events_arena = arena; // @note should be overwritten when consuming events
 
     {
-        WNDCLASSEX wndclass = {};
-        wndclass.cbSize = sizeof(WNDCLASSEX);
+        WNDCLASSEXA wndclass = {sizeof(WNDCLASSEXA)};
         wndclass.hbrBackground = (HBRUSH) (COLOR_WINDOW + 1);
         wndclass.lpfnWndProc = os_gfx_win32_wnd_proc;
         wndclass.hInstance = os_gfx_win32_state->hInstance;
@@ -194,8 +195,7 @@ internal void os_gfx_init() {
         wndclass.hIcon = LoadIcon(os_gfx_win32_state->hInstance, MAKEINTRESOURCE(1));
         wndclass.style = CS_VREDRAW|CS_HREDRAW;
         wndclass.lpszClassName = "graphical-window";
-        ATOM wndatom = RegisterClassEx(&wndclass);
-        (void)wndatom;
+        ATOM wndatom = RegisterClassExA(&wndclass); AssertAlways(wndatom != 0);
     }
 }
 internal void os_gfx_cleanup() {
@@ -243,7 +243,7 @@ internal OS_Handle os_gfx_handle() {
 }
 
 internal OS_Handle os_gfx_window_open() {
-    HWND hwnd = CreateWindowEx(
+    HWND hwnd = CreateWindowExA(
         WS_EX_APPWINDOW,
         "graphical-window",
         "xpbd", // @todo
@@ -255,8 +255,13 @@ internal OS_Handle os_gfx_window_open() {
         os_gfx_win32_state->hInstance,
         NULL
     );
-    if (hwnd == NULL)
+    if (hwnd == NULL) {
+        #if BUILD_DEBUG
+            DWORD err = GetLastError();
+            (void)err;
+        #endif
         return os_zero_handle();
+    }
 
     OS_GFX_Win32_Window* window = (OS_GFX_Win32_Window*)os_allocate(sizeof(OS_GFX_Win32_Window));
     dllist_push_back(os_gfx_win32_state->windows.first, os_gfx_win32_state->windows.last, window);

@@ -28,7 +28,7 @@ internal GLuint r_ogl_temp_buffer(u64 size) {
     return buffer;
 }
 
-internal void r_ogl_debug_message_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam) {
+internal void GLAPIENTRY r_ogl_debug_message_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam) {
   fprintf(stderr, "[OpenGL] %.*s\n", (int)length, message);
 }
 

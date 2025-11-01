@@ -36,7 +36,7 @@ struct OS_GFX_Win32_State {
 
 global OS_GFX_Win32_State* os_gfx_win32_state = NULL;
 
-internal LRESULT CALLBACK os_gfx_win32_wnd_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK os_gfx_win32_wnd_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 // helpers
 internal OS_Handle            os_gfx_win32_gfx_window_to_handle(OS_GFX_Win32_Window* window);

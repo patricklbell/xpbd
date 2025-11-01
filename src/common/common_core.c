@@ -12,7 +12,11 @@
     #include <intrin.h>
     
     internal u64 count_ones_u64(u64 x) {
+        #if ARCH_X86
+        return __popcnt((u32)(x)) + __popcnt((u32)(x >> 32));
+        #else
         return __popcnt64(x);
+        #endif
     }
     internal u64 first_set_bit_u64(u64 x) {
         Assert(x != 0);

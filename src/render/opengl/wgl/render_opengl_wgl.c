@@ -39,12 +39,12 @@ internal void r_ogl_wgl_choose_pixel_format_arb(HDC dc, int* pf) {
 internal void r_ogl_os_init() {
     HWND dummy_hwnd = 0;
     {
-        WNDCLASSEX wndclass = { sizeof(wndclass) };
+        WNDCLASSEXA wndclass = { sizeof(wndclass) };
         wndclass.lpfnWndProc = DefWindowProcA;
         wndclass.hInstance = GetModuleHandle(0);
         wndclass.lpszClassName = "bootstrap-window";
-        ATOM wndatom = RegisterClassEx(&wndclass);
-        dummy_hwnd = CreateWindowEx(
+        ATOM wndatom = RegisterClassExA(&wndclass); AssertAlways(wndatom != 0);
+        dummy_hwnd = CreateWindowExA(
             0,
             MAKEINTATOM(wndatom),
             "",
@@ -56,6 +56,12 @@ internal void r_ogl_os_init() {
             wndclass.hInstance,
             NULL
         );
+
+        if (dummy_hwnd == NULL) {
+            DWORD err = GetLastError();
+            (void)err;
+            AssertAlways(false);
+        }
     }
 
     HDC dc = GetDC(dummy_hwnd);
