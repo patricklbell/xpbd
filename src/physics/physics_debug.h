@@ -43,8 +43,11 @@ struct PHYS_DBG_ThreadCtx {
 
 internal thread_static PHYS_DBG_ThreadCtx* phys_dbg_d_ctx = NULL;
 
-shared_function PHYS_DBG_ThreadCtx* phys_dbg_d_init(PHYS_DBG_DrawEdgeBatch draw_edge_batch, PHYS_DBG_DrawPointBatch draw_point_batch);
-shared_function PHYS_DBG_ThreadCtx* phys_dbg_d_get_ctx();
+shared_function(phys_dbg_d_init)
+PHYS_DBG_ThreadCtx* phys_dbg_d_init(PHYS_DBG_DrawEdgeBatch draw_edge_batch, PHYS_DBG_DrawPointBatch draw_point_batch);
+
+shared_function(phys_dbg_d_get_ctx)
+PHYS_DBG_ThreadCtx* phys_dbg_d_get_ctx();
 
 internal vec3_f32 phys_dbg_d_get_unique_color();
 internal vec3_f32 phys_dbg_d_get_constraint_color(PHYS_World* w, PHYS_Constraint* c);

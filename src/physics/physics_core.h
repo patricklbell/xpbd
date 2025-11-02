@@ -238,8 +238,12 @@ typedef union PHYS_ColliderLayer {
 #define PHYS_ColliderLayer_All_No1  ((PHYS_ColliderLayer){.mask=~1u,.group=~0u})
 #define PHYS_ColliderLayer_All      ((PHYS_ColliderLayer){.mask=~0u,.group=~0u})
 
-shared_function b32 phys_collider_layers_overlap(PHYS_ColliderLayer l1, PHYS_ColliderLayer l2);
-shared_function b32 phys_collider_layers_equal(PHYS_ColliderLayer l1, PHYS_ColliderLayer l2);
+
+shared_function(phys_collider_layers_overlap)
+b32 phys_collider_layers_overlap(PHYS_ColliderLayer l1, PHYS_ColliderLayer l2);
+
+shared_function(phys_collider_layers_overlap)
+b32 phys_collider_layers_equal(PHYS_ColliderLayer l1, PHYS_ColliderLayer l2);
 
 typedef struct PHYS_Collider_Base PHYS_Collider_Base;
 struct PHYS_Collider_Base {
@@ -294,7 +298,7 @@ typedef enum PHYS_CoefficientCalculation {
 
 typedef struct PHYS_WorldSettings PHYS_WorldSettings;
 struct PHYS_WorldSettings {
-    u64 substeps;    
+    u64 substeps;
     f32 little_g;
     f32 min_collision_distance;
     f32 hashgrid_cell_size;
@@ -307,25 +311,62 @@ struct PHYS_WorldSettings {
 // 
 // core api
 // 
-shared_function PHYS_World*                  phys_make_world(PHYS_WorldSettings settings);
-shared_function void                         phys_world_cleanup(PHYS_World* w);
 
-shared_function PHYS_body_id                 phys_world_add_body(PHYS_World* w, PHYS_Body b);
-shared_function void                         phys_world_remove_body(PHYS_World* w, PHYS_body_id id);
-shared_function PHYS_Body*                   phys_world_resolve_body_unchecked(PHYS_World* w, PHYS_body_id id);
-shared_function PHYS_Body*                   phys_world_resolve_body(PHYS_World* w, PHYS_body_id id);
+shared_function(phys_make_world)
+PHYS_World* phys_make_world(PHYS_WorldSettings settings);
 
-shared_function PHYS_collider_id             phys_world_add_collider(PHYS_World* w, PHYS_Collider c);
-shared_function void                         phys_world_remove_collider(PHYS_World* w, PHYS_collider_id id);
-shared_function PHYS_Collider*               phys_world_resolve_collider_unchecked(PHYS_World* w, PHYS_collider_id id);
-shared_function PHYS_Collider*               phys_world_resolve_collider(PHYS_World* w, PHYS_collider_id id);
 
-shared_function PHYS_constraint_id           phys_world_add_constraint(PHYS_World* w, PHYS_Constraint c);
-shared_function void                         phys_world_remove_constraint(PHYS_World* w, PHYS_constraint_id id);
-shared_function PHYS_Constraint*             phys_world_resolve_constraint_unchecked(PHYS_World* w, PHYS_constraint_id id);
-shared_function PHYS_Constraint*             phys_world_resolve_constraint(PHYS_World* w, PHYS_constraint_id id);
+shared_function(phys_world_cleanup)
+void phys_world_cleanup(PHYS_World* w);
 
-shared_function PHYS_dependent_constraint_id phys_world_add_dependent_constraint(PHYS_World* w, PHYS_DependentConstraint c);
-shared_function void                         phys_world_remove_dependent_constraint(PHYS_World* w, PHYS_dependent_constraint_id id);
-shared_function PHYS_DependentConstraint*    phys_world_resolve_dependent_constraint_unchecked(PHYS_World* w, PHYS_dependent_constraint_id id);
-shared_function PHYS_DependentConstraint*    phys_world_resolve_dependent_constraint(PHYS_World* w, PHYS_dependent_constraint_id id);
+
+shared_function(phys_world_add_body)
+PHYS_body_id phys_world_add_body(PHYS_World* w, PHYS_Body b);
+
+shared_function(phys_world_remove_body)
+void phys_world_remove_body(PHYS_World* w, PHYS_body_id id);
+
+shared_function(phys_world_resolve_body_unchecked)
+PHYS_Body* phys_world_resolve_body_unchecked(PHYS_World* w, PHYS_body_id id);
+
+shared_function(phys_world_resolve_body)
+PHYS_Body* phys_world_resolve_body(PHYS_World* w, PHYS_body_id id);
+
+
+shared_function(phys_world_add_collider)
+PHYS_collider_id phys_world_add_collider(PHYS_World* w, PHYS_Collider c);
+
+shared_function(phys_world_remove_collider)
+void phys_world_remove_collider(PHYS_World* w, PHYS_collider_id id);
+
+shared_function(phys_world_resolve_collider_unchecked)
+PHYS_Collider* phys_world_resolve_collider_unchecked(PHYS_World* w, PHYS_collider_id id);
+
+shared_function(phys_world_resolve_collider)
+PHYS_Collider* phys_world_resolve_collider(PHYS_World* w, PHYS_collider_id id);
+
+
+shared_function(phys_world_add_constraint)
+PHYS_constraint_id phys_world_add_constraint(PHYS_World* w, PHYS_Constraint c);
+
+shared_function(phys_world_remove_constraint)
+void phys_world_remove_constraint(PHYS_World* w, PHYS_constraint_id id);
+
+shared_function(phys_world_resolve_constraint_unchecked)
+PHYS_Constraint* phys_world_resolve_constraint_unchecked(PHYS_World* w, PHYS_constraint_id id);
+
+shared_function(phys_world_resolve_constraint)
+PHYS_Constraint* phys_world_resolve_constraint(PHYS_World* w, PHYS_constraint_id id);
+
+
+shared_function(phys_world_add_dependent_constraint)
+PHYS_dependent_constraint_id phys_world_add_dependent_constraint(PHYS_World* w, PHYS_DependentConstraint c);
+
+shared_function(phys_world_remove_dependent_constraint)
+void phys_world_remove_dependent_constraint(PHYS_World* w, PHYS_dependent_constraint_id id);
+
+shared_function(phys_world_resolve_dependent_constraint_unchecked)
+PHYS_DependentConstraint* phys_world_resolve_dependent_constraint_unchecked(PHYS_World* w, PHYS_dependent_constraint_id id);
+
+shared_function(phys_world_resolve_dependent_constraint)
+PHYS_DependentConstraint* phys_world_resolve_dependent_constraint(PHYS_World* w, PHYS_dependent_constraint_id id);

@@ -61,14 +61,14 @@ internal void demos_controls_camera_orbit(OS_Handle window, f64 dt, DEMOS_Camera
         
             // compute rotation
             vec4_f32 xrot = make_angle_axis_quat(delta.x*-2.f*PI_F32, u);
-            vec4_f32 yrot = make_angle_axis_quat(delta.y*-1.f*PI_F32, s);
+            vec4_f32 yrot = make_angle_axis_quat(delta.y*PI_F32, s);
             d = rot_quat(d, xrot);
             d = rot_quat(d, yrot);
             
             demos_camera_move(camera, add_3f32(d, camera->target));
         } else if (input_right_mouse_held()) {
             vec3_f32 xpan = mul_3f32(s, d_length*delta.x);
-            vec3_f32 ypan = mul_3f32(u,-d_length*delta.y);
+            vec3_f32 ypan = mul_3f32(u, d_length*delta.y);
             vec3_f32 pan = add_3f32(xpan, ypan);
 
             demos_camera_pan(camera, pan);
@@ -99,7 +99,7 @@ internal vec3_f32 demos_controls_get_mouse_ray(DEMOS_Camera* camera, OS_Handle w
 
     vec2_f32 ndc = make_2f32(
         2.0f*mouse_pos.x/window_size.x - 1.0f,
-        2.0f*mouse_pos.y/window_size.y - 1.0f
+        1.0f - 2.0f*mouse_pos.y/window_size.y
     );
     
     vec4_f32 mouse_clip = make_4f32(ndc.x, ndc.y, 0.5f, 1.0f);

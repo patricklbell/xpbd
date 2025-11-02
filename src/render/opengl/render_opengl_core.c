@@ -126,7 +126,7 @@ r_hook void r_init() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-#if BUILD_DEBUG && !OS_WEB
+#if BUILD_DEBUG && !R_OGL_USES_ES
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glDebugMessageCallback(r_ogl_debug_message_callback, 0);
 #endif

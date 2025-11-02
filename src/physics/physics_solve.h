@@ -64,4 +64,5 @@ internal void phys_world_substep(PHYS_World* w, f32 dt);
 // 
 // solve api
 // 
-shared_function void phys_world_step(PHYS_World* w, f32 dt);
+shared_function(phys_world_step)
+void phys_world_step(PHYS_World* w, f32 dt);

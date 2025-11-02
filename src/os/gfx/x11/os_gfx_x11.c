@@ -22,7 +22,7 @@ internal OS_GFX_X11_Window* os_gfx_x11_window_to_gfx_window(Window wndw) {
 internal vec2_f32 os_gfx_x11_transform_mouse(OS_GFX_X11_Window* window, int x, int y) {
     return (vec2_f32){
         .x = (f32)x,
-        .y = window->size.y - (f32)y
+        .y = (f32)y
     };
 }
 

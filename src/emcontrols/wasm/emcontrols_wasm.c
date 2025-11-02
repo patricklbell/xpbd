@@ -44,29 +44,29 @@ internal void emcontrols_notify_update(void) {
         (*emcontrols_js_update_callback)();
     }
 }
-EMSCRIPTEN_KEEPALIVE
+C_LINKAGE EMSCRIPTEN_KEEPALIVE
 void emcontrols_set_update_callback(void (*callback)(void)) {
     emcontrols_js_update_callback = callback;
 }
 
 // general
-EMSCRIPTEN_KEEPALIVE
+C_LINKAGE EMSCRIPTEN_KEEPALIVE
 int emcontrols_get_control_count() {
     return emcontrols_wasm_ctx ? emcontrols_wasm_ctx->count : 0;
 }
-EMSCRIPTEN_KEEPALIVE
+C_LINKAGE EMSCRIPTEN_KEEPALIVE
 const char* emcontrols_get_label(int id) {
     if (!emcontrols_wasm_ctx || id >= emcontrols_wasm_ctx->count) return NULL;
     return emcontrols_wasm_ctx->controls[id].label.cstr;
 }
 
 // button
-EMSCRIPTEN_KEEPALIVE
+C_LINKAGE EMSCRIPTEN_KEEPALIVE
 int emcontrols_is_button(int id) {
     if (!emcontrols_wasm_ctx || id >= emcontrols_wasm_ctx->count) return 0;
     return emcontrols_wasm_ctx->controls[id].type == EMCONTROLS_ControlType_Button;
 }
-EMSCRIPTEN_KEEPALIVE
+C_LINKAGE EMSCRIPTEN_KEEPALIVE
 void emcontrols_trigger_button_press(int id) {
     if (!emcontrols_wasm_ctx || id >= emcontrols_wasm_ctx->count) return;
     
@@ -77,17 +77,17 @@ void emcontrols_trigger_button_press(int id) {
 }
 
 // slider
-EMSCRIPTEN_KEEPALIVE
+C_LINKAGE EMSCRIPTEN_KEEPALIVE
 int emcontrols_is_slider(int id) {
     if (!emcontrols_wasm_ctx || id >= emcontrols_wasm_ctx->count) return 0;
     return emcontrols_wasm_ctx->controls[id].type == EMCONTROLS_ControlType_Slider;
 }
-EMSCRIPTEN_KEEPALIVE
+C_LINKAGE EMSCRIPTEN_KEEPALIVE
 float emcontrols_get_slider_value(int id) {
     if (!emcontrols_wasm_ctx || id >= emcontrols_wasm_ctx->count) return 0.f;
     return emcontrols_wasm_ctx->controls[id].slider_value;
 }
-EMSCRIPTEN_KEEPALIVE
+C_LINKAGE EMSCRIPTEN_KEEPALIVE
 void emcontrols_set_slider_value(int id, float value) {
     if (!emcontrols_wasm_ctx || id >= emcontrols_wasm_ctx->count) return;
     EMCONTROLS_Control* slider = &emcontrols_wasm_ctx->controls[id];
@@ -95,12 +95,12 @@ void emcontrols_set_slider_value(int id, float value) {
     if (slider->on_slider)
         slider->on_slider(slider->slider_value, slider->data);
 }
-EMSCRIPTEN_KEEPALIVE
+C_LINKAGE EMSCRIPTEN_KEEPALIVE
 float emcontrols_get_slider_max(int id) {
     if (!emcontrols_wasm_ctx || id >= emcontrols_wasm_ctx->count) return 0.f;
     return emcontrols_wasm_ctx->controls[id].slider_max;
 }
-EMSCRIPTEN_KEEPALIVE
+C_LINKAGE EMSCRIPTEN_KEEPALIVE
 float emcontrols_get_slider_min(int id) {
     if (!emcontrols_wasm_ctx || id >= emcontrols_wasm_ctx->count) return 0.f;
     return emcontrols_wasm_ctx->controls[id].slider_min;

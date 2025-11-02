@@ -1,4 +1,5 @@
-shared_function PHYS_World* phys_make_world(PHYS_WorldSettings settings) {
+shared_function(phys_make_world)
+PHYS_World* phys_make_world(PHYS_WorldSettings settings) {
     Arena* arena = arena_alloc();
     PHYS_World* w = push_array(arena, PHYS_World, 1);
 
@@ -37,7 +38,8 @@ shared_function PHYS_World* phys_make_world(PHYS_WorldSettings settings) {
     return w;
 }
 
-shared_function void phys_world_cleanup(PHYS_World* w) {
+shared_function(phys_world_cleanup)
+void phys_world_cleanup(PHYS_World* w) {
     phys_pooled_array_release(&w->dependent_constraints);
     phys_pooled_array_release(&w->constraints);
     phys_pooled_array_release(&w->colliders);
@@ -123,7 +125,8 @@ internal void phys_pooled_array_remove(PHYS_PooledArray* pa, PHYS_pooled_array_i
 }
 
 // body api
-shared_function PHYS_body_id phys_world_add_body(PHYS_World* w, PHYS_Body body) {
+shared_function(phys_world_add_body)
+PHYS_body_id phys_world_add_body(PHYS_World* w, PHYS_Body body) {
     // initialise rotation if not set
     if (dot_4f32(body.rotation, body.rotation) < EPSILON_F32) {
         body.rotation = make_identity_quat();
@@ -134,15 +137,18 @@ shared_function PHYS_body_id phys_world_add_body(PHYS_World* w, PHYS_Body body) 
     v[pa_id.idx] = body;
     return (PHYS_body_id){.idx=pa_id.idx, .version=(u32)pa_id.version};
 }
-shared_function void phys_world_remove_body(PHYS_World* w, PHYS_body_id id) {
+shared_function(phys_world_remove_body)
+void phys_world_remove_body(PHYS_World* w, PHYS_body_id id) {
     phys_pooled_array_remove(&w->bodies, (PHYS_pooled_array_id){.idx=id.idx, .version=(s32)id.version});
 }
-shared_function PHYS_Body* phys_world_resolve_body_unchecked(PHYS_World* w, PHYS_body_id id) {
+shared_function(phys_world_resolve_body_unchecked)
+PHYS_Body* phys_world_resolve_body_unchecked(PHYS_World* w, PHYS_body_id id) {
     Assert(id.idx >= 0 && id.idx < w->bodies.length);
     Assert(w->bodies.versions[id.idx] == id.version);
     return &((PHYS_Body*)w->bodies.v)[id.idx];
 }
-shared_function PHYS_Body* phys_world_resolve_body(PHYS_World* w, PHYS_body_id id) {
+shared_function(phys_world_resolve_body)
+PHYS_Body* phys_world_resolve_body(PHYS_World* w, PHYS_body_id id) {
     Assert(id.idx >= 0 && id.idx < w->bodies.length);
     if (w->bodies.versions[id.idx] != id.version) {
         return NULL;
@@ -151,7 +157,8 @@ shared_function PHYS_Body* phys_world_resolve_body(PHYS_World* w, PHYS_body_id i
 }
 
 // collider api
-shared_function PHYS_collider_id phys_world_add_collider(PHYS_World* w, PHYS_Collider collider) {
+shared_function(phys_world_add_collider)
+PHYS_collider_id phys_world_add_collider(PHYS_World* w, PHYS_Collider collider) {
     if (phys_collider_layers_equal(collider.base.layer, PHYS_ColliderLayer_Invalid))
         collider.base.layer = PHYS_ColliderLayer_All; // @todo layer context?
 
@@ -160,15 +167,18 @@ shared_function PHYS_collider_id phys_world_add_collider(PHYS_World* w, PHYS_Col
     v[pa_id.idx] = collider;
     return (PHYS_collider_id){.idx=pa_id.idx, .version=(u32)pa_id.version};
 }
-shared_function void phys_world_remove_collider(PHYS_World* w, PHYS_collider_id id) {
+shared_function(phys_world_remove_collider)
+void phys_world_remove_collider(PHYS_World* w, PHYS_collider_id id) {
     phys_pooled_array_remove(&w->colliders, (PHYS_pooled_array_id){.idx=id.idx, .version=(s32)id.version});
 }
-shared_function PHYS_Collider* phys_world_resolve_collider_unchecked(PHYS_World* w, PHYS_collider_id id) {
+shared_function(phys_world_resolve_collider_unchecked)
+PHYS_Collider* phys_world_resolve_collider_unchecked(PHYS_World* w, PHYS_collider_id id) {
     Assert(id.idx >= 0 && id.idx < w->colliders.length);
     Assert(w->colliders.versions[id.idx] == id.version);
     return &((PHYS_Collider*)w->colliders.v)[id.idx];
 }
-shared_function PHYS_Collider* phys_world_resolve_collider(PHYS_World* w, PHYS_collider_id id) {
+shared_function(phys_world_resolve_collider)
+PHYS_Collider* phys_world_resolve_collider(PHYS_World* w, PHYS_collider_id id) {
     Assert(id.idx >= 0 && id.idx < w->colliders.length);
     if (w->colliders.versions[id.idx] != id.version) {
         return NULL;
@@ -177,21 +187,25 @@ shared_function PHYS_Collider* phys_world_resolve_collider(PHYS_World* w, PHYS_c
 }
 
 // constraint api
-shared_function PHYS_constraint_id phys_world_add_constraint(PHYS_World* w, PHYS_Constraint constraint) {
+shared_function(phys_world_add_constraint)
+PHYS_constraint_id phys_world_add_constraint(PHYS_World* w, PHYS_Constraint constraint) {
     PHYS_pooled_array_id pa_id = phys_pooled_array_add(&w->constraints);
     PHYS_Constraint* v = (PHYS_Constraint*)w->constraints.v;
     v[pa_id.idx] = constraint;
     return (PHYS_constraint_id){.idx=pa_id.idx, .version=(u32)pa_id.version};
 }
-shared_function void phys_world_remove_constraint(PHYS_World* w, PHYS_constraint_id id) {
+shared_function(phys_world_remove_constraint)
+void phys_world_remove_constraint(PHYS_World* w, PHYS_constraint_id id) {
     phys_pooled_array_remove(&w->constraints, (PHYS_pooled_array_id){.idx=id.idx, .version=(s32)id.version});
 }
-shared_function PHYS_Constraint* phys_world_resolve_constraint_unchecked(PHYS_World* w, PHYS_constraint_id id) {
+shared_function(phys_world_resolve_constraint_unchecked)
+PHYS_Constraint* phys_world_resolve_constraint_unchecked(PHYS_World* w, PHYS_constraint_id id) {
     Assert(id.idx >= 0 && id.idx < w->constraints.length);
     Assert(w->constraints.versions[id.idx] == id.version);
     return &((PHYS_Constraint*)w->constraints.v)[id.idx];
 }
-shared_function PHYS_Constraint* phys_world_resolve_constraint(PHYS_World* w, PHYS_constraint_id id) {
+shared_function(phys_world_resolve_constraint)
+PHYS_Constraint* phys_world_resolve_constraint(PHYS_World* w, PHYS_constraint_id id) {
     Assert(id.idx >= 0 && id.idx < w->constraints.length);
     if (w->constraints.versions[id.idx] != id.version) {
         return NULL;
@@ -200,21 +214,25 @@ shared_function PHYS_Constraint* phys_world_resolve_constraint(PHYS_World* w, PH
 }
 
 // dependent constraint api
-shared_function PHYS_dependent_constraint_id phys_world_add_dependent_constraint(PHYS_World* w, PHYS_DependentConstraint dependent_constraint) {
+shared_function(phys_world_add_dependent_constraint)
+PHYS_dependent_constraint_id phys_world_add_dependent_constraint(PHYS_World* w, PHYS_DependentConstraint dependent_constraint) {
     PHYS_pooled_array_id pa_id = phys_pooled_array_add(&w->dependent_constraints);
     PHYS_DependentConstraint* v = (PHYS_DependentConstraint*)w->dependent_constraints.v;
     v[pa_id.idx] = dependent_constraint;
     return (PHYS_dependent_constraint_id){.idx=pa_id.idx, .version=(u32)pa_id.version};
 }
-shared_function void phys_world_remove_dependent_constraint(PHYS_World* w, PHYS_dependent_constraint_id id) {
+shared_function(phys_world_remove_dependent_constraint)
+void phys_world_remove_dependent_constraint(PHYS_World* w, PHYS_dependent_constraint_id id) {
     phys_pooled_array_remove(&w->dependent_constraints, (PHYS_pooled_array_id){.idx=id.idx, .version=(s32)id.version});
 }
-shared_function PHYS_DependentConstraint* phys_world_resolve_dependent_constraint_unchecked(PHYS_World* w, PHYS_dependent_constraint_id id) {
+shared_function(phys_world_resolve_dependent_constraint_unchecked)
+PHYS_DependentConstraint* phys_world_resolve_dependent_constraint_unchecked(PHYS_World* w, PHYS_dependent_constraint_id id) {
     Assert(id.idx >= 0 && id.idx < w->dependent_constraints.length);
     Assert(w->dependent_constraints.versions[id.idx] == id.version);
     return &((PHYS_DependentConstraint*)w->dependent_constraints.v)[id.idx];
 }
-shared_function PHYS_DependentConstraint* phys_world_resolve_dependent_constraint(PHYS_World* w, PHYS_dependent_constraint_id id) {
+shared_function(phys_world_resolve_dependent_constraint)
+PHYS_DependentConstraint* phys_world_resolve_dependent_constraint(PHYS_World* w, PHYS_dependent_constraint_id id) {
     Assert(id.idx >= 0 && id.idx < w->dependent_constraints.length);
     if (w->dependent_constraints.versions[id.idx] != id.version) {
         return NULL;
@@ -231,9 +249,11 @@ internal b32 phys_world_valid_radius(PHYS_World* w, f32 d) {
 }
 
 // layers
-shared_function b32 phys_collider_layers_overlap(PHYS_ColliderLayer l1, PHYS_ColliderLayer l2) {
+shared_function(phys_collider_layers_overlap)
+b32 phys_collider_layers_overlap(PHYS_ColliderLayer l1, PHYS_ColliderLayer l2) {
     return (l1.group&l2.mask) && (l2.group&l1.mask);
 }
-shared_function b32 phys_collider_layers_equal(PHYS_ColliderLayer l1, PHYS_ColliderLayer l2) {
+shared_function(phys_collider_layers_equal)
+b32 phys_collider_layers_equal(PHYS_ColliderLayer l1, PHYS_ColliderLayer l2) {
     return l1.v == l2.v;
 }

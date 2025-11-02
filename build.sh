@@ -2,7 +2,7 @@
 set -e
 
 CC=${CC:-g++}
-CFLAGS="${CFLAGS} -I src -Wno-writable-strings -Wno-write-strings"
+CFLAGS="${CFLAGS} -x c++ -I src -Wno-writable-strings -Wno-write-strings"
 LDFLAGS="${LDFLAGS} -lm"
 LDFLAGS_GFX="-lX11 -lXext"
 
@@ -67,7 +67,7 @@ build_single_file() {
     local main_file="src/demos/${demo_name}/main.c"
 
     # Handle data files
-    if [ "$CC" = "emcc" ]; then
+    if [ "$CC" = "em++" ]; then
         for data_file in "${required_data_files[@]}"; do
             if [ -f "${DATA_DIR}/${data_file}" ]; then
                 embed_args+=" --embed-file ${DATA_DIR}/${data_file}"
@@ -96,11 +96,65 @@ build_all_demos() {
 }
 
 build_libs() {
-    LIB_NAME="lib.so"
-    build_command="${CC} -fPIC -Wl,-soname,${LIB_NAME} -shared ${CFLAGS} src/lib/lib.c ${LDFLAGS} -o ${BUILD_DIR}/${LIB_NAME}"
+    LIBRARY_NAME="libxpbd"
+    if [[ -v emcc ]]; then
+        LIBSFLAGS="src/bindings/embind.cpp -std=c++11 --bind -Xlinker --no-entry -o extra/js/${LIBRARY_NAME}.wasm"
+    elif [[ -v pybind ]]; then
+        LIBRARY_NAME="pyXPBD"
+        LIBSFLAGS="src/bindings/pybind11.cpp -shared -std=c++11 -fPIC $(python3 -m pybind11 --includes) $(python3-config --includes) -o extra/python/${LIBRARY_NAME}$(python3 -m pybind11 --extension-suffix)"
+    else
+        LIBSFLAGS="-fPIC -Wl,-soname,xpbd -shared -o ${BUILD_DIR}/${LIBRARY_NAME}.so"
+    fi
+    build_command="${CC} ${CFLAGS} -DLIBRARY_NAME=${LIBRARY_NAME} src/lib/lib.c ${LIBSFLAGS} ${LDFLAGS}"
     echo "${build_command}"
     eval ${build_command}
 }
+
+# build_weblibs() {
+#     if ! clang --version > /dev/null 2>&1; then
+#         echo "Error: 'weblibs' requires clang"
+#         return 1
+#     fi
+#     clang_version=$(clang --version | grep -oP '^clang version \K[0-9]+')
+#     if [ "$clang_version" -lt 12 ]; then
+#         echo "Error: 'weblibs' requires clang version 12 or higher (found $clang_version)"
+#         return 1
+#     fi
+
+#     wasm_out=${BUILD_DIR}/lib.wasm
+#     build_command=$(cat << EOF | tr -d '\n'
+# clang -target wasm32
+#  -isystemsrc/third_party/emscripten/llvm12+/include
+#  -isystemsrc/third_party/emscripten/llvm12+/include/libc
+#  -isystemsrc/third_party/emscripten/llvm12+/lib/libc/musl/include
+#  -isystemsrc/third_party/emscripten/llvm12+/lib/libc/musl/arch/emscripten
+#  -isystemsrc/third_party/emscripten/llvm12+/lib/libc/musl/arch/generic
+#  -Xlinker src/third_party/emscripten/llvm12+/system.bc
+
+#  -nostartfiles -nodefaultlibs -nostdinc -fno-threadsafe-statics
+#  -DDISABLE_THREADS=1 -D__EMSCRIPTEN__ -D_LIBCPP_ABI_VERSION=2
+
+#  -Xlinker --no-entry
+#  -Xlinker --allow-undefined
+#  -Xlinker --export=__wasm_call_ctors
+ 
+#  ${CFLAGS} src/lib/lib.c
+#  -o ${wasm_out}
+# EOF
+# )
+#     echo "${build_command}"
+#     eval ${build_command}
+
+#     opt_command=$(cat << EOF | tr -d '\n'
+# wasm-opt
+#     --legalize-js-interface --low-memory-unused
+#     -Os
+#     ${wasm_out} -o ${wasm_out}
+# EOF
+# )
+#     echo "${opt_command}"
+#     eval ${opt_command}
+# }
 
 main() {
     # Parse options and filter flags
@@ -111,6 +165,7 @@ main() {
             --trace)     trace=1;;
             --debug)     debug=1;;
             --emcc)      emcc=1;;
+            --pybind)    pybind=1;;
             --help)      print_help; exit 0;;
             *)           actions+=("$arg");;
         esac
@@ -127,7 +182,7 @@ main() {
         CFLAGS="${CFLAGS} -DTRACY_ENABLE src/third_party/tracy/public/TracyClient.cpp"
     fi
     if [[ -v emcc ]]; then
-        CC="emcc"
+        CC=em++
         LDFLAGS="${LDFLAGS} -sINITIAL_MEMORY=1024mb -sALLOW_MEMORY_GROWTH -sTOTAL_STACK=512mb"
         LDFLAGS="${LDFLAGS} -sFETCH"
         LDFLAGS="${LDFLAGS} -sALLOW_TABLE_GROWTH -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','UTF8ToString','addFunction','removeFunction']"

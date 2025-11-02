@@ -1,4 +1,5 @@
-shared_function PHYS_body_id phys_world_add_fixed_point(PHYS_World* w, vec3_f32 position) {
+shared_function(phys_world_add_fixed_point)
+PHYS_body_id phys_world_add_fixed_point(PHYS_World* w, vec3_f32 position) {
     return phys_world_add_body(w, (PHYS_Body){
         .position=position,
         .is_particle=true,
@@ -8,12 +9,14 @@ shared_function PHYS_body_id phys_world_add_fixed_point(PHYS_World* w, vec3_f32 
 }
 
 // rigid bodies
-shared_function void phys_world_remove_rigid_body(PHYS_World* w, PHYS_RigidBody* object) {
+shared_function(phys_world_remove_rigid_body)
+void phys_world_remove_rigid_body(PHYS_World* w, PHYS_RigidBody* object) {
     phys_world_remove_collider(w, object->collider_id);
     phys_world_remove_body(w, object->body_id);
 }
 
-shared_function PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings) {
+shared_function(phys_world_add_ball)
+PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings) {
     Assert(phys_world_valid_radius(w, settings.radius));
 
     PHYS_Body body = {
@@ -49,7 +52,8 @@ shared_function PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Sett
     };
 }
 
-shared_function PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings) {
+shared_function(phys_world_add_box)
+PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings) {
     PHYS_Body body = {
         .position = settings.center,
         .linear_velocity = settings.linear_velocity,
@@ -120,7 +124,8 @@ shared_function PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settin
 }
 
 // box boundary
-shared_function PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Settings settings){
+shared_function(phys_world_add_box_boundary)
+PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Settings settings){
     PHYS_BoxBoundary result;
 
     if (length_4f32(settings.rotation) == 0.f) {
@@ -198,7 +203,8 @@ shared_function PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS
     return result;
 }
 
-shared_function void phys_world_remove_box_boundary(PHYS_World* w, PHYS_BoxBoundary* object){
+shared_function(phys_world_remove_box_boundary)
+void phys_world_remove_box_boundary(PHYS_World* w, PHYS_BoxBoundary* object){
     for EachElement(i, object->polytopes) {
         phys_world_remove_collider(w, object->polytopes[i]);
     }
@@ -209,7 +215,8 @@ shared_function void phys_world_remove_box_boundary(PHYS_World* w, PHYS_BoxBound
 
 // softbody
 // @note all surface points must have an edge or the collider will be MAX_F32
-shared_function PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Settings settings) {
+shared_function(phys_world_add_softbody)
+PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Settings settings) {
     PHYS_Softbody result;
 
     // @todo angular velocity
@@ -340,7 +347,8 @@ shared_function PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTri
     return result;
 }
 
-shared_function void phys_world_remove_softbody(PHYS_World* w, PHYS_Softbody object) {
+shared_function(phys_world_remove_softbody)
+void phys_world_remove_softbody(PHYS_World* w, PHYS_Softbody object) {
     for EachIndexU32(i, object.volume_constraints_count) {
         phys_world_remove_constraint(w, object.volume_constraints[i]);
     }
@@ -399,7 +407,8 @@ internal void phys_world_add_cloth_build_fiber_constraints(PHYS_World* w, PHYS_C
     }
 }
 
-shared_function PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
+shared_function(phys_world_add_cloth)
+PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings) {
     PHYS_Cloth result;
 
     // solve settings
@@ -531,7 +540,8 @@ shared_function PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settin
 
     return result;
 }
-shared_function PHYS_Cloth phys_world_add_sheet(PHYS_World* w, PHYS_Sheet_Settings settings) {
+shared_function(phys_world_add_sheet)
+PHYS_Cloth phys_world_add_sheet(PHYS_World* w, PHYS_Sheet_Settings settings) {
     PHYS_Cloth result;
 
     // solve settings
@@ -627,7 +637,8 @@ shared_function PHYS_Cloth phys_world_add_sheet(PHYS_World* w, PHYS_Sheet_Settin
     return result;
 }
 
-shared_function void phys_world_remove_cloth(PHYS_World* w, PHYS_Cloth object) {
+shared_function(phys_world_remove_cloth)
+void phys_world_remove_cloth(PHYS_World* w, PHYS_Cloth object) {
     for EachIndexU32(i, object.distance_constraints_count) {
         phys_world_remove_constraint(w, object.distance_constraints[i]);
     }

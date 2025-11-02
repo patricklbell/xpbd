@@ -4,7 +4,8 @@
 //      - solve constraints on positions,
 //      - determine linear & angular velocity from delta after constraints 
 //        have been applied.
-shared_function void phys_world_step(PHYS_World* w, f32 dt) {ZoneScoped;
+shared_function(phys_world_step)
+void phys_world_step(PHYS_World* w, f32 dt) {ZoneScoped;
     w->hashgrid_info = NULL;
     w->brute_info = NULL;
     arena_clear(w->step_arena);

@@ -1,4 +1,5 @@
-shared_function PHYS_DBG_ThreadCtx* phys_dbg_d_init(PHYS_DBG_DrawEdgeBatch draw_edge_batch, PHYS_DBG_DrawPointBatch draw_point_batch) {
+shared_function(phys_dbg_d_init)
+PHYS_DBG_ThreadCtx* phys_dbg_d_init(PHYS_DBG_DrawEdgeBatch draw_edge_batch, PHYS_DBG_DrawPointBatch draw_point_batch) {
     Assert(phys_dbg_d_ctx == NULL);
 
     Arena* arena = arena_alloc();
@@ -36,7 +37,8 @@ shared_function PHYS_DBG_ThreadCtx* phys_dbg_d_init(PHYS_DBG_DrawEdgeBatch draw_
     return phys_dbg_d_ctx;
 }
 
-shared_function PHYS_DBG_ThreadCtx* phys_dbg_d_get_ctx() {
+shared_function(phys_dbg_d_get_ctx)
+PHYS_DBG_ThreadCtx* phys_dbg_d_get_ctx() {
     return phys_dbg_d_ctx;
 }
 

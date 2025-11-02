@@ -157,14 +157,35 @@ struct PHYS_Sheet_Settings {
     f32 bend_compliance;
 };
 
-shared_function PHYS_body_id     phys_world_add_fixed_point(PHYS_World* w, vec3_f32 position);
-shared_function void             phys_world_remove_rigid_body(PHYS_World* w, PHYS_RigidBody* object);
-shared_function PHYS_RigidBody   phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings);
-shared_function PHYS_RigidBody   phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings);
-shared_function PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Settings settings);
-shared_function void             phys_world_remove_box_boundary(PHYS_World* w, PHYS_BoxBoundary* object);
-shared_function PHYS_Softbody    phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Settings settings);
-shared_function void             phys_world_remove_softbody(PHYS_World* w, PHYS_Softbody object);
-shared_function PHYS_Cloth       phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings);
-shared_function PHYS_Cloth       phys_world_add_sheet(PHYS_World* w, PHYS_Sheet_Settings settings);
-shared_function void             phys_world_remove_cloth(PHYS_World* w, PHYS_Cloth object);
+shared_function(phys_world_add_fixed_point)
+PHYS_body_id phys_world_add_fixed_point(PHYS_World* w, vec3_f32 position);
+
+shared_function(phys_world_remove_rigid_body)
+void phys_world_remove_rigid_body(PHYS_World* w, PHYS_RigidBody* object);
+
+shared_function(phys_world_add_ball)
+PHYS_RigidBody phys_world_add_ball(PHYS_World* w, PHYS_Ball_Settings settings);
+
+shared_function(phys_world_add_box)
+PHYS_RigidBody phys_world_add_box(PHYS_World* w, PHYS_Box_Settings settings);
+
+shared_function(phys_world_add_box_boundary)
+PHYS_BoxBoundary phys_world_add_box_boundary(PHYS_World* w, PHYS_BoxBoundary_Settings settings);
+
+shared_function(phys_world_remove_box_boundary)
+void phys_world_remove_box_boundary(PHYS_World* w, PHYS_BoxBoundary* object);
+
+shared_function(phys_world_add_softbody)
+PHYS_Softbody phys_world_add_softbody(PHYS_World* w, PHYS_TetTriSoftbody_Settings settings);
+
+shared_function(phys_world_remove_softbody)
+void phys_world_remove_softbody(PHYS_World* w, PHYS_Softbody object);
+
+shared_function(phys_world_add_cloth)
+PHYS_Cloth phys_world_add_cloth(PHYS_World* w, PHYS_Cloth_Settings settings);
+
+shared_function(phys_world_add_sheet)
+PHYS_Cloth phys_world_add_sheet(PHYS_World* w, PHYS_Sheet_Settings settings);
+
+shared_function(phys_world_remove_cloth)
+void phys_world_remove_cloth(PHYS_World* w, PHYS_Cloth object);

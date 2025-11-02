@@ -7,7 +7,7 @@ typedef struct OS_GFX_WASM_State OS_GFX_WASM_State;
 struct OS_GFX_WASM_State {
     vec2_f32 window_size;
     vec2_f32 window_position;
-    int window_pixel_ratio;
+    f32 window_pixel_ratio;
 
     Arena* events_arenas[2];
     int active_events_arena;

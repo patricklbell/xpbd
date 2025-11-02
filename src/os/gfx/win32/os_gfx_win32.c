@@ -30,7 +30,7 @@ LRESULT CALLBACK os_gfx_win32_wnd_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
         case WM_MOUSEMOVE:{
             OS_Event* event = os_gfx_win32_add_event(OS_EventType_MouseMove);
             event->mouse_position.x = (f32)GET_X_LPARAM(lParam);
-            event->mouse_position.y = window->size.y - (f32)GET_Y_LPARAM(lParam);
+            event->mouse_position.y = (f32)GET_Y_LPARAM(lParam);
         }break;
 
         case WM_LBUTTONDOWN:
@@ -43,7 +43,7 @@ LRESULT CALLBACK os_gfx_win32_wnd_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
                 case WM_RBUTTONDOWN: event->key = OS_Key_RightMouseButton; break;
             }
             event->mouse_position.x = (f32)GET_X_LPARAM(lParam);
-            event->mouse_position.y = window->size.y - (f32)GET_Y_LPARAM(lParam);
+            event->mouse_position.y = (f32)GET_Y_LPARAM(lParam);
         }break;
 
         case WM_LBUTTONUP:
@@ -56,13 +56,13 @@ LRESULT CALLBACK os_gfx_win32_wnd_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
                 case WM_RBUTTONUP: event->key = OS_Key_RightMouseButton; break;
             }
             event->mouse_position.x = (f32)GET_X_LPARAM(lParam);
-            event->mouse_position.y = window->size.y - (f32)GET_Y_LPARAM(lParam);
+            event->mouse_position.y = (f32)GET_Y_LPARAM(lParam);
         }break;
 
         case WM_MOUSEWHEEL:{
             OS_Event* event = os_gfx_win32_add_event(OS_EventType_Wheel);
             event->mouse_position.x = (f32)GET_X_LPARAM(lParam);
-            event->mouse_position.y = window->size.y - (f32)GET_Y_LPARAM(lParam);
+            event->mouse_position.y = (f32)GET_Y_LPARAM(lParam);
             event->wheel_delta.x = 0.0f;
             event->wheel_delta.y = (f32)(GET_WHEEL_DELTA_WPARAM(wParam)) / (f32)WHEEL_DELTA;
         }break;

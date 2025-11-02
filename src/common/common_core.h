@@ -143,6 +143,10 @@ typedef double   f64;
 #else
     #error Thread static not defined for this compiler.
 #endif
+#if DISABLE_THREADS
+    #undef thread_static
+    #define thread_static
+#endif
 
 #if COMPILER_MSVC
     # define force_inline __forceinline
@@ -156,11 +160,14 @@ typedef double   f64;
 
 // linkage
 
-#if OS_WINDOWS
-    #define shared_function C_LINKAGE __declspec(dllexport)
+#if OS_WEB && COMPILER_CLANG
+    #define shared_function(name) [[clang::export_name(#name)]]
+#elif OS_WINDOWS
+    #define shared_function(name) C_LINKAGE __declspec(dllexport)
 #else
-    #define shared_function C_LINKAGE
+    #define shared_function(name) C_LINKAGE
 #endif
+
 
 #if LANG_CPP
     #define C_LINKAGE_BEGIN extern "C"{

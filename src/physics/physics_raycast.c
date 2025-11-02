@@ -1,18 +1,21 @@
-shared_function PHYS_HitList phys_make_hit_list(Arena* arena) {
+shared_function(phys_make_hit_list)
+PHYS_HitList phys_make_hit_list(Arena* arena) {
     return (PHYS_HitList){
         .arena = arena,
         .hits = 0,
         .length = 0,
     };
 }
-shared_function void phys_hit_list_add(PHYS_HitList* hl, PHYS_collider_id id, PHYS_HitListData data) {
+shared_function(phys_hit_list_add)
+void phys_hit_list_add(PHYS_HitList* hl, PHYS_collider_id id, PHYS_HitListData data) {
     PHYS_HitListNode* n = push_array(hl->arena, PHYS_HitListNode, 1);
     n->id = id;
     n->data = data;
     stack_push(hl->hits, n);
     hl->length++;
 }
-shared_function PHYS_HitListNode* phys_hit_list_closest(PHYS_HitList* hl) {
+shared_function(phys_hit_list_closest)
+PHYS_HitListNode* phys_hit_list_closest(PHYS_HitList* hl) {
     f32 min_t = MAX_F32;
     PHYS_HitListNode* min_n = NULL;
     for EachList(n, PHYS_HitListNode, hl->hits) {
@@ -24,7 +27,8 @@ shared_function PHYS_HitListNode* phys_hit_list_closest(PHYS_HitList* hl) {
     return min_n;
 }
 
-shared_function void phys_raycast_collider(PHYS_World* w, PHYS_Collider* c, PHYS_collider_id id, vec3_f32 origin, vec3_f32 direction, PHYS_HitList* out_hits) {
+shared_function(phys_raycast_collider)
+void phys_raycast_collider(PHYS_World* w, PHYS_Collider* c, PHYS_collider_id id, vec3_f32 origin, vec3_f32 direction, PHYS_HitList* out_hits) {
     PHYS_Body* body = phys_world_resolve_body_unchecked(w, c->base.p);
 
     PHYS_HitListData data;
@@ -53,7 +57,8 @@ shared_function void phys_raycast_collider(PHYS_World* w, PHYS_Collider* c, PHYS
         }break;
     }
 }
-shared_function void phys_world_raycast(PHYS_World* w, vec3_f32 origin, vec3_f32 direction, PHYS_ColliderLayer layer, PHYS_HitList* out_hits) {
+shared_function(phys_world_raycast)
+void phys_world_raycast(PHYS_World* w, vec3_f32 origin, vec3_f32 direction, PHYS_ColliderLayer layer, PHYS_HitList* out_hits) {
     for PHYS_EachPA(w->colliders) {
         PHYS_EachPADefId(w->colliders, PHYS_Collider, PHYS_collider_id, collider);
 
